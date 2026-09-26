@@ -94,13 +94,14 @@
 .btn-switch-inside .sw-ico { font-size: 1.1em !important; line-height: 1 !important; }
 .btn-switch-inside .sw-txt { font-weight: 800 !important; letter-spacing: -0.01em !important; }
 
-/* ✅ NUEVO: OBTURADOR DENTRO DEL VIEWPORT, ABAJO CENTRO, TAMAÑO PEQUEÑO/moderado.
+/* ✅ OBTURADOR DENTRO DEL VIEWPORT, ABAJO DERECHA (mano diestra operario en tablet TCL).
       Así la cámara GANA ~100px de altura al borrar la antigua barra .ctl. */
 .shut-inside-wrap {
   position: absolute !important;
   bottom: clamp(14px, 2.2dvh, 28px) !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
+  right: clamp(14px, 2.4dvw, 32px) !important;
+  left: auto !important;
+  transform: none !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;

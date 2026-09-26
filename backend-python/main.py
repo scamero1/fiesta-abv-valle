@@ -259,21 +259,19 @@ JPEG_QUALITY = 95
 #   - Borde azul exterior: 0..CANVAS_W / 0..CANVAS_H
 #   - Marco BLANCO INTERNO donde va la persona:
 # ========== COORDENADAS MEDIDAS EXACTAMENTE EN LOS 3 JPG ORIGINALES (esc-cristorey / museosalsa / plazavarela) ==========
-# 3 FOTOS TIENEN EXACTAMENTE LA MISMA ESTRUCTURA (medidas manuales confirmadas):
-#   1. HEADER AZUL CON TÍTULO (CRISTO REY / MUSEO DE LA SALSA / PLAZA VARELA): y=0 → y=82 (¡NUNCA meter persona aquí!).
-#   2. MARCO BLANCO BORDE + ÁREA ÚTIL FOTOGRÁFICA (paisaje con monumento):
-#        x izquierda = 48 (borde izq del marco blanco)
-#        x derecha   = 1872 (borde dcho del marco blanco)
-#        y arriba    = 88 (justo ABAJO del título azul, empieza el paisaje del JPG)
-#        y abajo     = 1014 (justo ARRIBA del borde blanco INFERIOR que hay ANTES de la advertencia)
-#   3. ADVERTENCIA LEGAL PROPIA DEL JPG (fondo blanco, texto negro): y=1022 → y=1080.
-#      ✅ IMPORTANTE: LOS 3 JPG DEL USUARIO YA TRAEN ESTA FRAJA LEGAL DENTRO. NOSOTROS NO LA VOLVEMOS A PINTAR (sería doble = sobreexpuesta).
-FRAME_X1 = 48
-FRAME_Y1 = 88
-FRAME_X2 = 1872
-FRAME_Y2 = 1014
-FRAME_W = FRAME_X2 - FRAME_X1   # 1824 px ancho ÚTIL del área del paisaje donde puede ir la persona.
-FRAME_H = FRAME_Y2 - FRAME_Y1   # 926 px alto ÚTIL (NO incluye título azul NI la legal del propio JPG).
+# ✅ PETICIÓN USUARIO VERBATIM: "la foto final la persona NO puede quedar DENTRO de lo AZUL ni del BLANCO, tiene que estar SÓLO EN LA FOTO (paisaje)".
+# Por lo tanto: FRAME_* = SÓLO Y EXCLUSIVAMENTE EL ÁREA FOTOGRÁFICA DEL PAISAJE (CRISTO REY/MUSEO/PLAZA)
+#   — Quitamos TODO borde AZUL EXTERIOR (48px c/lado)
+#   — Quitamos TODO borde BLANCO INTERNO del recuadro (8px c/lado entre azul y paisaje)
+# Estructura REAL confirmada, de izq→dcha / arriba→abajo:
+#   [AZUL EXT 48px] [BLANCO BORDE 8px] [PAISAJE FOTOGRÁFICO (DONDE VA PERSONA)] [BLANCO BORDE 8px] [AZUL EXT 48px]
+#   [AZUL TÍTULO y0→y82] [BLANCO SUP 8px y82→y90] [PAISAJE y90→y1008] [BLANCO INF 8px y1008→y1016] [AZUL MEDIO y1016→y1022] [LEGAL y1022→y1080]
+FRAME_X1 = 56     # 48 (azul izq) + 8 (blanco izq) → INICIO REAL PAISAJE IZQ
+FRAME_Y1 = 90     # 82 (título azul) + 8 (blanco sup)  → INICIO REAL PAISAJE ARRIBA
+FRAME_X2 = 1864   # 1920 - 48 (azul dcho) - 8 (blanco dcho) → FIN REAL PAISAJE DERECHA
+FRAME_Y2 = 1008   # 1016 (blanco inf termina) - 8 (blanco inf) → FIN REAL PAISAJE ABAJO
+FRAME_W = FRAME_X2 - FRAME_X1   # 1808 px ANCHO ÚTIL — SÓLO PAISAJE, SIN AZULES NI BLANCOS
+FRAME_H = FRAME_Y2 - FRAME_Y1   # 918 px ALTO ÚTIL — SÓLO PAISAJE, SIN TÍTULOS NI LEGALES
 
 # Colores Manual ILV MARCA FIESTA (Pantone)
 AZUL_2728 = (0, 42, 122, 255)
@@ -468,7 +466,7 @@ ESCENARIO_CONFIG = {
         "persona_scale": 0.82,
         "persona_bottom_pct": 0.00,
         "x_offset_pct": 0.0,   # REGLA USUARIO: CENTRAR a la persona horizontalmente (0 = centro marco blanco)
-        "scale_in_frame": 0.70,
+        "scale_in_frame": 0.68,
         "bottom_from_frame_pct": 0.00,
     },
     "feria": {
@@ -479,7 +477,7 @@ ESCENARIO_CONFIG = {
         "persona_scale": 0.82,
         "persona_bottom_pct": 0.00,
         "x_offset_pct": 0.0,   # CENTRADO
-        "scale_in_frame": 0.70,
+        "scale_in_frame": 0.68,
         "bottom_from_frame_pct": 0.00,
     },
     "neon": {
@@ -490,7 +488,7 @@ ESCENARIO_CONFIG = {
         "persona_scale": 0.80,
         "persona_bottom_pct": 0.00,
         "x_offset_pct": 0.0,   # CENTRADO
-        "scale_in_frame": 0.70,
+        "scale_in_frame": 0.68,
         "bottom_from_frame_pct": 0.00,
     },
     # IDs EXISTENTES (compatibilidad con frontend actual)
@@ -502,7 +500,7 @@ ESCENARIO_CONFIG = {
         "persona_scale": 0.80,
         "persona_bottom_pct": 0.00,
         "x_offset_pct": 0.0,   # CENTRADO
-        "scale_in_frame": 0.70,
+        "scale_in_frame": 0.68,
         "bottom_from_frame_pct": 0.00,
     },
     "plaza-varela": {
@@ -513,7 +511,7 @@ ESCENARIO_CONFIG = {
         "persona_scale": 0.82,
         "persona_bottom_pct": 0.00,
         "x_offset_pct": 0.0,   # CENTRADO
-        "scale_in_frame": 0.70,
+        "scale_in_frame": 0.68,
         "bottom_from_frame_pct": 0.00,
     },
     "cristo-rey": {
@@ -524,7 +522,7 @@ ESCENARIO_CONFIG = {
         "persona_scale": 0.82,
         "persona_bottom_pct": 0.00,
         "x_offset_pct": 0.0,   # CENTRADO
-        "scale_in_frame": 0.70,
+        "scale_in_frame": 0.68,
         "bottom_from_frame_pct": 0.00,
     },
 }

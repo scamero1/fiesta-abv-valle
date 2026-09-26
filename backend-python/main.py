@@ -258,12 +258,22 @@ JPEG_QUALITY = 95
 # Medido exactamente desde los JPG originales Cristo Rey / Museo Salsa / Plaza Varela:
 #   - Borde azul exterior: 0..CANVAS_W / 0..CANVAS_H
 #   - Marco BLANCO INTERNO donde va la persona:
-FRAME_X1 = 54     # px desde el borde izquierdo (azul) hasta el blanco empieza
-FRAME_Y1 = 86     # px desde el borde superior (azul, CRISTO REY/MUSEO/PLAZA title) hasta blanco empieza
-FRAME_X2 = 1866   # px desde el izquierdo hasta el fin blanco (empieza azul dcha)
-FRAME_Y2 = 1032   # ✅ NUEVA LINEA BLANCA INFERIOR = justo 1px ARRIBA de donde EMPIEZA la barra legal nuestra (~y=1031). Así bottom_from_frame_pct=0.0 coloca la persona TOCANDO directamente la advertencia, SIN ESPACIO AZUL EN MEDIO.
-FRAME_W = FRAME_X2 - FRAME_X1   # 1812 px ancho útil interno
-FRAME_H = FRAME_Y2 - FRAME_Y1   # 946 px alto útil interno (llega hasta 1px antes barra legal)
+# ========== COORDENADAS MEDIDAS EXACTAMENTE EN LOS 3 JPG ORIGINALES (esc-cristorey / museosalsa / plazavarela) ==========
+# 3 FOTOS TIENEN EXACTAMENTE LA MISMA ESTRUCTURA (medidas manuales confirmadas):
+#   1. HEADER AZUL CON TÍTULO (CRISTO REY / MUSEO DE LA SALSA / PLAZA VARELA): y=0 → y=82 (¡NUNCA meter persona aquí!).
+#   2. MARCO BLANCO BORDE + ÁREA ÚTIL FOTOGRÁFICA (paisaje con monumento):
+#        x izquierda = 48 (borde izq del marco blanco)
+#        x derecha   = 1872 (borde dcho del marco blanco)
+#        y arriba    = 88 (justo ABAJO del título azul, empieza el paisaje del JPG)
+#        y abajo     = 1014 (justo ARRIBA del borde blanco INFERIOR que hay ANTES de la advertencia)
+#   3. ADVERTENCIA LEGAL PROPIA DEL JPG (fondo blanco, texto negro): y=1022 → y=1080.
+#      ✅ IMPORTANTE: LOS 3 JPG DEL USUARIO YA TRAEN ESTA FRAJA LEGAL DENTRO. NOSOTROS NO LA VOLVEMOS A PINTAR (sería doble = sobreexpuesta).
+FRAME_X1 = 48
+FRAME_Y1 = 88
+FRAME_X2 = 1872
+FRAME_Y2 = 1014
+FRAME_W = FRAME_X2 - FRAME_X1   # 1824 px ancho ÚTIL del área del paisaje donde puede ir la persona.
+FRAME_H = FRAME_Y2 - FRAME_Y1   # 926 px alto ÚTIL (NO incluye título azul NI la legal del propio JPG).
 
 # Colores Manual ILV MARCA FIESTA (Pantone)
 AZUL_2728 = (0, 42, 122, 255)
@@ -653,15 +663,24 @@ def compose_full(
     if cfg is None:
         raise HTTPException(status_code=400, detail=f"Escenario '{escenario_id}' no existe. Opciones: sunset, feria, neon, calle-del-sabor, plaza-varela, cristo-rey")
 
-    # ====== CAPA 0: FONDO ESCENARIO ======
+    # ====== CAPA 0: FONDO ESCENARIO — SÓLO USAR EL JPG ORIGINAL DEL USUARIO, SIN NUESTROS COLORES DEGRADADOS ENCIMA.
+    # Usuario ordenó: "no quede sobreexpuesta... empiece desde la foto que se dio no lo de colores".
+    # => Si el JPG del escenario existe: LO USAMOS 1:1 (TAL CUAL), SIN gradient_cover, SIN colores nuestros.
+    # => Gradient COLORES nuestros SÓLO se usa si el JPG NO existe (fallback, fondo custom sin asset, error).
     fondo_pil = load_asset(cfg["backgroundImg"]) if cfg.get("backgroundImg") else None
     if fondo_pil is not None:
-        fondo = cover_resize(fondo_pil, CANVAS_W, CANVAS_H)
+        fw_jpg, fh_jpg = fondo_pil.size
+        # Si el JPG ya está exactamente en 1920x1080 (como los 3 del usuario): usar DIRECTAMENTE, no resize.
+        # Si por algún motivo es otro tamaño, sí cover resize a CANVAS.
+        if fw_jpg == CANVAS_W and fh_jpg == CANVAS_H:
+            fondo = fondo_pil.convert("RGBA")
+        else:
+            fondo = cover_resize(fondo_pil, CANVAS_W, CANVAS_H).convert("RGBA")
     else:
-        fondo = gradient_cover(CANVAS_W, CANVAS_H, cfg["fallback_gradient"][0], cfg["fallback_gradient"][1])
+        fondo = gradient_cover(CANVAS_W, CANVAS_H, cfg["fallback_gradient"][0], cfg["fallback_gradient"][1]).convert("RGBA")
 
     canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (0, 0, 0, 0))
-    canvas.alpha_composite(fondo.convert("RGBA"), (0, 0))
+    canvas.alpha_composite(fondo, (0, 0))
 
     # ====== CAPA 1: PERSONA — (1) CLOSE HOLES morphology interior (camisa agujeritos), (2) FEATHER mínima.
     #          Calculamos posición DENTRO DEL MARCO BLANCO INTERNO (FRAME_X1/X2/Y1/Y2) medido exacto en cada JPG.
@@ -709,13 +728,12 @@ def compose_full(
     y = max(y_min, min(y_max, y))
     canvas.alpha_composite(fitted, (x, y))
 
-    # ====== CAPA 2: BARRA LEGAL BLANCA AL PIE DEL JPG FINAL (SIEMPRE PINTADA) ======
-    # Usuario lo confirma VERBATIM en 2 mensajes:
-    #   "EL EXCESO DE ALCOHOL ES PERJUDICIAL PARA LA SALUD. PROHÍBASE EL EXPENDIO DE BEBIDAS
-    #    EMBRIAGANTES A MENORES DE EDAD. en la foto"
-    # Se pinta a pesar de que los JPG ya la incluyan, para asegurar la ley colombiana 100%
-    # (incluso si alguien usa un fondo custom sin ella). El overlay no daña, se ve igual.
-    canvas = draw_legal_bar_minimal(canvas)
+    # ====== CAPA 2: ADVERTENCIA LEGAL — ✅ LOS 3 JPG ORIGINALES DEL USUARIO YA LA TRAEN DENTRO (y=1022→1080).
+    # Por lo tanto: SÓLO pintamos nuestra barra legal draw_legal_bar_minimal SI Y SÓLO SI NO EXISTÍA EL JPG del escenario
+    # (es decir, se usó el fallback gradient custom sin los assets del usuario). Así NUNCA hay DOBLE legal = sobreexpuesta.
+    if fondo_pil is None:
+        # Fallback custom sin JPG original → sí pintar la legal nuestra.
+        canvas = draw_legal_bar_minimal(canvas)
 
     return canvas
 

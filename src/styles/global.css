@@ -653,33 +653,38 @@ img {
 /* Tablets medianas landscape (1200..1399w) — TCL 1280×800 destino + iPad Air 13" */
 @media (orientation: landscape) and (min-width: 1200px) and (max-width: 1399px) and (min-height: 700px) {
   :root {
-    --screen-pad-x: 36px;
-    --screen-pad-y: 8px;
-    --bt-side-h: 220px;
-    --bt-mid-h: 260px;
-    --bt-w: 76px;
-    --header-h: 56px;
-    --legal-h: 38px;
-    --step-seg-w: 30px;
-    --fs-h1: clamp(1.95rem, 3.1svw, 2.35rem);
-    --fs-h2: clamp(1.4rem, 2.2svw, 1.6rem);
-    --fs-body: 0.975rem;
-    --fs-btn: 1.22rem;
-    --legal-text-size: 0.79rem;
-    --cta-h: 58px;
-    --circle-num: 46px;
-    --ok-circle: 86px;
-    --shut-size: 76px;
-    --qr-size: 290px;
+    --screen-pad-x: 32px;
+    --screen-pad-y: 4px;
+    --bt-side-h: 310px;
+    --bt-mid-h: 370px;
+    --bt-w: 96px;
+    --header-h: 48px;
+    --legal-h: 36px;
+    --step-seg-w: 36px;
+    --step-seg-h: 10px;
+    --fs-h1: 3rem;
+    --fs-h2: 1.9rem;
+    --fs-body: 1rem;
+    --fs-btn: 1.4rem;
+    --legal-text-size: 0.8125rem;
+    --cta-h: 72px;
+    --circle-num: 58px;
+    --ok-circle: 96px;
+    --shut-size: 96px;
+    --qr-size: 320px;
   }
   html, body { height: 100svh; max-height: 100svh; }
   .app-container, .screen { height: 100svh; max-height: 100svh; }
-  .screen-header { padding: 0 36px; height: 56px; }
-  .screen-content { padding: 8px 36px 0 36px; gap: 8px; }
-  .bt-img-pura.side { width: 70px; height: 220px; }
-  .bt-img-pura.mid  { width: 78px; height: 260px; }
-  .btn-primario, .btn-cta-red { padding: 14px 38px; }
-  .esc { gap: 18px; }
+  .screen-header { padding: 0 32px; height: 48px; min-height: 48px; }
+  .screen-content { padding: 4px 32px 0 32px; gap: 4px; padding-bottom: calc(var(--legal-h) + 16px); }
+  .stepper-seg { width: 36px; }
+  .bt-img-pura.side { width: 90px; height: 310px; }
+  .bt-img-pura.mid  { width: 96px; height: 370px; }
+  .btn-primario, .btn-cta-red { padding: 18px 44px; font-size: 1.38rem; }
+  .btn-iniciar { min-width: 520px; }
+  .esc { gap: 22px; }
+  .op { min-height: 92px; padding: 12px; gap: 16px; }
+  .op .sw { width: 108px; }
 }
 
 /* Tablets grandes / Laptop landscape (1400..1600w) — Surface 1500×1000, Laptop 15.6" */

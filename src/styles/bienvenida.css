@@ -114,14 +114,28 @@
 .btn-iniciar { min-width: min(420px, 68dvw); }
 
 /* Landscape prototipo 1280×800 — acomodar stack */
-@media (orientation: landscape) and (min-height: 720px) and (max-height: 860px) {
-  .hero { gap: 8px; }
-  .hero-logo { height: clamp(42px, 6.2dvh, 56px) !important; }
-  .trip { gap: 24px; margin: 2px 0 4px; padding-top: 4px; }
-  @keyframes floaty {
-    0%,100% { transform: translateY(0) rotate(-0.3deg); }
-    50% { transform: translateY(-10px) rotate(0.3deg); }
+@media (orientation: landscape) and (min-height: 720px) and (max-height: 860px) and (min-width: 1200px) and (max-width: 1399px) {
+  .bienvenida-content { gap: 0; padding-top: 2px; }
+  .hero { gap: 0; align-items: center; justify-content: space-between; }
+  .hero-logo-wrap { padding-top: 2px; }
+  .hero-logo { height: 64px !important; max-width: 520px !important; object-fit: contain; }
+  .slogan-wrap { padding: 0; margin: 0; }
+  .slogan-wrap h1 {
+    font-size: clamp(4.4rem, 8.8svw, 6.2rem) !important;
+    font-weight: 900 !important;
+    letter-spacing: -0.03em;
+    line-height: 0.95;
+    margin: 0;
   }
+  .trip { gap: 48px; margin: 0; padding-top: 0; flex-wrap: nowrap; align-items: flex-end; justify-content: center; }
+  .bt-img-pura.side { width: 90px; height: 310px; flex: 0 0 auto; }
+  .bt-img-pura.mid  { width: 96px; height: 370px; flex: 0 0 auto; z-index: 2; }
+  @keyframes floaty {
+    0%,100% { transform: translateY(0) rotate(-0.4deg); }
+    50% { transform: translateY(-18px) rotate(0.4deg); }
+  }
+  .hero-cta-wrap { margin-top: 0; padding-bottom: 0; }
+  .btn-iniciar { min-width: 540px !important; min-height: 74px !important; font-size: 1.6rem !important; padding: 18px 48px !important; }
 }
 
 /* Portrait TCL 800x1280 */

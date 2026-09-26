@@ -1,1 +1,2 @@
-web: uvicorn main:app --host 0.0.0.0 --port $PORT
+# Procfile Railway Nixpacks: usa venv /opt/venv creado por nixpacks.toml phase install
+web: export PATH=/opt/venv/bin:$PATH && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --timeout-keep-alive 900 --timeout-graceful-shutdown 300

@@ -1,11 +1,23 @@
 [phases.setup]
-nixPkgs = ["python312", "python312Packages.pip"]
+nixPkgs = ["python312", "python312Packages.pip", "python312Packages.venv"]
 
 [phases.install]
-cmds = ["pip install --no-cache-dir -r requirements.txt"]
+# PEP 668 FIX Railway Nixpacks 2025 Ubuntu 24.04: NO usamos pip --user ni --break-system-packages.
+# Creamos venv en /opt/venv y TODAS las librerías (pip install + uvicorn) van ahí.
+# + FORZAMOS usar index simple PyPI oficial (no index-url raro), ONNXRUNTIME falla en Railway con PyPI mirror default.
+cmds = [
+  "python3 -m venv /opt/venv",
+  "export PATH=/opt/venv/bin:$PATH",
+  "which python && python --version",
+  "python -m pip install --upgrade pip setuptools wheel",
+  "pip install --no-cache-dir --index-url https://pypi.org/simple/ --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt"
+]
 
 [phases.build]
 cmds = []
 
 [start]
-cmd = "uvicorn main:app --host 0.0.0.0 --port $PORT"
+# Arrancar uvicorn DESDE EL VENV /opt/venv/bin.
+# workers 1: ONNXRuntime no soporta multiworker en Railway Free/Pro tier 1 CPU.
+# timeout-keep-alive 900 = 15min: primera inferencia U2Net + cargar modelo ~60-90s cold start Railway Pro.
+cmd = "export PATH=/opt/venv/bin:$PATH && which uvicorn && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --timeout-keep-alive 900 --timeout-graceful-shutdown 300"

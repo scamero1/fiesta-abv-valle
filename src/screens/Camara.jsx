@@ -171,12 +171,22 @@ export default function Camara() {
         <div className="camara-body">
           <div className="camwrap">
             <div className="vp viewport-marco foto-preview-frame">
-              {/* Usuario eliminó pastilla azul ¡Sonríe! que estaba aquí → NO VOLVER A PONERLA. */}
-              <div className="hint camara-hint" id="camara-hint" style={{ display: 'none' }}>
-                {preview ? '¿Te gusta cómo quedó?' : 'Ubícate en el centro de la cruz'}
-              </div>
+              {/* Usuario: NO pastilla azul ¡Sonríe!. NO texto hint colócate. */}
 
               <div className="sil" aria-hidden></div>
+
+              {/* BOTÓN CAMBIAR CÁMARA → DENTRO DEL VIEWPORT, arriba izquierda, CORTO + PEQUEÑO */}
+              {!preview && !errorCam && (
+                <button
+                  type="button"
+                  className="btn-switch-inside"
+                  onClick={handleCambiarCamara}
+                  aria-label="Cambiar cámara"
+                >
+                  <span className="sw-ico" aria-hidden>🔄</span>
+                  <span className="sw-txt">Cambiar</span>
+                </button>
+              )}
 
               {!preview ? (
                 <Webcam
@@ -202,6 +212,30 @@ export default function Camara() {
 
               <div className={`fl flash-overlay ${flash ? 'on' : ''}`}></div>
 
+              {/* BOTÓN OBTURADOR (TOMAR FOTO) → DENTRO DEL VIEWPORT, ABAJO CENTRO, tamaño mediano */}
+              {!preview && !errorCam && (
+                <div className="shut-inside-wrap" aria-hidden={false}>
+                  <button
+                    className={`shut shut-inside ${capturando ? 'capturando' : ''}`}
+                    onClick={handleCapturar}
+                    disabled={capturando || !!errorCam}
+                    aria-label="Sacar foto"
+                  ></button>
+                </div>
+              )}
+
+              {/* BOTONES REPETIR / USAR FOTO → DENTRO DEL VIEWPORT, ABAJO CENTRO (modo preview) */}
+              {preview && (
+                <div className="preview-actions-inside" role="group" aria-label="Acciones preview">
+                  <button type="button" className="btn-preview-inside btn-ghost gh" onClick={handleRepetir}>
+                    Repetir
+                  </button>
+                  <button type="button" className="btn-preview-inside btn-cta-red cta" onClick={handleAceptar} autoFocus>
+                    USAR FOTO
+                  </button>
+                </div>
+              )}
+
               {errorCam && !preview && (
                 <div className="camara-error error-box">
                   <span className="error-icono">⚠️</span>
@@ -216,36 +250,9 @@ export default function Camara() {
           </div>
         </div>
 
-        <div className={`ctl ${preview ? 'ctl-preview' : 'ctl-capture'}`}>
-          {!preview ? (
-            <>
-              <button className="btn-lateral btn-ghost gh" onClick={handleCambiarCamara} style={{ fontSize: 16, padding: '10px 20px' }}>
-                🔄 Cambiar
-              </button>
-
-              <button
-                className={`shut ${capturando ? 'capturando' : ''}`}
-                onClick={handleCapturar}
-                disabled={capturando || !!errorCam}
-                aria-label="Sacar foto"
-              ></button>
-
-              <div className="camara-status" aria-hidden>
-                <span className="status-dot" />
-                Colócate en el centro
-              </div>
-            </>
-          ) : (
-            <>
-              <button className="btn-secundario btn-ghost gh" onClick={handleRepetir}>
-                Repetir
-              </button>
-              <button className="btn-primario btn-cta-red cta" onClick={handleAceptar} autoFocus>
-                USAR FOTO
-              </button>
-            </>
-          )}
-        </div>
+        {/* ANTIGUA BARRA CONTROLES (ctl) 104px → TOTALMENTE ELIMINADA para maximizar altura cámara en TCL/pc.
+            Todos los botones están AHORA DENTRO DEL VIEWPORT. */}
+        <div className={`ctl ${preview ? 'ctl-preview' : 'ctl-capture'}`} style={{ display: 'none', height: 0, minHeight: 0, flex: 0 }} aria-hidden="true"></div>
       </div>
 
       <LegalDisclaimer variant="footer-sticky" />

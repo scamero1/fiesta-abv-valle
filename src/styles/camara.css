@@ -60,6 +60,111 @@
 /* BLOQUEO TOTAL: pastilla azul ¡Sonríe! de DENTRO del viewport NUNCA MÁS aparece. */
 .camara-sonrie { display: none !important; visibility: hidden !important; opacity: 0 !important; }
 
+/* ✅ NUEVO: BOTÓN CAMBIAR CÁMARA DENTRO DEL VIEWPORT, ARRIBA IZQUIERDA, CORTO Y PEQUEÑO.
+      Para ahorrar el 100% del espacio de la antigua barra (.ctl) y agrandar cámara. */
+.btn-switch-inside {
+  position: absolute !important;
+  top: clamp(10px, 1.4dvh, 16px) !important;
+  left: clamp(10px, 1.2dvw, 16px) !important;
+  z-index: 6 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  padding: clamp(6px, 0.9dvh, 10px) clamp(12px, 1.4dvw, 18px) !important;
+  font-family: var(--font-ui) !important;
+  font-weight: 700 !important;
+  font-size: clamp(11px, 1.4dvw, 14px) !important;
+  line-height: 1 !important;
+  color: #fff !important;
+  background: rgba(0, 42, 122, 0.62) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.75) !important;
+  border-radius: 9999px !important;
+  backdrop-filter: none !important;
+  filter: none !important;
+  box-shadow: 0 8px 18px -8px rgba(0, 0, 0, 0.8) !important;
+  cursor: pointer !important;
+  -webkit-tap-highlight-color: transparent !important;
+  touch-action: manipulation !important;
+  white-space: nowrap !important;
+  min-height: 0 !important;
+  transition: transform .12s var(--ease), background .15s !important;
+}
+.btn-switch-inside:active { transform: scale(.94) !important; }
+.btn-switch-inside .sw-ico { font-size: 1.1em !important; line-height: 1 !important; }
+.btn-switch-inside .sw-txt { font-weight: 800 !important; letter-spacing: -0.01em !important; }
+
+/* ✅ NUEVO: OBTURADOR DENTRO DEL VIEWPORT, ABAJO CENTRO, TAMAÑO PEQUEÑO/moderado.
+      Así la cámara GANA ~100px de altura al borrar la antigua barra .ctl. */
+.shut-inside-wrap {
+  position: absolute !important;
+  bottom: clamp(14px, 2.2dvh, 28px) !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 6 !important;
+  pointer-events: none !important;
+  width: auto !important;
+  height: auto !important;
+}
+.shut-inside {
+  --shut-size: clamp(64px, 10dvh, 84px) !important;
+  pointer-events: auto !important;
+}
+
+/* ✅ NUEVO: ACCIONES PREVIEW (Repetir / USAR FOTO) DENTRO DEL VIEWPORT, ABAJO CENTRO. */
+.preview-actions-inside {
+  position: absolute !important;
+  bottom: clamp(14px, 2.4dvh, 30px) !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: clamp(10px, 1.6dvw, 22px) !important;
+  z-index: 6 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+.preview-actions-inside .btn-preview-inside {
+  padding: clamp(10px, 1.4dvh, 16px) clamp(20px, 2.6dvw, 40px) !important;
+  min-height: 0 !important;
+  height: auto !important;
+  font-size: clamp(13px, 1.55dvw, 16px) !important;
+  font-weight: 800 !important;
+  border-radius: 9999px !important;
+  white-space: nowrap !important;
+  box-shadow: 0 14px 28px -12px rgba(0,0,0,0.8) !important;
+  backdrop-filter: none !important;
+  filter: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  touch-action: manipulation !important;
+}
+
+/* ANTIGUA BARRA DE CONTROLES (.ctl) 104px ALTURA → 0. LA CÁMARA GANA ESTE ESPACIO. */
+.ctl {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  flex: 0 0 0px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  gap: 0 !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+/* ANTIGUOS ELEMENTOS DENTRO DE .ctl → NUNCA MÁS APARECEN. */
+.btn-lateral,
+.camara-status,
+.status-dot { display: none !important; visibility: hidden !important; opacity: 0 !important; }
+
+/* ELIMINAR COMPLETAMENTE hint "Colócate en el centro" y cualquier hint de cámara. */
+.hint,
+.camara-hint { display: none !important; visibility: hidden !important; opacity: 0 !important; }
+
 .camara-titulo {
   display: flex;
   flex-direction: column;

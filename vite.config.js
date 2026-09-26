@@ -42,8 +42,22 @@ export default defineConfig({
         ]
       },
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         runtimeCaching: [
+          {
+            urlPattern: ({ url, request }) =>
+              request.destination === 'document' ||
+              url.pathname === '/' ||
+              url.pathname.endsWith('/index.html'),
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'abv-spa-html',
+              networkTimeoutSeconds: 4,
+              cacheableResponse: { statuses: [0, 200] }
+            }
+          },
           {
             urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|avif|ico)$/i,
             handler: 'CacheFirst',
@@ -73,8 +87,9 @@ export default defineConfig({
             }
           }
         ],
-        globPatterns: ['**/*.{js,css,html,png,jpg,jpeg,svg,ico,woff2}'],
-        globIgnores: ['**/node_modules/**/*', '**/*.map']
+        navigateFallback: '/index.html',
+        globPatterns: ['**/*.{js,css,png,jpg,jpeg,svg,ico,woff2}'],
+        globIgnores: ['**/index.html', '**/node_modules/**/*', '**/*.map']
       },
       devOptions: {
         enabled: false

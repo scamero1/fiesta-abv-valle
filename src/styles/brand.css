@@ -1,3 +1,6 @@
+/* ============================================================
+   LEGAL DISCLAIMER (PROTOTIPO: franja negra 44px alto, 13px 600, centrado, nunca bloquea botones)
+   ============================================================ */
 .legal-disclaimer {
   width: 100%;
   display: flex;
@@ -6,263 +9,223 @@
   font-family: var(--font-legal);
   line-height: 1.4;
   letter-spacing: 0.01em;
-  z-index: 50;
+  z-index: var(--z-legal, 500);
+  flex: 0 0 auto;
 }
 
-.legal-footer {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 6px var(--pad-screen-x) 8px;
-  background: linear-gradient(180deg, rgba(0,42,122,0) 0%, rgba(0,71,186,0.98) 50%, #002a7a 100%);
-}
-
+.legal-footer,
 .legal-disclaimer.legal-footer.legal-stripe-black {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
   width: 100%;
-  min-height: 40px;
-  background-color: #000000 !important;
-  padding: 10px var(--pad-screen-x);
+  min-height: var(--legal-h, 44px);
+  height: var(--legal-h, 44px);
+  background: #000000 !important;
+  padding: 0 24px;
+  margin: 0;
   z-index: var(--z-legal, 500);
+  flex: 0 0 auto;
 }
 
-.legal-inner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  max-width: 1400px;
-  padding: 6px 14px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.98);
-  border: 1px solid rgba(0,71,186,0.15);
-  box-shadow: 0 4px 14px -4px rgba(0,0,0,0.15);
-}
-
+.legal-inner,
 .legal-inner.legal-inner-black {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
   background: transparent;
   border: 0;
   box-shadow: none;
   padding: 0;
-  max-width: 100%;
-}
-
-.legal-inner.legal-inner-black .legal-text {
-  color: #FFFFFF;
-  font-size: var(--fs-legal, 0.8125rem);
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.legal-inner.legal-inner-black .legal-icon {
-  background: var(--color-rojo-acento, #E4002B);
-  color: #FFF;
-  border-radius: 50%;
-}
-
-.legal-icon {
-  display: inline-flex;
+  margin: 0;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  flex: 0 0 22px;
-  background: var(--color-rojo-acento);
-  color: #fff;
-  border-radius: 50%;
-  font-weight: 900;
-  font-size: 0.7rem;
-  box-shadow: 0 2px 8px -2px rgba(228,0,43,0.55);
+  text-align: center;
+  gap: 0;
+  border-radius: 0;
 }
 
+.legal-icon,
 .legal-icon-dark {
-  background: #000;
-  box-shadow: 0 2px 8px -2px rgba(0,0,0,0.55);
+  display: none !important;
 }
 
-.legal-text {
-  color: var(--color-negro);
-  font-size: var(--legal-text-size);
+.legal-text,
+.legal-inner.legal-inner-black .legal-text {
+  color: #FFFFFF;
+  font-size: var(--legal-text-size, 0.8125rem);
   font-weight: 600;
   text-align: center;
-  text-transform: uppercase;
+  width: 100%;
+  line-height: 1.3;
+  text-transform: none;
+  padding: 0;
+  margin: 0;
+  white-space: normal;
 }
 
-.legal-text-dark {
-  color: #000;
-}
+.legal-text-dark { color: #000; }
+.legal-inline { display: none; }
+.legal-dark-bg { background: #000; }
+.legal-light-bg { background: #fff; }
 
-.legal-inline {
-  padding: 8px 12px;
-  border-radius: var(--radius-full);
-  gap: 10px;
-}
-
-.legal-dark-bg {
-  background: rgba(255,255,255,0.08);
-  backdrop-filter: blur(10px);
-}
-
-.legal-light-bg {
-  background: #fff;
-  border: 1px solid rgba(0,71,186,0.2);
-}
-
-/* ============ SLOGAN VA CON TODO ============ */
+/* ============================================================
+   SLOGAN ¡VA CON TODO! — -1.2deg, TODO rojo sobre pastilla blanca
+   (prototipo: font 84px, em con background blanco padding 0 18, radius 12)
+   ============================================================ */
 .slogan-vacontodo {
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   font-family: var(--font-display);
   font-weight: 900;
   letter-spacing: -0.02em;
-  line-height: 0.95;
-  position: relative;
+  line-height: 1;
   transform: rotate(-1.2deg);
+  gap: 0.12em;
+  font-size: clamp(2.4rem, 9.6dvw, 5.25rem);
 }
 
 .slogan-vacontodo::before,
-.slogan-vacontodo::after {
-  content: '';
-  position: absolute;
-  inset: -10px -18px;
-  border-radius: 18px;
-  pointer-events: none;
-}
-
-.slogan-vacontodo::before {
-  background: linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0));
-  filter: blur(16px);
-  z-index: -1;
-}
+.slogan-vacontodo::after { display: none; }
 
 .svt-prefix {
   color: #ffffff;
-  text-shadow:
-    0 2px 0 rgba(0,42,122,0.9),
-    0 6px 24px rgba(0,42,122,0.5);
 }
 
 .svt-sufix-pastilla {
   display: inline-flex;
   align-items: center;
-  padding: 4px 14px;
+  padding: 0 clamp(8px, 1.6dvw, 18px);
   background-color: #FFFFFF;
   border-radius: 12px;
-  box-shadow: 0 4px 14px rgba(255, 255, 255, 0.22);
+  box-shadow: none;
   margin-left: 4px;
   line-height: 1;
 }
 
 .slogan-vacontodo .svt-sufix-pastilla .svt-sufix {
   color: #E4002B;
+  -webkit-text-stroke: 0;
   text-shadow: none;
-  -webkit-text-stroke: 0.6px rgba(228, 0, 43, 0.1);
+  padding: 0;
 }
 
 .svt-sufix {
   color: var(--color-rojo-acento);
   padding-left: 2px;
-  text-shadow:
-    0 2px 0 rgba(177,0,31,0.9),
-    0 8px 32px rgba(228,0,43,0.55);
-  -webkit-text-stroke: 1px rgba(255,255,255,0.18);
+  text-shadow: none;
+  -webkit-text-stroke: 0;
 }
 
-.slogan-sm { font-size: clamp(1.2rem, 3.2vw, 2.6rem); }
-.slogan-md { font-size: clamp(1.8rem, 5.2vw, 4.6rem); }
-.slogan-lg { font-size: clamp(2.4rem, 7vw, 6.4rem); }
+.slogan-sm { font-size: clamp(1.2rem, 3.6dvw, 2.2rem); }
+.slogan-md { font-size: clamp(1.8rem, 5.6dvw, 4rem); }
+.slogan-lg { font-size: clamp(2.4rem, 9.6dvw, 5.25rem); }
 
-/* ============ STEPPER WRAPPER ============ */
+/* ============================================================
+   HEADER LOGO STACK — PROTOTIPO: mark + marca a la izquierda
+   ============================================================ */
 .stepper-wrapper {
-  width: 100%;
-  display: block;
-  margin: 0 auto;
-  max-width: 820px;
+  width: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  max-width: clamp(200px, 30dvw, 320px);
+  min-width: min-content;
 }
 
-/* ============ LOGO HEADER STACK (logo ABV Fiesta + ILV) ============ */
 .logo-header-stack {
   display: flex;
   align-items: center;
-  gap: clamp(10px, 1.6vw, 22px);
+  gap: clamp(10px, 1.6dvw, 22px);
   flex-wrap: wrap;
+  min-width: 0;
 }
+
+.mark {
+  font-weight: 800;
+  font-size: clamp(14px, 1.8dvw, 20px);
+  letter-spacing: .02em;
+  color: var(--tx);
+  font-family: var(--font-display);
+  line-height: 1;
+}
+.mark b { color: var(--oro); }
 
 .logo-fiesta-main {
-  height: clamp(38px, 5.4vw, 68px);
+  height: clamp(38px, 5.4dvw, 56px);
   width: auto;
-  max-width: min(340px, 40vw);
+  max-width: min(340px, 40dvw);
   object-fit: contain;
-  filter: drop-shadow(0 6px 20px rgba(0,0,0,0.35));
+  filter: none;
 }
 
-.logo-ilv-pill {
-  display: inline-flex;
+.logo-ilv-pill { display: none; }
+.ilv-letters { display: none; }
+.ilv-text { display: none; }
+
+/* ============================================================
+   STEPPER PANTALLAS 2-5 (REGLAS 2)
+   ============================================================ */
+.StepperPaso {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
   align-items: center;
-  gap: 10px;
-  padding: clamp(4px, 0.8vh, 7px) clamp(10px, 1.4vw, 16px);
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.22);
-  border-radius: var(--radius-full);
-  box-shadow: var(--shadow-soft);
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
-.ilv-letters {
-  font-family: var(--font-display);
-  font-weight: 900;
-  color: var(--color-dorado);
-  font-size: clamp(0.62rem, 0.95vw, 0.9rem);
-  letter-spacing: 0.25em;
-  line-height: 1;
-}
-
-.ilv-text {
-  font-family: var(--font-ui);
-  font-size: clamp(0.52rem, 0.7vw, 0.72rem);
-  letter-spacing: 0.06em;
-  color: rgba(255,255,255,0.82);
-  text-transform: uppercase;
-  line-height: 1;
+.StepperPaso .stepper-label {
+  font-size: clamp(14px, 1.7dvw, 18px);
+  font-weight: 700;
+  color: var(--tx);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: min(240px, 28vw);
+  margin-right: 6px;
 }
 
-/* ============ BOTONES CTA (PANTONE 185C) ============ */
+.StepperPaso .stepper-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.StepperPaso .stepper-seg {
+  width: clamp(24px, 4.4dvw, 44px);
+  max-width: 44px;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.15);
+}
+
+.StepperPaso .stepper-seg.d { background: var(--ok); }
+.StepperPaso .stepper-seg.c { background: var(--oro); }
+
 .btn-cta-red {
-  background: linear-gradient(180deg, #ff2049 0%, var(--color-rojo-acento) 45%, var(--color-rojo-sombra) 100%) !important;
+  background: linear-gradient(180deg, var(--color-rojo-highlight, #f5133f), var(--rojo, #E4002B)) !important;
   color: #fff !important;
-  border: 1.8px solid rgba(255,255,255,0.35) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.35),
-    0 14px 44px -12px rgba(228,0,43,0.72),
-    0 2px 0 rgba(0,0,0,0.35) !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 6px 0 var(--color-rojo-sombra, #97001d) !important;
 }
 
-.btn-cta-red:hover {
-  transform: translateY(-2px) scale(1.01);
-  filter: brightness(1.05);
+.btn-cta-red:active {
+  transform: translateY(4px) !important;
+  box-shadow: 0 2px 0 var(--color-rojo-sombra, #97001d) !important;
 }
 
-/* ============ FONDOS AZUL PANTONE 2728C ============ */
-.bg-pantone-2728 {
-  background:
-    radial-gradient(1200px 700px at 12% 8%, rgba(255,255,255,0.16) 0%, transparent 60%),
-    radial-gradient(900px 600px at 90% 18%, rgba(212, 160, 23, 0.22) 0%, transparent 55%),
-    radial-gradient(900px 900px at 50% 105%, rgba(228, 0, 43, 0.22) 0%, transparent 60%),
-    linear-gradient(180deg, #002a7a 0%, #0047BA 35%, #003590 70%, #002a7a 100%);
+.btn-cta-red[disabled] {
+  background: rgba(255,255,255,0.15) !important;
+  box-shadow: none !important;
+  color: rgba(255,255,255,0.62) !important;
+  transform: none !important;
 }
 
-.bg-pantone-2728::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200' opacity='0.05'><circle cx='100' cy='100' r='82' fill='none' stroke='%23ffffff' stroke-width='0.6'/><circle cx='100' cy='100' r='56' fill='none' stroke='%23ffffff' stroke-width='0.35'/></svg>");
-  background-size: 440px 440px;
-  pointer-events: none;
-  z-index: 0;
+/* Fallbacks de colores background prototipo */
+.bg-pantone-2728,
+.camara-bg-dark {
+  background: linear-gradient(165deg, var(--azul2) -30%, var(--azul) 55%) !important;
 }

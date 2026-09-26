@@ -441,9 +441,9 @@ ESCENARIO_CONFIG = {
     },
     # IDs EXISTENTES (compatibilidad con frontend actual)
     "calle-del-sabor": {
-        "nombre": "Calle del Sabor",
+        "nombre": "Museo de la Salsa",
         "botellaImg": "botella-fiesta-azul.png",
-        "backgroundImg": "esc-cristorey.jpg",
+        "backgroundImg": "esc-museosalsa.jpg",
         "fallback_gradient": ((249, 115, 22), (180, 83, 9)),
         "persona_scale": 0.82,
         "persona_bottom_pct": 0.09,
@@ -451,7 +451,7 @@ ESCENARIO_CONFIG = {
     "plaza-varela": {
         "nombre": "Plaza Varela",
         "botellaImg": "botella-night.png",
-        "backgroundImg": "esc-cristorey.jpg",
+        "backgroundImg": "esc-plazavarela.jpg",
         "fallback_gradient": ((124, 58, 237), (76, 29, 149)),
         "persona_scale": 0.82,
         "persona_bottom_pct": 0.09,
@@ -613,10 +613,10 @@ def compose_full(
     y = max(int(CANVAS_H * 0.06), y)
     canvas.alpha_composite(fitted, (x, y))
 
-    # ====== CAPA 2 (MINIMA): UNICA Y EXCLUSIVAMENTE BARRA LEGAL BLANCA 4.5% ======
-    # (NADA MAS. Si de verdad quieres BORRAR INCLUSO ESTA BARRA LEGAL por algun motivo especial,
-    #  comenta la linea de abajo y listo. Pero es OBLIGATORIA por la ley colombiana 30/1986 de licores.)
-    canvas = draw_legal_bar_minimal(canvas)
+    # ====== CAPA 2 ELIMINADA (Usuario confirmó: NO meter barra legal en el JPG) ======
+    # La composición final SOLO tiene: Capa 0 (Fondo) + Capa 1 (Persona recortada IA)
+    # NINGÚN texto, NINGÚN marco, NINGUNA barra legal se pinta dentro de la foto.
+    # El aviso legal sigue apareciendo en la franja negra del footer de todas las pantallas web.
 
     return canvas
 

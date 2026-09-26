@@ -163,11 +163,10 @@ export async function composeImage(userImageBase64, escenario, width = 1080, hei
   })
 
   // -----------------------------------------------------------------------
-  // CAPA 2 (MARCA): Frame PNG con logo, botella, disclaimer legal.
-  //                 (drawBrandFrame solo pinta texto y PNG de marca.
-  //                  NUNCA toca la silueta de la persona.)
+  // CAPA 2 ELIMINADA (Usuario pide NO pintar nada dentro de foto JPG):
+  // NINGÚN marco, NINGÚN logo, NINGÚN botella, NINGUNA barra legal.
+  // El aviso legal sigue en la franja negra del footer HTML.
   // -----------------------------------------------------------------------
-  await drawBrandFrame(ctx, width, height, escenario)
   return canvas.toDataURL('image/jpeg', 0.97)
 }
 
@@ -227,90 +226,6 @@ const LEGAL_TEXTO_FOTO = 'EL EXCESO DE ALCOHOL ES PERJUDICIAL PARA LA SALUD. PRO
 
 async function drawBrandFrame(ctx, w, h, escenario) {
   ctx.save()
-
-  const padOuter = Math.floor(Math.min(w, h) * 0.025)
-  ctx.strokeStyle = 'rgba(0, 71, 186, 0.35)'
-  ctx.lineWidth = Math.max(2, Math.floor(padOuter * 0.18))
-  ctx.strokeRect(padOuter / 2, padOuter / 2, w - padOuter, h - padOuter)
-
-  const padInner = padOuter + Math.floor(Math.min(w, h) * 0.01)
-  ctx.strokeStyle = 'rgba(212, 160, 23, 0.55)'
-  ctx.lineWidth = Math.max(1, Math.floor(padOuter * 0.08))
-  ctx.strokeRect(padInner / 2, padInner / 2, w - padInner, h - padInner)
-
-  const footerH = Math.floor(h * 0.12)
-  const footerY = h - footerH
-
-  const footerGrad = ctx.createLinearGradient(0, footerY - 40, 0, h)
-  footerGrad.addColorStop(0, 'rgba(0, 42, 122, 0)')
-  footerGrad.addColorStop(0.55, 'rgba(0, 42, 122, 0.88)')
-  footerGrad.addColorStop(1, 'rgba(0, 71, 186, 0.98)')
-  ctx.fillStyle = footerGrad
-  ctx.fillRect(0, footerY - 40, w, h - footerY + 40)
-
-  const [logoImg, botellaImg] = await Promise.all([
-    loadAsset('/assets/logo-oficial.png'),
-    loadAsset('/assets/botella-fiesta-azul.png'),
-  ])
-
-  if (logoImg) {
-    const logoMaxW = w * 0.36
-    const logoRatio = logoImg.naturalWidth / logoImg.naturalHeight
-    const logoW = Math.min(logoMaxW, w * 0.36)
-    const logoH = logoW / logoRatio
-    const logoX = Math.floor(w * 0.045)
-    const logoY = footerY + Math.floor((footerH - logoH) * 0.5)
-    ctx.drawImage(logoImg, logoX, logoY, logoW, logoH)
-  }
-
-  if (botellaImg) {
-    const botMaxH = footerH * 1.6
-    const botRatio = botellaImg.naturalWidth / botellaImg.naturalHeight
-    const botH = Math.min(botMaxH, footerH * 1.6)
-    const botW = botH * botRatio
-    const botX = w - botW - Math.floor(w * 0.045)
-    const botY = footerY - Math.floor(footerH * 0.55)
-    ctx.drawImage(botellaImg, botX, botY, botW, botH)
-  }
-
-  const hashtagText = '#ElSaborQueNosUne'
-  const totalCenterX = w * 0.5
-  const hashtagY = footerY + Math.floor(footerH * 0.36)
-
-  ctx.textAlign = 'center'
-  ctx.fillStyle = '#ffffff'
-  ctx.font = `800 ${Math.floor(h * 0.018)}px "Work Sans", sans-serif`
-  ctx.fillText(hashtagText, totalCenterX, hashtagY)
-
-  ctx.font = `900 ${Math.floor(h * 0.022)}px "Fraunces", Georgia, serif`
-  const vaY = footerY + Math.floor(footerH * 0.7)
-  const vaCon = '¡VA CON '
-  const todoText = 'TODO!'
-  const vaW = ctx.measureText(vaCon).width
-  const toW = ctx.measureText(todoText).width
-  const totalW = vaW + toW
-  let vx = totalCenterX - totalW * 0.5
-  ctx.fillStyle = '#ffffff'
-  ctx.fillText(vaCon, vx + vaW * 0.5, vaY)
-  vx += vaW
-  ctx.fillStyle = '#E4002B'
-  ctx.fillText(todoText, vx + toW * 0.5, vaY)
-
-  const legalH = Math.floor(Math.max(22, h * 0.045))
-  const legalY = h - legalH - 2
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.98)'
-  ctx.fillRect(Math.floor(w * 0.018), legalY, Math.floor(w * 0.964), legalH)
-
-  ctx.strokeStyle = 'rgba(0,0,0,0.08)'
-  ctx.lineWidth = 1
-  ctx.strokeRect(Math.floor(w * 0.018), legalY, Math.floor(w * 0.964), legalH)
-
-  ctx.fillStyle = '#000000'
-  ctx.textAlign = 'center'
-  ctx.font = `800 ${Math.floor(Math.max(10, h * 0.016))}px "Inter", system-ui, sans-serif`
-  ctx.textBaseline = 'middle'
-  ctx.fillText(LEGAL_TEXTO_FOTO, w * 0.5, legalY + legalH * 0.52)
-
   ctx.restore()
 }
 

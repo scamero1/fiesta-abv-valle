@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { LegalDisclaimer, SloganVaConTodo, LogoHeaderStack } from '../components/BrandComponents.jsx'
+import { useParams } from 'react-router-dom'
+import { LegalDisclaimer, SloganVaConTodo } from '../components/BrandComponents.jsx'
 import '../styles/landing.css'
 
 export default function LandingDescarga() {
   const { id } = useParams()
-  const navigate = useNavigate()
   const [fotoUrl, setFotoUrl] = useState('')
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState(null)
@@ -90,12 +89,30 @@ export default function LandingDescarga() {
     <div className="screen landing-screen">
       <div className="screen-bg landing-bg bg-pantone-2728" />
 
+      <div className="particles">
+        {Array.from({ length: 14 }).map((_, i) => (
+          <span
+            key={i}
+            className="particle pt"
+            style={{
+              left: `${(i * 7.3) % 100}%`,
+              top: `${(i * 13.7) % 100}%`,
+              animationDelay: `${(i % 5) * 0.7}s`,
+            }}
+          />
+        ))}
+      </div>
+
       <div className="landing-contenido">
-        <div className="landing-header">
-          <LogoHeaderStack showFiesta={true} showILV={true} />
+        <div className="landing-header anim-in">
+          <img
+            src="/assets/logo-oficial.png"
+            alt="Aguardiente Blanco del Valle"
+            className="logo-oficial-img"
+          />
         </div>
 
-        <div className="landing-hero">
+        <div className="landing-hero anim-in" style={{ animationDelay: '0.1s' }}>
           <h1 className="landing-title">
             <span className="lt-1">¡Tu foto está lista, </span>
             <SloganVaConTodo size="sm" />
@@ -106,7 +123,7 @@ export default function LandingDescarga() {
           </p>
         </div>
 
-        <div className="landing-main-wrap">
+        <div className="landing-main-wrap anim-in" style={{ animationDelay: '0.2s' }}>
           <div className="landing-foto-card">
             {cargando && (
               <div className="landing-cargando">
@@ -118,7 +135,7 @@ export default function LandingDescarga() {
               <div className="landing-error">
                 <div className="le-icon">⚠</div>
                 <p>{error}</p>
-                <button className="btn-error-reintentar btn-cta-red" onClick={() => window.location.reload()}>
+                <button className="btn-primario btn-cta-red btn-error-reintentar" onClick={() => window.location.reload()}>
                   REINTENTAR
                 </button>
               </div>
@@ -134,12 +151,10 @@ export default function LandingDescarga() {
           </div>
 
           <div className="landing-acciones-col">
-            <button className="btn-landing btn-descargar btn-cta-red" onClick={handleDescargar} autoFocus>
-              <span className="bl-icon">⬇</span>
+            <button className="btn-primario btn-cta-red btn-landing btn-descargar" onClick={handleDescargar} autoFocus>
               DESCARGAR FOTO
             </button>
-            <button className="btn-landing btn-compartir" onClick={handleCompartir}>
-              <span className="bl-icon">↗</span>
+            <button className="btn-secundario btn-ghost btn-landing btn-compartir" onClick={handleCompartir}>
               COMPARTIR
             </button>
             <div className="landing-info" aria-label="Pasos para guardar y compartir">

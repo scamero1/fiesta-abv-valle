@@ -50,7 +50,7 @@ export default function Camara() {
       setCountdown(null)
       return
     }
-    const t = setTimeout(() => setCountdown(countdown - 1), 800)
+    const t = setTimeout(() => setCountdown(countdown - 1), 900)
     return () => clearTimeout(t)
   }, [countdown])
 
@@ -101,7 +101,7 @@ export default function Camara() {
         return
       }
       setFlash(true)
-      setTimeout(() => setFlash(false), 220)
+      setTimeout(() => setFlash(false), 250)
       const recortada = recortarCover16x9(videoEl)
       if (recortada) {
         setPreview(recortada)
@@ -151,115 +151,102 @@ export default function Camara() {
     <div className="screen camara-screen">
       <div className="camara-bg-dark bg-pantone-2728" />
 
-      <div className="screen-content camara-content">
-        <div className="camara-header fade-in">
-          <button className="btn-back" onClick={() => navigate('/instrucciones')}>
+      <div className="screen-header camara-header">
+        <div className="header-left">
+          <button className="btn-back btn-ghost gh" onClick={() => navigate('/instrucciones')} style={{ padding: '8px 18px', fontSize: 16, minHeight: 44 }}>
             ‹ Atrás
           </button>
+        </div>
+        <div className="header-middle">
           <div className="camara-titulo">
-            <span className="camara-eyebrow">PASO 3</span>
-            <h2>¡Sonríe! Estamos tomando tu foto</h2>
+            <h2>¡Sonríe!</h2>
           </div>
+        </div>
+        <div className="header-right">
           <StepperPaso pasoActual={3} />
         </div>
+      </div>
 
+      <div className="screen-content camara-content anim-in">
         <div className="camara-body">
-          <div className="camara-viewport">
-            <div className="viewport-marco">
-              <div className="marco-esquina marco-tl" />
-              <div className="marco-esquina marco-tr" />
-              <div className="marco-esquina marco-bl" />
-              <div className="marco-esquina marco-br" />
+          <div className="camwrap">
+            <div className="vp viewport-marco foto-preview-frame">
+              <div className="hint camara-hint" id="camara-hint">
+                {preview ? '¿Te gusta cómo quedó?' : 'Ubícate dentro de la silueta'}
+              </div>
+
+              <div className="sil" aria-hidden></div>
 
               {!preview ? (
-                <>
-                  <Webcam
-                    key={webcamKey}
-                    ref={webcamRef}
-                    audio={false}
-                    screenshotFormat="image/jpeg"
-                    screenshotQuality={0.95}
-                    videoConstraints={currentConstraints}
-                    mirrored={facingMode === 'user'}
-                    className="webcam-feed"
-                    onUserMediaError={onUserMediaError}
-                  />
-                  <div className="silueta-guia" aria-hidden>
-                    <svg viewBox="0 0 200 300" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <circle cx="100" cy="62" r="44" stroke="rgba(255,255,255,0.28)" strokeWidth="2" />
-                      <path d="M38 298 C 42 202 70 152 100 152 C 130 152 158 202 162 298 Z" stroke="rgba(255,255,255,0.28)" strokeWidth="2" strokeLinecap="round" />
-                    </svg>
-                  </div>
-                </>
+                <Webcam
+                  key={webcamKey}
+                  ref={webcamRef}
+                  audio={false}
+                  screenshotFormat="image/jpeg"
+                  screenshotQuality={0.95}
+                  videoConstraints={currentConstraints}
+                  mirrored={facingMode === 'user'}
+                  className="webcam-feed"
+                  onUserMediaError={onUserMediaError}
+                />
               ) : (
                 <img src={preview} alt="Preview captura" className="preview-img" />
               )}
 
-              {countdown !== null && countdown > 0 && (
-                <div className="countdown-overlay">
-                  <span className="countdown-num">{countdown}</span>
-                </div>
-              )}
+              <div className={`cd countdown-overlay ${countdown !== null && countdown > 0 ? 'on' : ''}`}>
+                {countdown !== null && countdown > 0 && (
+                  <span className="countdown-num" key={countdown}>{countdown}</span>
+                )}
+              </div>
 
-              {flash && <div className="flash-overlay" />}
+              <div className={`fl flash-overlay ${flash ? 'on' : ''}`}></div>
 
               {errorCam && !preview && (
-                <div className="camara-error">
+                <div className="camara-error error-box">
                   <span className="error-icono">⚠️</span>
-                  <div className="error-texto-wrap">
-                    <p className="error-tit">No pudimos acceder a la cámara</p>
-                    <p className="error-detalle">Activa los permisos en Ajustes → Aplicaciones → Chrome → Cámara</p>
-                  </div>
-                  <button className="btn-secundario btn-reintentar-cam" onClick={handleReintentarPermisos}>
+                  <p className="error-tit">No pudimos acceder a la cámara</p>
+                  <p className="error-detalle">Activa los permisos en Ajustes → Aplicaciones → Chrome → Cámara</p>
+                  <button className="btn-secundario btn-ghost gh" onClick={handleReintentarPermisos} style={{ marginTop: 12 }}>
                     Reintentar
                   </button>
                 </div>
               )}
             </div>
           </div>
-
-          {preview && (
-            <div className="camara-confirmacion">
-              <p className="confirmacion-preg">¿Te gusta cómo quedó?</p>
-            </div>
-          )}
         </div>
 
-        <div className="camara-footer">
+        <div className={`ctl ${preview ? 'ctl-preview' : 'ctl-capture'}`}>
           {!preview ? (
             <>
-              <button className="btn-lateral" onClick={handleCambiarCamara}>
-                <span className="btn-lat-ico">🔄</span>
-                <span className="btn-lat-texto">Cambiar cámara</span>
+              <button className="btn-lateral btn-ghost gh" onClick={handleCambiarCamara} style={{ fontSize: 16, padding: '10px 20px' }}>
+                🔄 Cambiar
               </button>
 
               <button
-                className={`obturador ${capturando ? 'capturando' : ''}`}
+                className={`shut ${capturando ? 'capturando' : ''}`}
                 onClick={handleCapturar}
                 disabled={capturando || !!errorCam}
                 aria-label="Sacar foto"
-              >
-                <span className="obturador-inner" />
-                <span className="obturador-ring" />
-              </button>
+              ></button>
 
-              <div className="camara-status">
+              <div className="camara-status" aria-hidden>
                 <span className="status-dot" />
-                Colócate en el centro y sonríe
+                Colócate en el centro
               </div>
             </>
           ) : (
             <>
-              <button className="btn-secundario btn-preview-repetir" onClick={handleRepetir}>
-                ↻ Repetir foto
+              <button className="btn-secundario btn-ghost gh" onClick={handleRepetir}>
+                Repetir
               </button>
-              <button className="btn-primario btn-preview-aceptar btn-cta-red" onClick={handleAceptar} autoFocus>
-                USAR FOTO <span className="btn-flecha">›</span>
+              <button className="btn-primario btn-cta-red cta" onClick={handleAceptar} autoFocus>
+                USAR FOTO
               </button>
             </>
           )}
         </div>
       </div>
+
       <LegalDisclaimer variant="footer-sticky" />
     </div>
   )

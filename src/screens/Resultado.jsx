@@ -44,7 +44,7 @@ export default function Resultado() {
   })()
   const qrValue = `${qrBase}/foto/${fotoId}`
 
-  const qrSizePx = Math.max(340, Math.floor((typeof window !== 'undefined' ? window.innerWidth : 1200) * 0.3))
+  const qrSizePx = 340
 
   const handleDescargar = () => {
     const a = document.createElement('a')
@@ -85,100 +85,70 @@ export default function Resultado() {
     <div className="screen resultado-screen">
       <div className="screen-bg resultado-bg bg-pantone-2728" />
 
-      <div className="particles">
-        {Array.from({ length: 18 }).map((_, i) => (
-          <span
-            key={i}
-            className="particle"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 8}s`,
-              background: i % 2 === 0 ? '#d4a017' : '#E4002B',
-              boxShadow: i % 2 === 0 ? '0 0 10px #d4a017' : '0 0 10px #E4002B',
-            }}
-          />
-        ))}
-      </div>
-
-      <div className="screen-content resultado-content">
-        <div className="resultado-header fade-in">
-          <button className="btn-back" onClick={() => navigate('/escenario')}>
+      <div className="screen-header resultado-header">
+        <div className="header-left">
+          <button className="btn-back btn-ghost gh" onClick={() => navigate('/escenario')} style={{ padding: '8px 18px', fontSize: 16, minHeight: 44 }}>
             ‹ Atrás
           </button>
+        </div>
+        <div className="header-middle">
           <div className="resultado-titulo-wrap">
-            <h2 className="resultado-titulo">
-              ¡Tu foto está <span className="destacado-dorado">lista!</span>
-            </h2>
-            <p className="resultado-sub">
-              Escanea el QR o descárgala directo
-            </p>
+            <h2 className="resultado-titulo">Tu foto está lista</h2>
           </div>
+        </div>
+        <div className="header-right">
           <StepperPaso pasoActual={5} />
         </div>
+      </div>
 
-        <div className="resultado-body panel-layout">
-          <div className="foto-final-col work-area slide-up">
-            <div className="foto-final-card">
-              <div className="foto-final-frame">
-                <img src={fotoProcesada} alt="Foto final Aguardiente Blanco Fiesta" className="foto-final-img" />
-              </div>
-              <div className="foto-final-etiquetas">
-                <span className="ef-escenario">📍 {escenarioSeleccionado?.nombre}</span>
-                <span className="ef-fecha">{new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}</span>
-              </div>
+      <div className="screen-content resultado-content anim-in">
+        <div className="res">
+          <div className="l">
+            <div className="fr foto-final-frame viewport-marco foto-preview-frame">
+              <img src={fotoProcesada} alt="Foto final Aguardiente Blanco Fiesta" className="res-img" />
+              <div className="lb" aria-hidden></div>
             </div>
-            {mostrarMensaje && (
-              <div className="toast-exito">{mostrarMensaje}</div>
-            )}
           </div>
+          <div className="r">
+            <b className="qr-leyenda-titulo" style={{ fontSize: '24px', fontWeight: 800, color: '#fff', margin: 0 }}>
+              Escanea y descarga
+            </b>
 
-          <div className="qr-col side-area fade-in" style={{ animationDelay: '0.2s' }}>
-            <div className="qr-card">
-              <div className="qr-wrap">
-                <QRCodeCanvas
-                  value={qrValue}
-                  size={qrSizePx}
-                  level="H"
-                  includeMargin={true}
-                  bgColor="#FFFFFF"
-                  fgColor="#002a7a"
-                  imageSettings={{
-                    src: '/assets/logo-oficial.png',
-                    height: 48,
-                    width: 48,
-                    excavate: true,
-                  }}
-                  className="qr-code"
-                />
-              </div>
-              <p className="qr-leyenda">Apunta la cámara de tu celular al código</p>
+            <div className="qr" aria-label="Código QR para descargar la foto">
+              <QRCodeCanvas
+                value={qrValue}
+                size={qrSizePx}
+                level="H"
+                includeMargin={false}
+                bgColor="#FFFFFF"
+                fgColor="#002a7a"
+                className="qr-code-canvas"
+              />
             </div>
 
-            <div className="resultado-botones">
-              <button className="btn-primario btn-cta-red btn-descargar-primario" onClick={handleDescargar} autoFocus>
-                💾 DESCARGAR
+            <div className="row res-botones">
+              <button className="btn-primario btn-cta-red cta" onClick={handleTerminar} autoFocus={true}>
+                TERMINAR
               </button>
-              <button className="btn-secundario btn-compartir-sec" onClick={handleCompartir}>
+              <button className="btn-secundario btn-ghost gh" onClick={handleRepetir}>
+                Repetir
+              </button>
+            </div>
+
+            <div className="row res-botones-2" style={{ gap: 12, marginTop: 4 }}>
+              <button className="btn-secundario btn-ghost gh" onClick={handleDescargar} style={{ fontSize: 16, padding: '10px 20px' }}>
+                💾 Descargar
+              </button>
+              <button className="btn-secundario btn-ghost gh" onClick={handleCompartir} style={{ fontSize: 16, padding: '10px 20px' }}>
                 🔁 Compartir
               </button>
-              <div className="btn-fila-secundaria">
-                <button className="btn-secundario btn-chico" onClick={handleRepetir}>
-                  ↻ Repetir foto
-                </button>
-                <button className="btn-secundario btn-chico" onClick={handleTerminar}>
-                  Terminar
-                </button>
-              </div>
             </div>
 
-            <div className="premio-recordar">
-              <span className="pr-icono">🏆</span>
-              <div>
-                <strong>¡Gana 10 botellas semanales!</strong>
-                <p>Comparte tu foto y etiqueta @aguardientedelvalle.</p>
+            {mostrarMensaje && (
+              <div className="toast-exito" role="status" style={{ marginTop: 6 }}>
+                {mostrarMensaje}
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

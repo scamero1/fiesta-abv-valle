@@ -1,836 +1,139 @@
-.bienvenida-bg {
-  background:
-    radial-gradient(ellipse at 15% 15%, rgba(245, 197, 24, 0.18) 0%, transparent 45%),
-    radial-gradient(ellipse at 85% 30%, rgba(236, 72, 153, 0.22) 0%, transparent 45%),
-    radial-gradient(ellipse at 50% 95%, rgba(37, 99, 235, 0.28) 0%, transparent 55%),
-    radial-gradient(ellipse at 30% 70%, rgba(139, 92, 246, 0.18) 0%, transparent 45%),
-    linear-gradient(180deg, #0a1a3a 0%, #0a1f44 40%, #0c0e24 100%);
-}
-
-.bienvenida-bg::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200' opacity='0.04'><circle cx='100' cy='100' r='80' fill='none' stroke='%23ffffff' stroke-width='0.5'/><circle cx='100' cy='100' r='60' fill='none' stroke='%23ffffff' stroke-width='0.3'/></svg>");
-  background-size: 400px 400px;
-}
-
+/* ============================================================
+   BIENVENIDA — Hero centrado stack
+   logo → eslogan rotado → TRÍPTICO 3 BOTELLAS PNG REALES
+   (SIN MARCOS CSS, solo las imágenes + animación movimiento suave)
+   → CTA ¡INICIAR!
+   ============================================================ */
 .bienvenida-content {
-  padding: clamp(14px, 2.5vh, 32px) var(--pad-screen-x) clamp(14px, 2.5vh, 32px);
-  gap: clamp(8px, 1.4vh, 18px);
-}
-
-.bienvenida-header {
+  padding-top: calc(var(--pad-safe-t) + var(--screen-pad-y));
+  padding-bottom: calc(var(--legal-h) + var(--pad-safe-b) + var(--screen-pad-y));
+  gap: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  min-height: clamp(52px, 9vh, 80px);
-  flex-shrink: 0;
-  gap: 12px;
+  justify-content: center;
 }
 
-.bienvenida-header .header-logo {
-  height: auto;
-}
-
-.bienvenida-header .logo-oficial-img {
-  height: clamp(40px, 7vw, 72px);
-  max-width: min(360px, 38vw);
-}
-
-.bienvenida-header-lado {
-  display: flex;
-  align-items: center;
-  flex-shrink: 1;
-  min-width: 0;
-}
-
-.bh-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: clamp(6px, 1vh, 10px) clamp(14px, 2.2vw, 22px);
-  background: linear-gradient(90deg, rgba(245, 197, 24, 0.22), rgba(236, 72, 153, 0.18));
-  border: 1.5px solid rgba(245, 197, 24, 0.5);
-  border-radius: var(--radius-full);
-  font-family: var(--font-ui);
-  font-weight: 800;
-  font-size: clamp(0.6rem, 0.95vw, 0.82rem);
-  letter-spacing: 0.18em;
-  color: var(--color-dorado);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.bienvenida-main {
-  flex: 1;
+.hero {
+  flex: 1 1 auto;
   min-height: 0;
-  display: grid;
-  grid-template-columns: 1.05fr 1fr;
-  gap: clamp(14px, 2.5vw, 28px);
-  align-items: center;
-  padding: clamp(4px, 1vh, 10px) 0 clamp(4px, 1vh, 8px);
-  overflow: hidden;
-}
-
-:root.is-portrait .bienvenida-main {
-  grid-template-columns: 1fr !important;
-  grid-template-rows: 1fr 1.05fr;
-  gap: clamp(8px, 1.5vh, 22px);
-}
-:root.is-portrait .bienvenida-botellas {
-  order: -1;
-}
-:root[data-form="phone"] .bienvenida-main {
-  grid-template-rows: 1fr auto;
-}
-:root.is-wide .bienvenida-main {
-  grid-template-columns: 1fr 0.9fr;
-}
-
-.bienvenida-hero {
-  display: flex;
-  flex-direction: column;
-  gap: clamp(10px, 2vh, 24px);
-  max-width: 100%;
-  min-height: 0;
-  justify-content: center;
-}
-
-.hero-eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.eyebrow-line {
-  flex: 0 0 clamp(40px, 6vw, 60px);
-  height: 2px;
-  background: linear-gradient(90deg, var(--color-dorado) 0%, transparent 100%);
-  border-radius: 2px;
-}
-
-.eyebrow-text {
-  font-family: var(--font-ui);
-  font-weight: 600;
-  font-size: clamp(0.7rem, 1vw, 0.9rem);
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  color: var(--color-azul-claro);
-}
-
-.hero-titulo {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-family: var(--font-display);
-  font-weight: 900;
-  line-height: 0.95;
-  word-break: break-word;
-}
-
-.hero-titulo-linea1 {
-  font-size: clamp(1.8rem, 6vw, 5.8rem);
-  background: linear-gradient(180deg, #ffffff 0%, #e0e7ff 60%, #a5b4fc 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  letter-spacing: -0.03em;
-}
-
-:root.is-portrait .hero-titulo-linea1 {
-  font-size: clamp(1.9rem, 8vw, 4.5rem);
-}
-
-.hero-titulo-linea2 {
-  font-size: clamp(1.3rem, 4.2vw, 4rem);
-  color: #fff;
-  letter-spacing: -0.02em;
-}
-
-:root.is-portrait .hero-titulo-linea2 {
-  font-size: clamp(1.2rem, 6vw, 3.2rem);
-}
-
-.destacado-dorado {
-  background: linear-gradient(135deg, var(--color-dorado) 0%, var(--color-dorado-claro) 50%, #fff7b8 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  font-style: italic;
-}
-
-.hero-titulo-linea3 {
-  font-size: clamp(1.1rem, 3.8vw, 3.6rem);
-  margin-top: clamp(4px, 1vh, 8px);
-}
-
-:root.is-portrait .hero-titulo-linea3 {
-  font-size: clamp(1rem, 5.5vw, 2.8rem);
-}
-
-.destacado-fiesta {
-  display: inline-block;
-  padding: clamp(4px, 0.8vh, 6px) clamp(12px, 2vw, 24px);
-  background: linear-gradient(135deg, var(--color-rojo-acento) 0%, #be123c 50%, var(--color-rosa-fiesta) 100%);
-  color: #fff;
-  border-radius: 16px;
-  font-weight: 900;
-  font-family: var(--font-display);
-  letter-spacing: -0.01em;
-  box-shadow: 0 12px 40px rgba(220, 38, 38, 0.4), inset 0 1px 0 rgba(255,255,255,0.2);
-  transform: rotate(-1.5deg);
-  position: relative;
-}
-
-.destacado-fiesta::before,
-.destacado-fiesta::after {
-  content: '✦';
-  position: absolute;
-  font-size: 0.42em;
-  color: var(--color-dorado);
-}
-
-.destacado-fiesta::before {
-  top: -7px;
-  left: 12px;
-}
-
-.destacado-fiesta::after {
-  bottom: -5px;
-  right: 12px;
-}
-
-.hero-subtitulo-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: clamp(6px, 1vh, 10px);
-}
-
-.hero-subtitulo {
-  font-family: var(--font-display);
-  font-size: clamp(0.95rem, 2.3vw, 2.1rem);
-  font-weight: 700;
-  color: #fff;
-  letter-spacing: -0.01em;
-}
-
-:root.is-portrait .hero-subtitulo {
-  font-size: clamp(1rem, 3vw, 1.6rem);
-}
-
-.subrayado-dorado {
-  position: relative;
-  color: var(--color-dorado);
-}
-
-.subrayado-dorado::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  bottom: -4px;
   width: 100%;
-  height: 3px;
-  background: var(--color-dorado);
-  border-radius: 3px;
-  box-shadow: 0 0 12px rgba(245, 197, 24, 0.5);
-}
-
-.hero-sub-sub {
-  font-family: var(--font-body);
-  font-size: clamp(0.78rem, 1.1vw, 1rem);
-  color: rgba(255, 255, 255, 0.72);
-  font-weight: 400;
-  max-width: 100%;
-  line-height: 1.5;
-}
-
-.hero-triptico-tag {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: clamp(8px, 1.4vh, 14px) clamp(10px, 1.5vw, 16px);
-  background: rgba(0, 30, 80, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: var(--radius-lg);
-  max-width: 100%;
-  margin-top: 2px;
-}
-
-.htt-tag {
-  padding: clamp(4px, 0.7vh, 6px) clamp(10px, 1.4vw, 14px);
-  border-radius: var(--radius-full);
-  font-family: var(--font-ui);
-  font-weight: 800;
-  font-size: clamp(0.65rem, 0.9vw, 0.8rem);
-  letter-spacing: 0.05em;
-}
-
-.htt-1 {
-  background: rgba(220, 38, 38, 0.18);
-  color: #fca5a5;
-  border: 1px solid rgba(220, 38, 38, 0.4);
-}
-
-.htt-2 {
-  background: rgba(37, 99, 235, 0.18);
-  color: #93c5fd;
-  border: 1px solid rgba(37, 99, 235, 0.45);
-}
-
-.htt-3 {
-  background: rgba(139, 92, 246, 0.18);
-  color: #c4b5fd;
-  border: 1px solid rgba(139, 92, 246, 0.4);
-}
-
-.htt-texto {
-  font-family: var(--font-body);
-  font-size: clamp(0.65rem, 0.85vw, 0.82rem);
-  color: rgba(255, 255, 255, 0.55);
-  margin-left: auto;
-}
-
-.bienvenida-visual {
-  display: flex;
   justify-content: center;
-  align-items: center;
+  gap: clamp(10px, 1.8dvh, 22px);
+  text-align: center;
   position: relative;
-  min-height: clamp(300px, 60vh, 620px);
-  min-width: 0;
-  overflow: hidden;
-}
-
-:root.is-portrait .bienvenida-visual {
-  min-height: clamp(240px, 42vh, 420px);
-  max-height: 50vh;
-}
-
-.triptico-botellas {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  max-height: 100%;
-  min-height: clamp(240px, 42vh, 520px);
-  display: flex;
-  flex-direction: row;
-  justify-content: center;
-  align-items: flex-end;
-  align-content: flex-end;
-  gap: clamp(2px, 0.6vw, 8px);
-  padding-bottom: clamp(40px, 8vh, 90px);
-  box-sizing: border-box;
-  overflow: visible;
   contain: layout;
 }
 
-:root.is-portrait .triptico-botellas {
-  min-height: clamp(200px, 34vh, 360px);
-  padding-bottom: clamp(20px, 6vh, 60px);
-  gap: clamp(1px, 0.4vw, 6px);
-}
-:root[data-form="phone"].is-portrait .triptico-botellas {
-  min-height: clamp(180px, 30vh, 280px);
-  padding-bottom: 14px;
-}
-
-.botella-wrap {
-  position: relative;
+.hero-mark,
+.hero-logo-wrap {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
-  animation: botella-float 5.2s ease-in-out infinite;
-  transform-origin: bottom center;
-  flex: 0 0 auto;
-  max-width: 30%;
-  min-width: 0;
-  min-height: 0;
-  height: 100%;
-  max-height: 100%;
-}
-
-.botella-estrella {
-  flex: 0 0 auto;
-  max-width: 40%;
-  z-index: 3;
-}
-
-.botella-left,
-.botella-right {
-  max-width: 28%;
-}
-
-.botella-left {
-  transform: translateY(clamp(14px, 2.8vh, 28px)) scale(0.78);
-  z-index: 1;
-  animation-delay: 0.4s;
-}
-
-.botella-right {
-  transform: translateY(clamp(14px, 2.8vh, 28px)) scale(0.78);
-  z-index: 1;
-  animation-delay: 0.8s;
-}
-
-.botella-estrella {
-  transform: translateY(clamp(-2px, -0.8vh, -8px)) scale(0.94);
-}
-
-:root.is-wide .botella-estrella .botella-img-real {
-  max-height: clamp(240px, 52vh, 440px) !important;
-}
-:root.is-wide .botella-left .botella-img-real,
-:root.is-wide .botella-right .botella-img-real {
-  max-height: clamp(190px, 42vh, 360px) !important;
-}
-
-@keyframes botella-float {
-  0%, 100% { opacity: 0.92; }
-  50%      { opacity: 1; }
-}
-
-.botella-estrella {
-  animation-name: botella-float-star;
-}
-
-@keyframes botella-float-star {
-  0%, 100% { opacity: 0.96; transform: translateY(clamp(-2px, -0.8vh, -8px)) scale(0.94) rotate(-1deg); }
-  50%      { opacity: 1;    transform: translateY(clamp(-8px, -1.8vh, -18px)) scale(0.945) rotate(1deg); }
-}
-
-.botella-glow-real {
-  position: absolute;
-  width: clamp(180px, 32vw, 320px);
-  height: clamp(240px, 52vh, 420px);
-  top: auto;
-  bottom: 8%;
-  left: 50%;
-  transform: translateX(-50%);
-  background: radial-gradient(ellipse at center, var(--acento, #f5c518) 0%, transparent 68%);
-  filter: blur(clamp(20px, 4vw, 50px));
-  opacity: 0.42;
-  z-index: 0;
-  border-radius: 50%;
-  animation: pulse-glow 3.2s ease-in-out infinite;
-  pointer-events: none;
-}
-
-.botella-estrella .botella-glow-real {
-  width: clamp(240px, 46vw, 440px);
-  height: clamp(300px, 62vh, 560px);
-  bottom: 4%;
-  opacity: 0.58;
-  background:
-    radial-gradient(ellipse at 40% 30%, #f5c518 0%, transparent 55%),
-    radial-gradient(ellipse at 60% 70%, #2563eb 0%, transparent 55%);
-}
-
-.bienvenida-visual {
-  display: flex;
   justify-content: center;
-  align-items: stretch;
-  align-content: stretch;
-  position: relative;
+  flex: 0 0 auto;
   min-height: 0;
-  height: 100%;
-  max-height: 100%;
-  min-width: 0;
-  overflow: visible;
 }
 
-.luces-fiesta {
-  position: absolute;
-  inset: -4% -4% -4% -4%;
-  pointer-events: none;
-  z-index: 0;
-  overflow: visible;
-}
+.hero-mark-text { display: none; }
 
-.bienvenida-bg {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
-  background:
-    radial-gradient(ellipse at 15% 15%, rgba(245, 197, 24, 0.18) 0%, transparent 55%),
-    radial-gradient(ellipse at 85% 30%, rgba(236, 72, 153, 0.22) 0%, transparent 55%),
-    radial-gradient(ellipse at 50% 100%, rgba(37, 99, 235, 0.28) 0%, transparent 70%),
-    radial-gradient(ellipse at 30% 75%, rgba(139, 92, 246, 0.18) 0%, transparent 55%),
-    linear-gradient(180deg, #0a1a3a 0%, #0a1f44 40%, #0c0e24 100%);
-  background-size: 100% 100%;
-}
-
-.bienvenida-bg::after {
-  content: '';
-  position: absolute;
-  inset: -5% -5% -5% -5%;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200' opacity='0.04'><circle cx='100' cy='100' r='80' fill='none' stroke='%23ffffff' stroke-width='0.5'/><circle cx='100' cy='100' r='60' fill='none' stroke='%23ffffff' stroke-width='0.3'/></svg>");
-  background-size: 400px 400px;
-  background-position: center;
-  background-repeat: repeat;
-}
-
-
-.botella-badge-estrella {
-  position: absolute;
-  top: 10px;
-  right: 50%;
-  transform: translateX(50%) rotate(-4deg);
-  padding: clamp(5px, 0.8vh, 7px) clamp(12px, 1.6vw, 16px);
-  background: linear-gradient(135deg, var(--color-dorado), var(--color-rosa-fiesta));
-  color: #0a1f44;
-  border-radius: var(--radius-full);
-  font-family: var(--font-ui);
-  font-weight: 900;
-  font-size: clamp(0.62rem, 0.9vw, 0.78rem);
-  letter-spacing: 0.08em;
-  box-shadow: 0 8px 24px rgba(245, 197, 24, 0.5);
-  z-index: 5;
-  white-space: nowrap;
-}
-
-.botella-img-real {
-  position: relative;
-  z-index: 2;
-  height: auto;
-  max-height: 100%;
-  width: auto;
-  max-width: 100%;
-  flex: 0 1 auto;
+.hero-logo {
+  height: clamp(52px, 7.5dvh, 84px) !important;
+  max-width: min(380px, 56dvw) !important;
   object-fit: contain;
-  filter: drop-shadow(0 30px 50px rgba(0, 0, 0, 0.6));
-  pointer-events: none;
-  user-select: none;
-  display: block;
 }
 
-.botella-estrella .botella-img-real {
-  max-height: clamp(260px, 64vh, 520px);
-}
-
-.botella-left .botella-img-real,
-.botella-right .botella-img-real {
-  max-height: clamp(210px, 52vh, 430px);
-  filter: drop-shadow(0 22px 40px rgba(0, 0, 0, 0.55));
-  opacity: 0.94;
-}
-
-:root.is-portrait .botella-estrella .botella-img-real {
-  max-height: clamp(180px, 34vh, 360px);
-}
-:root.is-portrait .botella-left .botella-img-real,
-:root.is-portrait .botella-right .botella-img-real {
-  max-height: clamp(150px, 28vh, 290px);
-}
-:root[data-form="phone"].is-portrait .botella-estrella .botella-img-real {
-  max-height: clamp(160px, 28vh, 230px);
-}
-:root[data-form="phone"].is-portrait .botella-left .botella-img-real,
-:root[data-form="phone"].is-portrait .botella-right .botella-img-real {
-  max-height: clamp(130px, 22vh, 180px);
-}
-
-.botella-pie-tag {
-  margin-top: 4px;
-  padding: clamp(4px, 0.7vh, 8px) clamp(8px, 1.2vw, 14px);
-  background: rgba(0, 0, 0, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: var(--radius-full);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  z-index: 4;
-  min-width: 110px;
-  max-width: 180px;
-}
-
-.bpt-nombre {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: clamp(0.72rem, 1vw, 0.92rem);
-  color: #fff;
-  letter-spacing: 0.02em;
-}
-
-.botella-estrella .bpt-nombre {
-  font-size: clamp(0.82rem, 1.1vw, 1.05rem);
-  color: var(--color-dorado);
-}
-
-.bpt-tag {
-  font-family: var(--font-ui);
-  font-weight: 500;
-  font-size: clamp(0.58rem, 0.8vw, 0.68rem);
-  color: rgba(255, 255, 255, 0.65);
-  letter-spacing: 0.03em;
-}
-
-.luces-fiesta {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.luz {
-  position: absolute;
-  width: clamp(60px, 14vw, 120px);
-  height: clamp(60px, 14vw, 120px);
-  border-radius: 50%;
-  filter: blur(clamp(20px, 4vw, 40px));
-  opacity: 0.6;
-  animation: luz-pulse 3s ease-in-out infinite;
-}
-
-.luz-1 { top: 8%; left: 2%; background: var(--color-azul-terciario); animation-delay: 0s; }
-.luz-2 { top: 40%; right: 2%; background: var(--color-rosa-fiesta); animation-delay: 0.8s; }
-.luz-3 { bottom: 12%; left: 10%; background: var(--color-dorado); animation-delay: 1.6s; }
-.luz-4 { top: 55%; left: 5%; background: var(--color-morado-fiesta); animation-delay: 0.4s; opacity: 0.5; }
-.luz-5 { bottom: 8%; right: 10%; background: var(--color-verde-acento); animation-delay: 2s; opacity: 0.4; }
-
-@keyframes luz-pulse {
-  0%, 100% { transform: scale(1); opacity: 0.5; }
-  50% { transform: scale(1.3); opacity: 0.75; }
-}
-
-.bienvenida-footer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: clamp(8px, 1.3vh, 14px);
-  padding-top: 4px;
-  flex-shrink: 0;
-  min-height: 0;
-}
-
-.footer-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: clamp(6px, 1vh, 8px) clamp(16px, 2.2vw, 20px);
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: var(--radius-full);
-  font-family: var(--font-ui);
-  font-size: clamp(0.65rem, 0.9vw, 0.82rem);
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.75);
-  letter-spacing: 0.04em;
-}
-
-.badge-punto {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--color-verde-acento);
-  box-shadow: 0 0 12px var(--color-verde-acento);
-  animation: pulse 1.8s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(0.85); }
-}
-
-.btn-iniciar {
-  min-width: var(--btn-w-base);
-  animation: pulse-glow 2.5s ease-in-out infinite;
-}
-
-.btn-flecha {
-  display: inline-block;
-  margin-left: 10px;
-  font-size: clamp(1.3rem, 2vw, 1.8em);
-  line-height: 0.8;
-}
-
-.footer-pie {
+.slogan-wrap {
   display: flex;
   align-items: center;
-  gap: clamp(10px, 1.8vw, 24px);
-  font-family: var(--font-ui);
-  font-size: clamp(0.62rem, 0.85vw, 0.78rem);
-  color: rgba(255, 255, 255, 0.5);
-  flex-wrap: wrap;
   justify-content: center;
+  flex: 0 1 auto;
+  min-height: 0;
+  padding: 4px 0 2px;
+  margin: 0;
 }
 
-.pie-hashtag {
-  font-weight: 700;
-  color: var(--color-dorado);
-  letter-spacing: 0.05em;
+/* TRIPTICO BOTELLAS — PNG PURAS, SIN MARCOS, SIN DISEÑO CSS
+   Solo tamaño, proporción, y animación FLOAT movimiento suave */
+.trip {
+  display: flex;
+  gap: clamp(12px, 4dvw, 40px);
+  align-items: flex-end;
+  justify-content: center;
+  margin: 4px 0 8px;
+  flex-wrap: wrap;
+  padding: clamp(6px, 1.4dvh, 16px) 0 0;
 }
 
-@media (max-width: 1200px) {
-  .bienvenida-main {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-  .bienvenida-visual {
-    min-height: 360px;
-    max-height: 52vh;
-    order: -1;
-  }
-  .triptico-botellas {
-    min-height: 340px;
-    max-height: 50vh;
-  }
+.bt-img-pura {
+  object-fit: contain;
+  display: block;
+  flex: 0 0 auto;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.38));
+  /* Animación suave SOLO transform+opacity (GPU PowerVR ok) */
+  animation: floaty 4.2s ease-in-out infinite;
+  will-change: transform;
+  transform-origin: 50% 100%;
 }
 
-/* =======================================================
-   TCL TAB 10 GEN 3 - 10.1" 800x1280 / 1280x800
-   Ajustes ESPECIFICOS Bienvenida (evita overflow)
-   ======================================================= */
+.bt-img-pura.side {
+  width: clamp(60px, 9dvw, 88px);
+  height: var(--bt-side-h);
+}
 
-/* --- TCL Portrait 800w (760..860px) --- */
-@media (orientation: portrait) and (min-width: 760px) and (max-width: 860px) {
-  .bienvenida-header {
-    min-height: clamp(48px, 7.5vh, 68px) !important;
-    gap: 10px !important;
+.bt-img-pura.mid {
+  width: clamp(66px, 9.8dvw, 96px);
+  height: var(--bt-mid-h);
+  z-index: 2;
+}
+
+@keyframes floaty {
+  0%, 100% {
+    transform: translateY(0) rotate(-0.4deg);
   }
-  .bh-tag {
-    padding: clamp(5px, 0.9vh, 8px) clamp(10px, 1.6vw, 16px) !important;
-    font-size: clamp(0.58rem, 0.85vw, 0.7rem) !important;
-    letter-spacing: 0.12em !important;
-  }
-  .bienvenida-main {
-    grid-template-rows: 0.92fr 1.08fr !important;
-    gap: clamp(6px, 1.1vh, 14px) !important;
-    padding: 2px 0 !important;
-  }
-  .bienvenida-visual {
-    min-height: 0 !important;
-    max-height: 43vh !important;
-    order: -1 !important;
-  }
-  .triptico-botellas {
-    min-height: 0 !important;
-    max-height: 42vh !important;
-    padding-bottom: clamp(10px, 3vh, 30px) !important;
-    gap: 0 !important;
-  }
-  .destacado-fiesta {
-    font-size: 95% !important;
-    padding: clamp(3px, 0.6vh, 5px) clamp(10px, 1.7vw, 18px) !important;
-    transform: rotate(-1deg) !important;
-  }
-  .hero-triptico-tag {
-    padding: clamp(6px, 1vh, 10px) clamp(8px, 1.2vw, 12px) !important;
-    gap: 6px !important;
-    margin-top: 0 !important;
-  }
-  .htt-tag {
-    padding: clamp(3px, 0.6vh, 5px) clamp(8px, 1.1vw, 12px) !important;
-    font-size: clamp(0.62rem, 0.82vw, 0.75rem) !important;
-  }
-  .htt-texto { display: none !important; }
-  .bienvenida-footer {
-    gap: clamp(6px, 1vh, 10px) !important;
-    padding-top: 0 !important;
-  }
-  .footer-badge {
-    padding: clamp(5px, 0.85vh, 7px) clamp(12px, 2vw, 16px) !important;
-    font-size: clamp(0.62rem, 0.82vw, 0.75rem) !important;
-  }
-  .botella-estrella .botella-img-real {
-    max-height: clamp(170px, 31vh, 310px) !important;
+  50% {
+    transform: translateY(-14px) rotate(0.4deg);
   }
 }
 
-/* --- TCL Landscape 800h (720..860px high) --- MAS CRITICO! */
+@media (prefers-reduced-motion: reduce) {
+  .bt-img-pura { animation: none; transform: none !important; }
+}
+
+.hero-cta-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  flex: 0 0 auto;
+  min-height: 0;
+  margin-top: clamp(2px, 1dvh, 10px);
+}
+
+.btn-iniciar { min-width: min(420px, 68dvw); }
+
+/* Landscape prototipo 1280×800 — acomodar stack */
 @media (orientation: landscape) and (min-height: 720px) and (max-height: 860px) {
-  .bienvenida-header {
-    min-height: clamp(44px, 6.2vh, 58px) !important;
-    gap: 10px !important;
+  .hero { gap: 8px; }
+  .hero-logo { height: clamp(42px, 6.2dvh, 56px) !important; }
+  .trip { gap: 24px; margin: 2px 0 4px; padding-top: 4px; }
+  @keyframes floaty {
+    0%,100% { transform: translateY(0) rotate(-0.3deg); }
+    50% { transform: translateY(-10px) rotate(0.3deg); }
   }
-  .bienvenida-header .logo-oficial-img {
-    height: clamp(36px, 5.6vh, 48px) !important;
-    max-width: min(180px, 20vw) !important;
-  }
-  .bh-tag {
-    padding: clamp(4px, 0.7vh, 7px) clamp(10px, 1.4vw, 16px) !important;
-    font-size: clamp(0.58rem, 0.8vh, 0.68rem) !important;
-    letter-spacing: 0.14em !important;
-  }
-  .bienvenida-main {
-    grid-template-columns: 0.92fr 1.08fr !important;
-    grid-template-rows: 1fr !important;
-    gap: clamp(10px, 1.4vw, 18px) !important;
-    padding: 0 !important;
-  }
-  .bienvenida-visual {
-    min-height: 0 !important;
-    max-height: 78vh !important;
-    order: 0 !important;
-  }
-  .triptico-botellas {
-    min-height: 0 !important;
-    max-height: 76vh !important;
-    padding-bottom: clamp(16px, 3vh, 40px) !important;
-    gap: clamp(1px, 0.4vw, 4px) !important;
-  }
-  .bienvenida-botellas { order: 0 !important; }
-  .hero-titulo-linea1 { font-size: clamp(1.7rem, 4.4vw, 2.6rem) !important; }
-  .hero-titulo-linea2 { font-size: clamp(1.3rem, 3.4vw, 2rem) !important; }
-  .hero-titulo-linea3 { font-size: clamp(1.05rem, 2.8vw, 1.7rem) !important; margin-top: 2px !important; }
-  .destacado-fiesta {
-    padding: clamp(3px, 0.55vh, 5px) clamp(10px, 1.5vw, 18px) !important;
-    border-radius: 12px !important;
-  }
-  .hero-subtitulo {
-    font-size: clamp(0.85rem, 1.25vw, 1.15rem) !important;
-  }
-  .hero-sub-sub {
-    font-size: clamp(0.72rem, 0.95vw, 0.88rem) !important;
-    line-height: 1.4 !important;
-  }
-  .hero-triptico-tag {
-    padding: clamp(5px, 0.85vh, 9px) clamp(8px, 1.1vw, 12px) !important;
-    gap: 6px !important;
-  }
-  .htt-tag {
-    padding: clamp(3px, 0.5vh, 5px) clamp(7px, 1vw, 11px) !important;
-    font-size: clamp(0.6rem, 0.78vw, 0.72rem) !important;
-  }
-  .htt-texto {
-    font-size: clamp(0.6rem, 0.76vw, 0.72rem) !important;
-  }
-  .bienvenida-footer {
-    gap: clamp(5px, 0.85vh, 9px) !important;
-    padding-top: 0 !important;
-  }
-  .footer-badge {
-    padding: clamp(4px, 0.65vh, 6px) clamp(10px, 1.4vw, 14px) !important;
-    font-size: clamp(0.6rem, 0.78vw, 0.72rem) !important;
-  }
-  .footer-pie {
-    font-size: clamp(0.58rem, 0.76vw, 0.7rem) !important;
-    gap: clamp(6px, 1vw, 14px) !important;
-  }
-  .botella-estrella .botella-img-real {
-    max-height: clamp(200px, 52vh, 400px) !important;
-  }
-  .botella-left .botella-img-real,
-  .botella-right .botella-img-real {
-    max-height: clamp(170px, 44vh, 340px) !important;
-  }
-  .botella-glow-real {
-    width: clamp(150px, 26vw, 260px) !important;
-    height: clamp(200px, 46vh, 340px) !important;
-    filter: blur(clamp(16px, 3vw, 36px)) !important;
-    opacity: 0.36 !important;
-  }
-  .botella-estrella .botella-glow-real {
-    width: clamp(200px, 38vw, 360px) !important;
-    height: clamp(260px, 56vh, 460px) !important;
-  }
+}
+
+/* Portrait TCL 800x1280 */
+@media (orientation: portrait) and (min-width: 760px) and (max-width: 860px) {
+  .hero { gap: 14px; }
+  .trip { gap: 20px; flex-wrap: nowrap; }
+  .hero-logo { height: clamp(52px, 6.8dvh, 76px) !important; }
+}
+
+/* Portrait general <760 */
+@media (orientation: portrait) and (max-width: 760px) {
+  .hero { gap: 12px; }
+  .trip { gap: 14px; flex-wrap: wrap; }
+  .bt-img-pura.side { width: calc(var(--bt-w) * 0.92); }
 }

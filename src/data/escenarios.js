@@ -1,16 +1,16 @@
 export const ESCENARIOS = [
   {
     id: 'calle-del-sabor',
-    nombre: 'Calle del Sabor',
-    descripcion: 'El corazón gastronómico de Cali, donde el aroma del sancocho y la música salsa llenan cada rincón.',
+    nombre: 'Museo de la Salsa',
+    descripcion: 'El templo de la salsa caleña, donde la historia y el ritmo de la música más colombiana se vive en cada pared.',
     gradiente: 'linear-gradient(135deg, #f97316 0%, #ea580c 35%, #b45309 100%)',
     acento: '#fb923c',
-    icono: '🍽️',
-    tags: ['Gastronomía', 'Tradición'],
+    icono: '🎶',
+    tags: ['Salsa', 'Museo'],
     botellaImg: '/assets/botella-fiesta-azul.png',
     botellaNombre: 'Fiesta',
-    backgroundImg: '',
-    imagenPrompt: 'Calle del Sabor en Santiago de Cali, fachadas coloridas de la ciudad, restaurantes al aire libre, ambiente festivo nocturno con luces cálidas, arquitectura colombiana tradicional, paleta naranja y dorada, fotografía profesional de alta calidad',
+    backgroundImg: '/assets/esc-museosalsa.jpg',
+    imagenPrompt: 'Museo de la Salsa en Santiago de Cali, ambiente cultural y festivo, fotografía profesional de alta calidad',
   },
   {
     id: 'plaza-varela',
@@ -22,8 +22,8 @@ export const ESCENARIOS = [
     tags: ['Salsa', 'Cultura'],
     botellaImg: '/assets/botella-night.png',
     botellaNombre: 'Night',
-    backgroundImg: '',
-    imagenPrompt: 'Plaza Varela de Santiago de Cali al atardecer, fuente central, gente bailando salsa, ambiente cultural y festivo, edificios coloniales colombianos, cielo de tonos morados y rosados, fotografía de alta gama',
+    backgroundImg: '/assets/esc-plazavarela.jpg',
+    imagenPrompt: 'Plaza Varela de Santiago de Cali al atardecer, fuente central, gente bailando salsa, fotografía de alta gama',
   },
   {
     id: 'cristo-rey',
@@ -36,7 +36,7 @@ export const ESCENARIOS = [
     botellaImg: '/assets/botella-sin-azucar.png',
     botellaNombre: 'Sin Azúcar',
     backgroundImg: '/assets/esc-cristorey.jpg',
-    imagenPrompt: 'Monumento del Cristo Rey de Santiago de Cali con vista panorámica de toda la ciudad, atardecer espectacular, nubes doradas, luz cálida, composición majestuosa, fotografía profesional 4k',
+    imagenPrompt: 'Monumento del Cristo Rey de Santiago de Cali con vista panorámica de toda la ciudad, fotografía profesional 4k',
   },
 ]
 

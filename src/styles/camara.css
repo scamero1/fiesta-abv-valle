@@ -1,810 +1,459 @@
-.camara-screen {
-  background: #060b1a;
-}
-
-.camara-bg-dark {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background:
-    radial-gradient(ellipse at 50% 0%, rgba(37, 99, 235, 0.18) 0%, transparent 50%),
-    linear-gradient(180deg, #040a18 0%, #060c1e 40%, #030714 100%);
-}
-
-.camara-bg-dark::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(0, 0, 0, 0.08) 0px,
-    rgba(0, 0, 0, 0.08) 1px,
-    transparent 1px,
-    transparent 3px
-  );
-  pointer-events: none;
-}
-
-.camara-content {
-  padding: clamp(12px, 2.2vh, 24px) var(--pad-screen-x) clamp(12px, 2.2vh, 28px);
-  display: flex;
-  flex-direction: column;
-  gap: clamp(8px, 1.5vh, 18px);
-}
+/* ============================================================
+   CAMARA — Prototipo:
+   - Marco 16:9 oro 3px radius 18px
+   - Silueta punteada blanca 80% transparente
+   - Countdown 200px sobre velo azul #00133a 40% (plano, SIN blur)
+   - Flash color crema #fff3d6 al 85% de opacidad
+   - Obturador circular 84px borde blanco 6px + anillo rojo, scale(.95) al presionar
+   - Controles altura 104px
+   ============================================================ */
 
 .camara-header {
+  height: var(--header-h);
+  min-height: var(--header-h);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: clamp(52px, 8vh, 80px);
-  gap: clamp(8px, 1.2vw, 20px);
-  flex-wrap: nowrap;
-  flex-shrink: 0;
+  padding: 0 var(--screen-pad-x);
+  gap: 12px;
   width: 100%;
-}
-
-.camara-header > .stepper-wrapper {
   flex: 0 0 auto;
-  width: auto !important;
-  max-width: clamp(160px, 24vw, 240px) !important;
-  min-width: 140px;
-  margin: 0 !important;
+  contain: layout;
 }
 
-.camara-header > .stepper-wrapper .stepper-bar {
-  width: 100% !important;
-  max-width: 100% !important;
+.camara-header .header-left,
+.camara-header .header-middle,
+.camara-header .header-right {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
 }
 
-.btn-back {
-  padding: clamp(8px, 1.3vh, 10px) clamp(14px, 2vw, 20px);
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.22);
-  border-radius: var(--radius-full);
-  color: rgba(255, 255, 255, 0.85);
-  font-family: var(--font-ui);
-  font-weight: 600;
-  font-size: clamp(0.78rem, 1vw, 0.95rem);
-  transition: all 0.2s;
-  min-height: var(--btn-min-h);
-  white-space: nowrap;
-  flex-shrink: 0;
+.camara-header .header-left { flex: 0 0 auto; justify-content: flex-start; }
+.camara-header .header-middle {
+  flex: 1 1 auto;
+  justify-content: center;
+  padding: 0 12px;
+  overflow: hidden;
 }
-
-.btn-back:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
+.camara-header .header-right {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  max-width: clamp(180px, 30dvw, 300px);
+  min-width: 160px;
+  width: auto;
 }
 
 .camara-titulo {
-  text-align: center;
-  flex: 1 1 auto;
-  flex-basis: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  text-align: center;
+  gap: 4px;
+  min-width: min-content;
   width: 100%;
   max-width: 100%;
-  min-width: 0;
-  padding: 0 4px;
-}
-
-.camara-eyebrow {
-  font-family: var(--font-ui);
-  font-weight: 700;
-  font-size: clamp(0.6rem, 0.8vw, 0.75rem);
-  letter-spacing: 0.25em;
-  color: var(--color-dorado);
-  white-space: nowrap;
-  overflow: visible;
-  text-overflow: clip;
-  min-width: 0;
-  max-width: 100%;
-  display: inline-block;
-  writing-mode: horizontal-tb !important;
-  -webkit-writing-mode: horizontal-tb !important;
+  overflow: hidden;
+  flex: 1 1 auto;
 }
 
 .camara-titulo h2 {
-  font-family: var(--font-display);
-  font-size: clamp(1rem, 2.4vw, 2rem);
+  margin: 0 !important;
+  font-size: clamp(1.1rem, 2.6dvw, 1.9rem);
   font-weight: 800;
-  color: #fff;
-  letter-spacing: -0.02em;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--tx);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap !important;
   word-break: normal !important;
   overflow-wrap: normal !important;
-  line-break: normal !important;
-  -webkit-line-break: normal !important;
-  white-space: normal !important;
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  min-width: min-content;
-  min-height: 0;
   writing-mode: horizontal-tb !important;
-  -webkit-writing-mode: horizontal-tb !important;
-  text-align: center;
-  text-wrap: balance;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+}
+
+.btn-back { padding: 8px 18px; }
+
+.camara-content {
+  padding-top: clamp(4px, 1dvh, 12px);
+  padding-bottom: calc(var(--legal-h) + var(--pad-safe-b) + 12px);
+  gap: clamp(8px, 1.4dvh, 18px);
+  align-items: stretch;
+  justify-content: flex-start;
 }
 
 .camara-body {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0;
+  flex: 1 1 auto;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  gap: 8px;
 }
 
-.camara-viewport {
-  position: relative;
-  display: grid;
-  place-items: center;
+.camwrap {
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vp,
+.viewport-marco,
+.foto-preview-frame,
+.foto-final-frame,
+.landing-foto-card {
+  position: relative;
   height: 100%;
-}
-
-.viewport-marco {
-  position: relative;
-  width: 100%;
-  max-width: clamp(420px, 88vw, 1400px);
   max-height: 100%;
-  aspect-ratio: 16 / 9;
-  background: #000;
-  border-radius: var(--radius-xl);
+  width: auto;
+  max-width: 100%;
+  aspect-ratio: 16/9;
+  border-radius: 18px;
+  border: 3px solid var(--oro);
   overflow: hidden;
-  box-shadow:
-    0 0 0 3px rgba(245, 197, 24, 0.6),
-    0 0 0 7px rgba(245, 197, 24, 0.15),
-    0 30px 70px -12px rgba(0, 0, 0, 0.8),
-    0 0 80px rgba(245, 197, 24, 0.12);
+  background: radial-gradient(ellipse at 50% 40%, #2a3a5e, #0b1226);
+  box-shadow: 0 18px 40px -14px rgba(0,0,0,0.6);
+  contain: layout paint;
+  flex: 0 0 auto;
+  touch-action: none;
+  backface-visibility: hidden;
 }
 
-:root.is-portrait .viewport-marco {
-  max-width: 96%;
-  max-height: 42vh;
-}
-
-.marco-esquina {
+.sil {
   position: absolute;
-  width: 42px;
-  height: 42px;
-  border: 4px solid var(--color-dorado);
-  z-index: 5;
+  left: 50%;
+  bottom: 0;
+  width: 26%;
+  height: 78%;
+  transform: translateX(-50%);
+  border: 3px dashed rgba(255,255,255,0.55);
+  border-radius: 50% 50% 8px 8px / 38% 38% 8px 8px;
   pointer-events: none;
+  z-index: 2;
+  box-sizing: border-box;
 }
 
-.marco-esquina.marco-tl { top: 14px; left: 14px; border-right: none; border-bottom: none; border-top-left-radius: 14px; }
-.marco-esquina.marco-tr { top: 14px; right: 14px; border-left: none; border-bottom: none; border-top-right-radius: 14px; }
-.marco-esquina.marco-bl { bottom: 14px; left: 14px; border-right: none; border-top: none; border-bottom-left-radius: 14px; }
-.marco-esquina.marco-br { bottom: 14px; right: 14px; border-left: none; border-top: none; border-bottom-right-radius: 14px; }
+.hint,
+.camara-hint {
+  position: absolute;
+  top: 14px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: clamp(14px, 2.2dvw, 20px);
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.75);
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  padding: 0 16px;
+  z-index: 3;
+  pointer-events: none;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  writing-mode: horizontal-tb !important;
+  white-space: nowrap;
+  min-width: min-content;
+}
 
-.webcam-feed,
-.preview-img {
+.webcam-feed {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
+  z-index: 1;
   display: block;
+  margin: 0;
+  padding: 0;
+  background: #000;
 }
 
 .preview-img {
-  animation: fadeIn 0.4s ease-out;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  z-index: 1;
+  display: block;
 }
 
+/* Cuenta regresiva — 200px, velo azul translúcido plano (SIN blur backdrop-filter GPU mataría TCL) */
+.cd,
 .countdown-overlay {
   position: absolute;
   inset: 0;
-  z-index: 10;
-  display: grid;
-  place-items: center;
-  background-color: rgba(0, 42, 122, 0.72);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 4;
+  background: rgba(0, 19, 58, 0.40);
+  pointer-events: none;
+}
+
+.cd.on,
+.countdown-overlay.on {
+  display: flex;
 }
 
 .countdown-num {
   font-family: var(--font-display);
+  font-size: clamp(84px, 26dvh, 200px);
   font-weight: 900;
-  font-size: clamp(4rem, 14vw, 10rem);
-  color: #ffffff;
-  text-shadow: 0 6px 32px rgba(0, 0, 0, 0.55);
-  animation: countdown-pop 0.8s ease-out;
+  color: #fff;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  text-shadow:
+    0 3px 0 rgba(0,0,0,0.25),
+    0 12px 28px rgba(0,0,0,0.55);
+  animation: pop .9s var(--ease);
+  display: inline-block;
+  padding: 0;
+  margin: 0;
 }
 
-@keyframes countdown-pop {
-  0% { transform: scale(2); opacity: 0; }
-  40% { transform: scale(1); opacity: 1; }
-  100% { transform: scale(1.2); opacity: 0; }
+@keyframes pop {
+  from { opacity: 0; transform: scale(1.4); }
+  to   { opacity: 1; transform: none; }
 }
 
+/* Flash — CREMA #fff3d6 al 85% (no blanco puro prototipo) */
+.fl,
 .flash-overlay {
   position: absolute;
   inset: 0;
-  z-index: 20;
-  background-color: #fff3d6;
-  animation: flash 0.22s ease-out;
+  background: #fff3d6;
+  opacity: 0;
   pointer-events: none;
+  transition: opacity .25s;
+  z-index: 5;
 }
 
-@keyframes flash {
-  0% { opacity: 0.85; }
-  100% { opacity: 0; }
+.fl.on,
+.flash-overlay.on {
+  opacity: .85;
 }
 
-.silueta-guia {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 38%;
-  height: 82%;
-  max-width: 320px;
-  max-height: 520px;
-  z-index: 4;
-  pointer-events: none;
-  opacity: 0.85;
-}
-
-.silueta-guia svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.camara-confirmacion {
+/* Controles cámara */
+.ctl {
+  flex: 0 0 auto;
+  height: 104px;
+  min-height: 104px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-top: 12px;
+  gap: 24px;
   width: 100%;
-  min-width: 0;
-}
-
-.confirmacion-preg {
-  color: #fff;
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: clamp(1rem, 2vw, 1.6rem);
+  padding: 0;
   margin: 0;
-  word-break: normal !important;
-  overflow-wrap: normal !important;
-  white-space: normal !important;
-  writing-mode: horizontal-tb !important;
-  -webkit-writing-mode: horizontal-tb !important;
-  display: block;
-  text-align: center;
-  width: 100%;
-  max-width: 100%;
-  min-width: min-content;
-  text-wrap: balance;
 }
 
-.viewport-guia {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  padding-bottom: 36px;
-  pointer-events: none;
-}
+.ctl-capture { /* antes de tomar foto: obturador central */ }
+.ctl-preview { /* después: repetir + usar foto botones */ }
 
-.guia-rostro {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -62%);
-  width: 62%;
-  height: 60%;
-  border: 2px dashed rgba(255, 255, 255, 0.35);
-  border-radius: 50% 50% 44% 44% / 55% 55% 45% 45%;
-}
-
-.guia-texto {
-  padding: 8px 18px;
-  background: rgba(0, 0, 0, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: var(--radius-full);
-  font-family: var(--font-ui);
-  font-weight: 600;
-  font-size: 0.88rem;
-  color: #fff;
-  white-space: nowrap;
-  writing-mode: horizontal-tb !important;
-  -webkit-writing-mode: horizontal-tb !important;
-  word-break: keep-all !important;
-  display: inline-block;
-  max-width: 90%;
-}
-
-.camara-error {
-  position: absolute;
-  inset: 0;
-  z-index: 8;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 18px;
-  padding: 40px clamp(20px, 4vw, 60px);
-  text-align: center;
-  background: rgba(0, 0, 0, 0.75);
-  width: 100%;
-}
-
-.error-icono {
-  font-size: 4rem;
-}
-
-.camara-error p {
-  color: rgba(255, 255, 255, 0.85);
-  font-family: var(--font-body);
-  font-size: 1rem;
-  writing-mode: horizontal-tb !important;
-  -webkit-writing-mode: horizontal-tb !important;
-  word-break: normal !important;
-  overflow-wrap: normal !important;
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  line-height: 1.45;
-  white-space: normal;
-}
-
-.camara-error .error-tit {
-  font-family: var(--font-display) !important;
-  font-weight: 800 !important;
-  font-size: clamp(1rem, 2vw, 1.5rem) !important;
-  color: #fff !important;
-  margin-bottom: 4px;
-}
-
-.camara-error .error-detalle {
-  font-size: clamp(0.78rem, 1.1vw, 0.95rem) !important;
-  color: rgba(255, 255, 255, 0.75) !important;
-}
-
-.viewport-lateral {
-  pointer-events: none;
-}
-
-.luz-lateral {
-  position: absolute;
-  top: 12%;
-  bottom: 12%;
-  width: 5px;
-  border-radius: 999px;
-  filter: blur(3px);
-}
-
-.luz-lateral-izq {
-  left: -16px;
-  background: linear-gradient(180deg, var(--color-dorado) 0%, var(--color-azul-terciario) 100%);
-  box-shadow: 0 0 20px currentColor;
-  animation: luz-lateral 3s ease-in-out infinite;
-}
-
-.luz-lateral-der {
-  right: -16px;
-  background: linear-gradient(180deg, var(--color-azul-terciario) 0%, var(--color-dorado) 100%);
-  animation: luz-lateral 3s ease-in-out infinite 1.5s;
-}
-
-@keyframes luz-lateral {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 1; }
-}
-
-.camara-side-info {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  justify-content: center;
-}
-
-.info-card {
-  padding: 22px 20px;
-  background: rgba(255, 255, 255, 0.09);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: var(--radius-lg);
-  display: flex;
-  gap: 14px;
-}
-
-.info-icono {
-  font-size: 2.2rem;
-  flex-shrink: 0;
-}
-
-.info-card h4 {
-  font-family: var(--font-display);
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #fff;
-  margin-bottom: 10px;
-}
-
-.info-card ul {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.info-card li {
-  font-family: var(--font-body);
-  font-size: 0.83rem;
-  color: rgba(255, 255, 255, 0.7);
-  padding-left: 14px;
+/* Obturador prototipo 84px, borde blanco 6px + anillo rojo 4px box-shadow */
+.shut,
+.obturador {
+  width: var(--shut-size, 84px);
+  height: var(--shut-size, 84px);
+  border-radius: 50%;
+  background: var(--rojo);
+  border: 6px solid #fff;
+  box-shadow: 0 0 0 4px var(--rojo);
+  transition: transform .12s var(--ease), background .12s;
+  padding: 0;
+  margin: 0;
   position: relative;
+  cursor: pointer;
+  flex: 0 0 auto;
+  outline: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.info-card li::before {
-  content: '✓';
-  position: absolute;
-  left: 0;
-  top: 0;
-  color: var(--color-dorado);
-  font-weight: 800;
+.shut:active,
+.obturador:active {
+  transform: scale(.95);
 }
 
-.info-card-marca {
-  justify-content: center;
-  gap: 14px;
-  flex-direction: column;
-  align-items: center;
-  padding: 18px 16px;
+.shut:focus-visible,
+.obturador:focus-visible {
+  outline: 3px solid var(--oro);
+  outline-offset: 4px;
 }
 
-.marca-variedades {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+.shut[disabled],
+.obturador[disabled] {
+  background: rgba(255,255,255,0.35);
+  box-shadow: 0 0 0 4px rgba(255,255,255,0.25);
+  cursor: not-allowed;
+  transform: none !important;
 }
 
-.mini-botella {
-  width: auto;
-  height: 90px;
-  object-fit: contain;
-  filter: drop-shadow(0 6px 14px rgba(0,0,0,0.4));
-  transition: transform 0.25s;
-}
-
-.mini-botella:nth-child(2) {
-  height: 102px;
-  transform: translateY(-4px);
-  filter: drop-shadow(0 10px 22px rgba(37, 99, 235, 0.35));
-}
-
-.mini-botella:hover {
-  transform: translateY(-4px) scale(1.05);
-}
-.mini-botella:nth-child(2):hover {
-  transform: translateY(-8px) scale(1.06);
-}
-
-.camara-footer {
-  min-height: 110px;
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  gap: 28px;
-  padding: 12px 20px;
-  background: rgba(255, 255, 255, 0.06);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--radius-xl);
-}
+.obturador-inner { display: none; }
+.obturador-ring { display: none; }
 
 .btn-lateral {
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 14px 22px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: var(--radius-lg);
-  color: #fff;
-  transition: all 0.2s;
+  justify-content: center;
+  gap: 8px;
+  min-width: 140px;
 }
 
-.btn-lateral:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: var(--color-dorado);
-}
-
-.btn-lat-ico {
-  font-size: 1.5rem;
-}
-
+.btn-lat-ico { font-size: 18px; line-height: 1; }
 .btn-lat-texto {
-  font-family: var(--font-ui);
-  font-weight: 600;
-  font-size: 0.85rem;
-  word-break: keep-all !important;
-  white-space: nowrap;
+  font-weight: 700;
+  font-size: 15px;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
   writing-mode: horizontal-tb !important;
-  -webkit-writing-mode: horizontal-tb !important;
-  display: block;
-  text-align: center;
-  min-width: 0;
-  line-height: 1.2;
-}
-
-.obturador {
-  position: relative;
-  width: 84px;
-  height: 84px;
-  border-radius: 50%;
-  background: transparent;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border: none;
-  cursor: pointer;
-  transition: transform 0.2s cubic-bezier(.2,.7,.2,1);
-}
-
-.obturador:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.obturador:hover:not(:disabled) {
-  transform: scale(1.05);
-}
-
-.obturador:active:not(:disabled) {
-  transform: scale(0.95);
-}
-
-.obturador-ring {
-  position: absolute;
-  inset: 0;
-  border: 5px solid #fff;
-  border-radius: 50%;
-  box-shadow: 0 0 0 2px rgba(212, 160, 23, 0.6), 0 0 30px rgba(212, 160, 23, 0.3);
-}
-
-.obturador-inner {
-  position: relative;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-dorado) 0%, #e8b200 100%);
-  box-shadow: 0 0 28px rgba(212, 160, 23, 0.55), inset 0 -4px 0 rgba(0,0,0,0.2);
-  transition: all 0.15s cubic-bezier(.2,.7,.2,1);
-  z-index: 1;
-}
-
-.obturador.capturando .obturador-inner {
-  transform: scale(0.88);
-  background: var(--color-rojo-acento);
-  box-shadow: 0 0 40px rgba(228, 0, 43, 0.6);
+  white-space: nowrap;
+  line-height: 1.1;
+  color: #fff;
+  min-width: min-content;
+  display: inline-block;
 }
 
 .camara-status {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-family: var(--font-ui);
-  font-weight: 500;
-  font-size: 0.95rem;
-  color: rgba(255, 255, 255, 0.72);
-  word-break: keep-all !important;
-  white-space: nowrap;
+  font-size: clamp(13px, 1.6dvw, 16px);
+  color: rgba(255,255,255,0.88);
+  font-weight: 600;
+  min-width: 140px;
+  padding: 8px 14px;
+  background: rgba(0, 42, 122, 0.35);
+  border-radius: 9999px;
+  border: 1px solid rgba(255,255,255,0.15);
+  word-break: normal !important;
+  overflow-wrap: normal !important;
   writing-mode: horizontal-tb !important;
-  -webkit-writing-mode: horizontal-tb !important;
-  display: flex;
-  min-width: 0;
-  flex: 0 1 auto;
-  max-width: 100%;
-  line-height: 1.25;
+  white-space: nowrap;
 }
 
 .status-dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: var(--color-rojo-acento);
-  box-shadow: 0 0 14px var(--color-rojo-acento);
-  animation: status-rec 1.2s ease-in-out infinite;
+  background: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.25);
+  flex: 0 0 auto;
+  animation: pulse-dot 1.8s ease-in-out infinite;
 }
 
-@keyframes status-rec {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.25); opacity: 0.7; }
 }
 
-.btn-preview-repetir,
-.btn-preview-aceptar {
-  min-width: 260px;
+.camara-confirmacion { display: none; }
+.confirmacion-preg { display: none; }
+.guia-texto { display: none; }
+
+.camara-error,
+.error-box {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(640px, 88%);
+  max-height: 90%;
+  background: linear-gradient(180deg, rgba(180, 24, 55, 0.96), rgba(96, 0, 19, 0.96));
+  border: 2px solid rgba(255,255,255,0.22);
+  border-radius: 18px;
+  padding: 20px 24px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  box-shadow: 0 24px 52px -12px rgba(0,0,0,0.72);
+  overflow: auto;
 }
 
-/* =======================================================
-   TCL TAB 10 GEN 3 - 10.1" 800x1280 / 1280x800
-   Ajustes ESPECIFICOS Camara (evita overflow footer)
-   ======================================================= */
-
-/* --- TCL Portrait 800w (760..860px) --- */
-@media (orientation: portrait) and (min-width: 760px) and (max-width: 860px) {
-  .camara-content {
-    padding: clamp(10px, 1.8vh, 18px) var(--pad-screen-x) clamp(10px, 1.8vh, 20px) !important;
-    gap: clamp(6px, 1.1vh, 12px) !important;
-  }
-  .camara-header {
-    min-height: clamp(48px, 7.5vh, 66px) !important;
-    gap: 8px !important;
-  }
-  .camara-header > .stepper-wrapper {
-    max-width: clamp(140px, 22vw, 180px) !important;
-    min-width: 120px !important;
-    flex: 0 0 auto !important;
-  }
-  .camara-titulo {
-    flex: 1 1 auto !important;
-    min-width: min-content !important;
-    padding: 0 2px !important;
-  }
-  .btn-back {
-    padding: clamp(6px, 1vh, 9px) clamp(11px, 1.7vw, 16px) !important;
-    font-size: clamp(0.74rem, 0.95vw, 0.88rem) !important;
-  }
-  .camara-eyebrow {
-    font-size: clamp(0.58rem, 0.82vw, 0.72rem) !important;
-    letter-spacing: 0.2em !important;
-  }
-  .camara-titulo h2 {
-    font-size: clamp(0.95rem, 2.3vw, 1.5rem) !important;
-  }
-  .viewport-marco {
-    max-width: 98% !important;
-    max-height: 38vh !important; /* 16/9 height en 1280 alto total */
-  }
-  .marco-esquina {
-    width: 34px !important;
-    height: 34px !important;
-    border-width: 3px !important;
-  }
-  .marco-esquina.marco-tl { top: 10px; left: 10px; border-top-left-radius: 10px; }
-  .marco-esquina.marco-tr { top: 10px; right: 10px; border-top-right-radius: 10px; }
-  .marco-esquina.marco-bl { bottom: 10px; left: 10px; border-bottom-left-radius: 10px; }
-  .marco-esquina.marco-br { bottom: 10px; right: 10px; border-bottom-right-radius: 10px; }
-  .countdown-num {
-    font-size: 7rem !important;
-  }
-  .guia-rostro {
-    width: 66% !important;
-    height: 64% !important;
-  }
-  .guia-texto {
-    padding: 6px 14px !important;
-    font-size: 0.78rem !important;
-  }
-  .camara-footer {
-    min-height: 92px !important;
-    gap: 20px !important;
-    padding: 9px 14px !important;
-  }
-  .btn-lateral {
-    padding: 10px 16px !important;
-    gap: 4px !important;
-  }
-  .btn-lat-ico { font-size: 1.3rem !important; }
-  .btn-lat-texto { font-size: 0.78rem !important; }
-  .obturador {
-    width: 86px !important;
-    height: 86px !important;
-  }
-  .obturador-ring { border-width: 4px !important; }
-  .obturador-inner {
-    width: 62px !important;
-    height: 62px !important;
-  }
-  .camara-status { font-size: 0.85rem !important; }
+.error-icono {
+  font-size: 40px;
+  line-height: 1;
+  margin-bottom: 4px;
 }
 
-/* --- TCL Landscape 800h (720..860px high) --- MAS CRITICO! */
+.error-tit {
+  font-family: var(--font-display);
+  font-size: clamp(18px, 2.4dvw, 24px);
+  font-weight: 800;
+  color: #fff;
+  margin: 0;
+  line-height: 1.2;
+  word-break: normal !important;
+  writing-mode: horizontal-tb !important;
+  white-space: normal;
+}
+
+.error-detalle {
+  margin: 0;
+  font-size: clamp(13px, 1.5dvw, 16px);
+  color: rgba(255,255,255,0.85);
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 0 16px;
+  word-break: normal !important;
+  writing-mode: horizontal-tb !important;
+}
+
+.btn-reintentar-cam {
+  margin-top: 8px !important;
+}
+
+/* Landscape TCL 800h — reduce fuentes para no cortar */
 @media (orientation: landscape) and (min-height: 720px) and (max-height: 860px) {
-  .camara-content {
-    padding: clamp(8px, 1.4vh, 14px) clamp(14px, 2vw, 24px) clamp(8px, 1.3vh, 16px) !important;
-    gap: clamp(4px, 0.75vh, 8px) !important;
-  }
-  .camara-header {
-    min-height: clamp(40px, 5.8vh, 52px) !important;
-    gap: 8px !important;
-  }
-  .camara-header > .stepper-wrapper {
-    max-width: clamp(150px, 20vw, 190px) !important;
-    min-width: 130px !important;
-    flex: 0 0 auto !important;
-  }
-  .camara-titulo {
-    flex: 1 1 auto !important;
-    min-width: min-content !important;
-    padding: 0 2px !important;
-  }
-  .btn-back {
-    padding: clamp(5px, 0.85vh, 8px) clamp(10px, 1.4vw, 16px) !important;
-    font-size: clamp(0.72rem, 0.95vh, 0.85rem) !important;
-    min-height: 0 !important;
-  }
-  .camara-eyebrow {
-    font-size: clamp(0.56rem, 0.76vh, 0.66rem) !important;
-    letter-spacing: 0.2em !important;
-  }
-  .camara-titulo h2 {
-    font-size: clamp(0.9rem, 1.4vw, 1.25rem) !important;
-  }
-  .camara-body {
-    grid-template-columns: 1fr !important; /* Sin sidebar-info (ya quitado global.css) */
-  }
-  .viewport-marco {
-    max-width: clamp(520px, 78vw, 1100px) !important;
-    max-height: 58vh !important;
-  }
-  .marco-esquina {
-    width: 32px !important;
-    height: 32px !important;
-    border-width: 3px !important;
-  }
-  .marco-esquina.marco-tl { top: 8px; left: 8px; border-top-left-radius: 8px; }
-  .marco-esquina.marco-tr { top: 8px; right: 8px; border-top-right-radius: 8px; }
-  .marco-esquina.marco-bl { bottom: 8px; left: 8px; border-bottom-left-radius: 8px; }
-  .marco-esquina.marco-br { bottom: 8px; right: 8px; border-bottom-right-radius: 8px; }
-  .countdown-num {
-    font-size: clamp(3.6rem, 9vw, 5.4rem) !important;
-  }
-  .guia-rostro { display: none !important; } /* Sin ovalo guia, tan poco alto */
-  .guia-texto {
-    padding: 5px 12px !important;
-    font-size: 0.74rem !important;
-    padding-bottom: 22px !important;
-  }
-  .viewport-guia { padding-bottom: 22px !important; }
-  .camara-footer {
-    min-height: 82px !important;
-    gap: 16px !important;
-    padding: 6px 14px !important;
-    flex-shrink: 0 !important;
-  }
-  .btn-lateral {
-    padding: 8px 14px !important;
-    gap: 3px !important;
-    min-height: 0 !important;
-  }
-  .btn-lat-ico { font-size: 1.15rem !important; }
-  .btn-lat-texto {
-    font-size: 0.72rem !important;
-    line-height: 1.2 !important;
-  }
-  .obturador {
-    width: 78px !important;
-    height: 78px !important;
-  }
-  .obturador-ring {
-    border-width: 4px !important;
-  }
-  .obturador-inner {
-    width: 56px !important;
-    height: 56px !important;
-  }
-  .camara-status {
-    font-size: 0.8rem !important;
-    gap: 6px !important;
-  }
-  .status-dot {
-    width: 8px !important;
-    height: 8px !important;
-  }
-  .btn-preview-repetir,
-  .btn-preview-aceptar {
-    min-width: clamp(200px, 26vw, 260px) !important;
-  }
+  .camara-header { height: 60px; min-height: 60px; padding: 0 28px; gap: 8px; }
+  .camara-header .header-right { max-width: 230px; min-width: 120px; }
+  .camara-titulo h2 { font-size: clamp(1rem, 2.4dvw, 1.5rem); }
+  .ctl { height: 86px; min-height: 86px; gap: 16px; }
+  .shut, .obturador { width: 76px; height: 76px; }
+  .vp { max-height: calc(100dvh - var(--header-h) - 96px - var(--legal-h)); }
+  .camara-status { min-width: 120px; padding: 6px 12px; font-size: 13px; }
+  .btn-lateral { min-width: 120px; padding: 10px 16px !important; }
+  .btn-lat-texto { font-size: 14px; }
+}
+
+/* Portrait TCL 800w */
+@media (orientation: portrait) and (min-width: 760px) and (max-width: 860px) {
+  .camara-header { padding: 0 24px; gap: 10px; }
+  .camara-header .header-right { max-width: 190px; min-width: 140px; }
+  .camara-titulo h2 { font-size: clamp(1.1rem, 3.4dvw, 1.6rem); min-width: min-content; white-space: nowrap; }
+  .ctl { height: 120px; min-height: 120px; gap: 18px; flex-wrap: wrap; }
+  .vp { width: 100%; height: auto; max-height: 60dvh; }
+  .camara-content { padding-top: 6px; gap: 12px; }
+}
+
+/* Portrait celular general */
+@media (orientation: portrait) and (max-width: 540px) {
+  .camara-header { padding: 0 14px; height: 58px; min-height: 58px; }
+  .camara-header .header-right { max-width: 170px; min-width: 120px; }
+  .camara-titulo h2 { font-size: 18px; }
+  .btn-back { padding: 6px 14px !important; font-size: 14px !important; min-height: 40px !important; }
+  .ctl { height: 110px; min-height: 110px; gap: 14px; flex-wrap: wrap; }
+  .shut, .obturador { width: 72px; height: 72px; }
+  .btn-lateral { padding: 8px 14px !important; font-size: 14px !important; min-width: 110px; }
+  .camara-status { min-width: auto; padding: 6px 10px; font-size: 12px; }
+  .vp { width: 100%; height: auto; max-height: 52dvh; }
 }

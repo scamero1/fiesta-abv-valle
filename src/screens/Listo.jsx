@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext.jsx'
-import { LegalDisclaimer, LogoHeaderStack } from '../components/BrandComponents.jsx'
+import { LegalDisclaimer } from '../components/BrandComponents.jsx'
 import '../styles/listo.css'
 
 export default function Listo() {
@@ -21,61 +21,52 @@ export default function Listo() {
       <div className="screen-bg listo-bg bg-pantone-2728" />
 
       <div className="particles">
-        {Array.from({ length: 12 }).map((_, i) => (
+        {Array.from({ length: 18 }).map((_, i) => (
           <span
             key={i}
-            className="particle"
+            className="particle pt"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 6}s`,
-              background: ['#d4a017', '#E4002B', '#0047BA', '#FFFFFF'][i % 4],
+              left: `${(i * 5.5) % 100}%`,
+              top: `${(i * 11.3) % 100}%`,
+              animationDelay: `${(i % 6) * 0.6}s`,
             }}
           />
         ))}
       </div>
 
       <div className="screen-content listo-content">
-        <div className="listo-header fade-in">
-          <LogoHeaderStack showFiesta showILV />
+        <div className="listo-header anim-in">
+          <img
+            src="/assets/logo-oficial.png"
+            alt="Aguardiente Blanco del Valle"
+            className="logo-oficial-img"
+          />
         </div>
 
         <div className="listo-main">
-          <div className="listo-mensaje-col slide-up">
-            <div className="check-grande" aria-hidden="true">
+          <div className="listo-hero anim-in" style={{ animationDelay: '0.1s' }}>
+            <div className="ok-circle" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M4 12.5L9.5 18L20 7" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              <div className="check-ondas">
-                <span />
-                <span />
-              </div>
             </div>
 
             <h1 className="listo-titulo">
               ¡Gracias por participar!
             </h1>
             <p className="listo-sub">
-              ¡Comparte tu foto y etiquétanos para ganar <strong className="destacado-dorado">10 botellas semanales</strong>!
+              Tu foto ya está en tu celular.
             </p>
-
-            <div className="premio-box">
-              <span className="pb-icon">🥂</span>
-              <div className="pb-textos">
-                <div className="pb-tit">Premio semanal</div>
-                <div className="pb-desc">Sube tu foto a Instagram con <b className="hash-main">#ElSaborQueNosUne</b> y menciona <b>@aguardientedelvalle</b></div>
-              </div>
-            </div>
           </div>
         </div>
 
-        <div className="listo-footer slide-up" style={{ animationDelay: '0.4s' }}>
+        <div className="listo-footer anim-in" style={{ animationDelay: '0.3s' }}>
           <button
-            className="btn-primario btn-nueva-foto btn-cta-red"
+            className="btn-primario btn-cta-red btn-nueva-foto"
             onClick={() => { reiniciarFlujo(); navigate('/') }}
             autoFocus
           >
-            VOLVER A EMPEZAR <span className="btn-flecha">›</span>
+            VOLVER A EMPEZAR
           </button>
         </div>
       </div>

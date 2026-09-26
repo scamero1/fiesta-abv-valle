@@ -324,6 +324,16 @@ export async function processFullPipelineServerSide(fotoBase64, escenario) {
   const base = (API_CONFIG.PROCESS_FULL_ENDPOINT || '').replace(/\/+$/, '')
   const url = base + '/api/procesar-foto'
 
+  // Log CONSOLA SOLO para debug en tableta TCL (aparece en Chrome DevTools → Console)
+  // NO se muestra al usuario final. Sirve para confirmar qué dominio se está usando.
+  console.info('[processFullPipeline] → Endpoint calculado:', {
+    base_raw: API_CONFIG.PROCESS_FULL_ENDPOINT,
+    base_limpio: base,
+    url_final: url,
+    escenario_id: escenario?.id,
+    escenario_nombre: escenario?.nombre,
+  })
+
   const fd = new FormData()
   fd.append('foto', dataUrlToBlob(fotoBase64), `foto-${Date.now()}.jpg`)
   fd.append('escenario', String(escenario?.id || '').toLowerCase())
@@ -340,30 +350,55 @@ export async function processFullPipelineServerSide(fotoBase64, escenario) {
     headers['X-Api-Key'] = API_CONFIG.BACKGROUND_REMOVAL_API_KEY
   }
 
-  const res = await fetch(url, { method: 'POST', headers, body: fd })
+  let res
+  try {
+    res = await fetch(url, { method: 'POST', headers, body: fd })
+  } catch (networkError) {
+    console.error('[processFullPipeline] X NETWORK ERROR fetch:', networkError?.message || networkError)
+    throw new Error(
+      '🌐 NO SE PUDO CONECTAR CON EL SERVIDOR DE IA.\n\n' +
+      `Dominio que intentó: ${base || '(VACÍO — falta configurar VITE_BACKEND_URL)'}\n\n` +
+      `Detalle de red: ${networkError?.message || String(networkError)}\n\n` +
+      'Verifica:\n' +
+      '  1. El servicio backend está deployado en Railway.\n' +
+      '  2. VITE_BACKEND_URL apunta al backend NO al frontend.\n' +
+      '  3. VITE_BACKEND_URL empieza con https:// y NO lleva / al final.\n' +
+      '  4. Redes privada / pública en Railway permiten tráfico HTTPS.'
+    )
+  }
+
+  console.info('[processFullPipeline] ← HTTP Status del backend:', res.status, res.statusText)
   let payload = null
   try {
     payload = await res.json()
   } catch (e) {
     const txt = await res.text()
-    throw new Error(`Backend composición: HTTP ${res.status} — ${txt.substring(0, 220)}`)
+    console.error('[processFullPipeline] ← Respuesta NO JSON del backend:', txt.substring(0, 300))
+    throw new Error(
+      `⚠️ Backend respondió con error.\n\n` +
+      `Código HTTP: ${res.status} ${res.statusText}\n\n` +
+      `Respuesta corta: ${txt.substring(0, 220)}`
+    )
   }
   if (!res.ok) {
+    console.error('[processFullPipeline] ← Backend HTTP NOT OK, payload:', payload)
     throw new Error(
       `⚠️ NO SE PUDO PROCESAR LA FOTO EN EL SERVIDOR.\n\n` +
-      `Código: ${res.status}\n` +
-      `Detalle: ${payload?.detail || payload?.error || JSON.stringify(payload).substring(0, 200)}\n\n` +
-      `Endpoint: ${url}`
+      `Código HTTP: ${res.status}\n` +
+      `Detalle del servidor: ${payload?.detail || payload?.error || JSON.stringify(payload).substring(0, 200)}\n\n` +
+      `Endpoint usado: ${url}`
     )
   }
   if (!payload?.ok || !payload?.url) {
-    throw new Error('El servidor respondió OK pero faltaba {url} en la respuesta.')
+    console.error('[processFullPipeline] ← Backend respondió OK pero faltaba .ok o .url en payload:', payload)
+    throw new Error('El servidor respondió OK pero no devolvió la URL de la foto. Vuelve a intentarlo.')
   }
   const composed = payload.preview && typeof payload.preview === 'string'
     ? payload.preview
     : payload.url
+  console.info('[processFullPipeline] ✅ Éxito. fotoId=' + (payload.id || 'sin-id') + ' | URL pública=' + payload.url)
   return {
-    noBg: null, // IA ya lo procesó en el server, no necesitamos el PNG transparente acá
+    noBg: null,
     composed,
     composedServerUrl: payload.url,
     serverPreview: payload.preview || null,

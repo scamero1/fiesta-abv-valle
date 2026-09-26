@@ -153,7 +153,10 @@ body {
   -webkit-user-select: none;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  font-size: calc(14px + (18 - 14) * ((100vw - 320px) / (1920 - 320px)));
+  /* TCL 800×1280 y todos los dispositivos: font-size base FIJO 16px, NO auto-scale
+     El escalado de UI se hace VÍA clamp() y dvh/dvw, NUNCA via font-size auto calculado del viewport.
+     Antes usaba calc(14px + delta) y se descontrobalaba en pantallas con densidad rara (TCL 149ppi). */
+  font-size: 16px;
   line-height: 1.5;
   padding: 0;
 }
@@ -173,14 +176,18 @@ body {
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 0;
+  height: 100dvh;
+  min-height: 100dvh;
   min-width: 0;
+  max-width: 100%;
+  max-height: 100%;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   contain: layout;
   padding: var(--pad-safe-t) var(--pad-safe-r) 0 var(--pad-safe-l);
   background: linear-gradient(165deg, var(--azul2) -30%, var(--azul) 55%);
+  box-sizing: border-box;
 }
 
 .screen-bg,
@@ -281,12 +288,13 @@ body {
   z-index: var(--z-content);
   width: 100%;
   max-width: var(--content-max-w);
+  max-height: calc(100dvh - var(--header-h) - var(--legal-h) - var(--pad-safe-t) - var(--pad-safe-b));
   margin: 0 auto;
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: var(--screen-pad-y) var(--screen-pad-x) calc(var(--screen-pad-y) + var(--legal-h) + var(--pad-safe-b));
+  padding: var(--screen-pad-y) var(--screen-pad-x) var(--screen-pad-y);
   gap: clamp(6px, 1.2dvh, 20px);
   contain: layout;
   -webkit-user-select: none;
@@ -526,37 +534,82 @@ img {
 }
 
 /* ============================================================
-   TCL ESPECIFICOS — 800x1280P / 1280x800L
+   TCL ESPECÍFICOS — 800x1280P / 1280x800L (TODAS MÁS AGRESIVAS)
    ============================================================ */
-/* Portrait TCL 800w */
+/* Portrait TCL 800w — PANTALLA DESTINO 10.1" 149ppi Android 14 MT8768 —
+   Fijar tokens DUROS para que no haya variación de clamping extremo */
 @media (orientation: portrait) and (min-width: 760px) and (max-width: 860px) {
   :root {
-    --screen-pad-x: clamp(20px, 3.8dvw, 32px);
-    --screen-pad-y: clamp(6px, 1dvh, 14px);
-    --bt-side-h: clamp(180px, 20dvh, 220px);
-    --bt-mid-h: clamp(210px, 24dvh, 250px);
-    --bt-w: clamp(60px, 9dvw, 72px);
+    --screen-pad-x: 24px;
+    --screen-pad-y: 10px;
+    --bt-side-h: 210px;
+    --bt-mid-h: 240px;
+    --bt-w: 68px;
     --step-seg-w: 28px;
-    --header-h: 64px;
+    --header-h: 60px;
     --legal-h: 42px;
+    --fs-h1: 2.25rem;
+    --fs-h2: 1.6rem;
+    --fs-body: 1rem;
+    --fs-btn: 1.25rem;
+    --legal-text-size: 0.8125rem;
+    --cta-h: 60px;
+    --circle-num: 48px;
+    --ok-circle: 88px;
+    --shut-size: 80px;
+    --qr-size: 320px;
   }
-  .screen-header { padding: 0 28px; }
-  .screen-content { padding-left: 28px; padding-right: 28px; }
+  html { font-size: 16px; }
+  body { font-size: 16px; }
+  .screen-header { padding: 0 24px; }
+  .screen-content { padding-left: 24px; padding-right: 24px; padding-top: 10px; }
+  .screen-content > * { max-width: 100%; }
+  .header-titulo, .seleccion-titulo { font-size: 1.4rem !important; }
+  .stepper-seg { width: 28px; }
+  .bt-img-pura.side { width: 60px; height: 210px; }
+  .bt-img-pura.mid  { width: 66px; height: 240px; }
+  .btn-primario, .btn-cta-red { padding: 16px 36px; font-size: 1.15rem; }
+  .fr { border-radius: 14px; }
+  .op { min-height: 84px; padding: 10px; }
+  .op .sw { width: 96px; }
 }
 
-/* Landscape TCL 800h */
-@media (orientation: landscape) and (min-height: 720px) and (max-height: 860px) {
+/* Landscape TCL 800h — PANTALLA DESTINO 1280×800 10.1" 149ppi —
+   Tokens DUROS para eliminar variación excesiva */
+@media (orientation: landscape) and (min-height: 720px) and (max-height: 860px) and (min-width: 1200px) and (max-width: 1320px) {
   :root {
-    --screen-pad-x: clamp(28px, 3.2dvw, 48px);
-    --screen-pad-y: clamp(6px, 1dvh, 16px);
-    --bt-side-h: clamp(190px, 30dvh, 236px);
-    --bt-mid-h: clamp(220px, 35dvh, 270px);
-    --bt-w: clamp(72px, 9dvw, 84px);
-    --header-h: 64px;
-    --legal-h: 42px;
-    --step-seg-w: 36px;
+    --screen-pad-x: 40px;
+    --screen-pad-y: 8px;
+    --bt-side-h: 220px;
+    --bt-mid-h: 260px;
+    --bt-w: 80px;
+    --header-h: 60px;
+    --legal-h: 40px;
+    --step-seg-w: 34px;
+    --fs-h1: 2.25rem;
+    --fs-h2: 1.55rem;
+    --fs-body: 1rem;
+    --fs-btn: 1.35rem;
+    --legal-text-size: 0.8125rem;
+    --cta-h: 60px;
+    --circle-num: 48px;
+    --ok-circle: 88px;
+    --shut-size: 80px;
+    --qr-size: 300px;
   }
-  html, body { font-size: calc(13px + (16 - 13) * ((100vh - 720px) / (860 - 720))); }
+  html { font-size: 16px; }
+  body { font-size: 16px; }
+  .screen-header { padding: 0 40px; height: 60px; min-height: 60px; }
+  .screen-content { padding-left: 40px; padding-right: 40px; padding-top: 8px; gap: 10px; }
+  .header-titulo, .seleccion-titulo { font-size: 1.35rem !important; }
+  .stepper-seg { width: 34px; }
+  .bt-img-pura.side { width: 76px; height: 220px; }
+  .bt-img-pura.mid  { width: 82px; height: 260px; }
+  .btn-primario, .btn-cta-red { padding: 16px 44px; font-size: 1.25rem; }
+  .fr { border-radius: 14px; }
+  .esc { gap: 20px; }
+  .op { min-height: 84px; padding: 10px; gap: 12px; }
+  .op .sw { width: 96px; }
 }
 
 @media (orientation: portrait) and (max-width: 760px) {

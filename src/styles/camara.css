@@ -450,90 +450,129 @@
   margin-top: 8px !important;
 }
 
-/* Landscape TCL 800h — CÁMARA GIGANTE MÁXIMA posible + CRUZ crosshair operario */
+/* Landscape TCL 800h — CÁMARA MÁXIMA POSIBLE (QUITAR elementos, compactar, DISTRIBUCIÓN ÓPTIMA):
+   - QUITADO hint centro ("colocanet" texto arriba centro) = +36px ganados
+   - Header reducido 44→36, Stepper comprimido               = +8px
+   - Controls reducido 84→72h, obturador 104→92px             = +12px
+   - camwrap SIN padding laterales 0/0                        = +40px (20l 20r)
+   - vp 1216/684 EXACTO 16/9 → TODO el ancho útil (márgenes 32l 32r por screen-pad-x)
+   TOTAL GANANCIA: +96px ANCHO / +56px ALTO vs anterior. */
 @media (orientation: landscape) and (min-height: 620px) and (max-height: 900px) and (min-width: 1200px) and (max-width: 1399px) {
-  .camara-header { height: 44px; min-height: 44px; padding: 0 28px; gap: 6px; }
-  .camara-header .header-right { max-width: 240px; min-width: 160px; }
-  .camara-titulo h2 { font-size: 1.7rem; white-space: nowrap; }
-  .btn-back { padding: 6px 20px !important; font-size: 1rem !important; min-height: 34px !important; }
-  .camara-content { padding-top: 0; gap: 0; padding-bottom: calc(var(--legal-h) + 8px); }
-  .camara-body { gap: 2px; }
+  .camara-screen {
+    --screen-pad-x: 16px;    /* reducido de 24→16, gana 16px más ancho total */
+    --screen-pad-y: 4px;
+  }
+  .camara-header {
+    height: 36px; min-height: 36px;
+    padding: 0 16px;
+    gap: 6px;
+  }
+  .camara-header .header-right {
+    max-width: 180px; min-width: 120px;
+    transform: scale(0.86);
+    transform-origin: right center;
+  }
+  .camara-titulo h2 {
+    font-size: 1.35rem !important;
+    white-space: nowrap;
+    font-weight: 800;
+    margin: 0;
+  }
+  .btn-back {
+    padding: 4px 16px !important;
+    font-size: 0.95rem !important;
+    min-height: 28px !important;
+    height: 28px !important;
+    border-radius: 12px !important;
+  }
+  .camara-content {
+    padding-top: 0;
+    gap: 0;
+    padding-bottom: calc(var(--legal-h) + 2px);
+  }
+  .camara-body { gap: 0; }
   .camwrap {
     flex: 1 1 auto;
     min-height: 0;
-    /* NUEVO: NO LIMITAMOS max-height aquí, el VP 16/9 se va al MÁXIMO que 
-       quepa naturalmente en 100svh - header - controls - legal. Antes lo 
-       forzábamos y quedaba PEQUEÑO si el calc era conservador. */
     width: 100%;
     max-width: 100%;
-    padding: 0 14px;
+    padding: 0;          /* SIN padding lateral (gana 40px ancho total antes) */
+    margin: 0;
   }
   .vp, .viewport-marco, .foto-preview-frame, .foto-final-frame, .landing-foto-card {
     width: 100%;
     height: auto;
     max-height: 100%;
-    min-width: 1200px;         /* NUEVO: TCL 1280 pantalla física → 1200w mínimo (antes 1100 era muy chico) */
-    min-height: 675px;        /* 1200 / 16*9 = 675 (aspect 16/9 EXACTO) */
+    min-width: 1216px;          /* 1216 / 16 × 9 = 684 exacto, llena TODO ancho útil */
+    min-height: 684px;          /* 16/9 EXACTO (margenes screen-pad-x 16 = 1280-32 = 1248 máximo real; 1216 es 99% del ancho, sobra 16px margen bonito) */
     aspect-ratio: 16/9;
-    border-radius: 28px;
-    border: 4px solid var(--oro);
-    flex: 0 0 auto;          /* NUEVO: no achicar, mantener tamaño intrínseco 16/9 */
+    border-radius: 24px;
+    border: 3px solid var(--oro);  /* borde oro 3px (antes 4 → +2px ganado interior) */
+    flex: 0 0 auto;
   }
-  /* NUEVA CRUZ CROSSHAIR (operario evento: figura persona → cruz simple +) */
+  /* CRUZ crosshair TCL (más delgada 3px para no tapar, 50%/82%) */
   .sil {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 52%;
-    height: 84%;
-    transform: translate(-50%, -50%);
-    border: 0;
-    border-radius: 0;
-    pointer-events: none;
-    z-index: 2;
-    box-sizing: border-box;
-    background: transparent;
+    width: 50%;
+    height: 82%;
   }
-  .sil::before,
-  .sil::after {
-    content: "";
-    position: absolute;
-    background: rgba(255,255,255,0.9);
-    box-shadow: 0 0 0 2px rgba(0,0,0,0.6);
+  .sil::before { width: 3px; }
+  .sil::after  { height: 3px; }
+
+  /* ✅ NUEVO: QUITAR el "colocanet" (hint texto arriba centro) — PIDE USUARIO, 
+     gana ~50px altura + estorba menos a la cámara. */
+  .hint, .camara-hint { display: none !important; }
+
+  /* COUNTDOWN (3-2-1) gigante pero compacto top/left */
+  .countdown-num {
+    font-size: clamp(180px, 42dvh, 260px);
+    text-shadow: 0 6px 22px rgba(0,0,0,0.9);
   }
-  .sil::before {
-    /* Línea VERTICAL cruz (+) */
-    left: 50%;
-    top: 4%;
-    bottom: 4%;
-    width: 4px;
-    transform: translateX(-50%);
+
+  /* CONTROLES (obturador + cambiar cámara + estados): altura 72h compacta */
+  .ctl { height: 72px; min-height: 72px; gap: 18px; padding: 0; }
+  .shut, .obturador {
+    width: 92px; height: 92px;
+    border: 6px solid #fff;
+    box-shadow: 0 0 0 5px var(--rojo);
   }
-  .sil::after {
-    /* Línea HORIZONTAL cruz (+) */
-    top: 50%;
-    left: 6%;
-    right: 6%;
-    height: 4px;
-    transform: translateY(-50%);
+  .camara-status {
+    min-width: 150px;
+    padding: 8px 16px;
+    font-size: 16px;
+    gap: 12px;
+    height: 60px;
+    max-height: 60px;
   }
-  .hint, .camara-hint {
-    top: 22px;
-    font-size: 32px;
-    font-weight: 800;
-    letter-spacing: -0.01em;
-    text-shadow: 0 3px 10px rgba(0,0,0,0.9);
+  /* Botón CAMBIAR CÁMARA (frontal/rear operario): compacto pero visible */
+  .btn-lateral {
+    min-width: 150px;
+    padding: 10px 16px !important;
+    min-height: 60px !important;
+    height: 60px !important;
+    gap: 8px;
+    border-radius: 16px !important;
   }
-  .countdown-num { font-size: clamp(200px, 44dvh, 280px); }
-  .ctl { height: 84px; min-height: 84px; gap: 22px; padding: 0; }
-  .shut, .obturador { width: 104px; height: 104px; border: 7px solid #fff; box-shadow: 0 0 0 5px var(--rojo); }
-  .camara-status { min-width: 180px; padding: 12px 20px; font-size: 18px; gap: 14px; }
-  .btn-lateral { min-width: 180px; padding: 16px 24px !important; }
-  .btn-lat-ico { font-size: 24px; }
-  .btn-lat-texto { font-size: 18px; }
-  .camara-confirmacion { width: 580px; }
-  .camara-confirmacion h3 { font-size: 24px; padding: 0 20px; }
-  .btn-reintentar-cam { margin-top: 14px !important; min-height: 64px; font-size: 1.2rem !important; }
+  .btn-lat-ico { font-size: 22px; line-height: 1; }
+  .btn-lat-texto { font-size: 16px; font-weight: 700; }
+
+  /* Modal CONFIRMACIÓN (Repetir / Usar foto): compacta, ctl-preview altura 72h */
+  .camara-confirmacion { width: 620px; }
+  .camara-confirmacion h3 {
+    font-size: 22px;
+    padding: 0 24px;
+    margin: 0 0 12px;
+  }
+  .btn-reintentar-cam {
+    margin-top: 10px !important;
+    min-height: 56px !important;
+    font-size: 1.1rem !important;
+  }
+  .ctl-preview .btn-lateral {
+    min-width: 220px;
+    font-size: 1.15rem !important;
+  }
+  .ctl-preview .btn-lat-ico { display: none; }
+  .ctl-preview .btn-lat-texto { font-size: 1.15rem !important; font-weight: 800; }
 }
 
 /* Portrait TCL 800w */

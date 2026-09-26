@@ -251,15 +251,15 @@
   backface-visibility: hidden;
 }
 
-/* NUEVA CRUZ CROSSHAIR GLOBAL (FUERA DE TODO MQ) — 
-   PEQUEÑA + TRANSPARENTE.
+/* CRUZ CROSSHAIR GLOBAL (FUERA DE TODO MQ) — 
+   ✅ MUY PEQUEÑA + CASI INVISIBLE (SÓLO PARA GUÍA DE CENTRAR, NADA MÁS).
    ✅ TODAS LAS PROPIEDADES CON !important (NUNCA MÁS PISA UN MEDIA QUERY, NUNCA CACHE SW ANTIGUO PISE). */
 .sil {
   position: absolute !important;
   left: 50% !important;
   top: 50% !important;
-  width: 34% !important;
-  height: 66% !important;
+  width: 18% !important;   /* antes 34% → ~50% MÁS PEQUEÑA horizontalmente */
+  height: 34% !important;  /* antes 66% → ~50% MÁS PEQUEÑA verticalmente */
   transform: translate(-50%, -50%) !important;
   border: 0 !important;
   border-radius: 0 !important;
@@ -267,7 +267,7 @@
   z-index: 2 !important;
   box-sizing: border-box !important;
   background: transparent !important;
-  opacity: 0.55 !important;
+  opacity: 0.18 !important; /* antes 0.55 → MUY TRANSPARENTE, casi invisible (SOLO GUÍA) */
   display: block !important;
   visibility: visible !important;
 }
@@ -275,8 +275,8 @@
 .sil::after {
   content: "" !important;
   position: absolute !important;
-  background: rgba(255,255,255,0.95) !important;
-  box-shadow: 0 0 0 1.5px rgba(0,0,0,0.5) !important;
+  background: rgba(255,255,255,0.55) !important; /* antes 0.95 → blanco más transparente */
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.25) !important; /* antes 1.5px 0.5 → sombra muy suave */
   border-radius: 2px !important;
   display: block !important;
 }
@@ -284,14 +284,14 @@
   left: 50% !important;
   top: 2% !important;
   bottom: 2% !important;
-  width: 2px !important;
+  width: 1px !important;  /* antes 2px → línea MÁS FINA */
   transform: translateX(-50%) !important;
 }
 .sil::after {
   top: 50% !important;
   left: 4% !important;
   right: 4% !important;
-  height: 2px !important;
+  height: 1px !important; /* antes 2px → línea MÁS FINA */
   transform: translateY(-50%) !important;
 }
 

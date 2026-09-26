@@ -575,7 +575,7 @@ img {
 }
 
 /* Landscape TCL 800h — PANTALLA DESTINO 1280×800 10.1" 149ppi —
-   Tokens DUROS para eliminar variación excesiva */
+   Tokens DUROS para eliminar variación excesiva + HEIGHT usando 100svh (standalone-PWA no tiene chrome browser bar → más alto útil) */
 @media (orientation: landscape) and (min-height: 720px) and (max-height: 860px) and (min-width: 1200px) and (max-width: 1320px) {
   :root {
     --screen-pad-x: 40px;
@@ -583,33 +583,135 @@ img {
     --bt-side-h: 220px;
     --bt-mid-h: 260px;
     --bt-w: 80px;
+    --header-h: 56px;
+    --legal-h: 38px;
+    --step-seg-w: 32px;
+    --fs-h1: 2.1rem;
+    --fs-h2: 1.5rem;
+    --fs-body: 0.975rem;
+    --fs-btn: 1.3rem;
+    --legal-text-size: 0.8rem;
+    --cta-h: 58px;
+    --circle-num: 46px;
+    --ok-circle: 86px;
+    --shut-size: 78px;
+    --qr-size: 290px;
+  }
+  html, body { height: 100svh; max-height: 100svh; font-size: 16px; }
+  .app-container, .screen { height: 100svh; max-height: 100svh; }
+  .screen-header { padding: 0 40px; height: 56px; min-height: 56px; }
+  .screen-content { padding-left: 40px; padding-right: 40px; padding-top: 8px; gap: 8px; }
+  .header-titulo, .seleccion-titulo { font-size: 1.3rem !important; }
+  .stepper-seg { width: 32px; }
+  .bt-img-pura.side { width: 74px; height: 220px; }
+  .bt-img-pura.mid  { width: 80px; height: 260px; }
+  .btn-primario, .btn-cta-red { padding: 14px 40px; font-size: 1.2rem; }
+  .fr { border-radius: 14px; }
+  .esc { gap: 18px; }
+  .op { min-height: 80px; padding: 10px; gap: 12px; }
+  .op .sw { width: 96px; }
+}
+
+/* ============================================================
+   NUEVO: TABLETS HORIZONTALES GENERAL — PWA display=standalone
+   Rango 1000w..1600w landscape. iPad 1024×768, Lenovo 1280×800,
+   Samsung Tab A9+ 1720×1080, Laptop 1366×768, Surface Go 1500.
+   Usa tokens DUROS + svh (no dvh) por PWA (Chrome bar no existe).
+   ============================================================ */
+/* Tablets chicas landscape (1000..1199w) — iPad mini, iPad 9 1024w 4:3 */
+@media (orientation: landscape) and (min-width: 1000px) and (max-width: 1199px) and (min-height: 600px) {
+  :root {
+    --screen-pad-x: 30px;
+    --screen-pad-y: 8px;
+    --bt-side-h: 200px;
+    --bt-mid-h: 240px;
+    --bt-w: 70px;
+    --header-h: 56px;
+    --legal-h: 38px;
+    --step-seg-w: 28px;
+    --fs-h1: clamp(1.85rem, 3.2svw, 2.3rem);
+    --fs-h2: clamp(1.3rem, 2.4svw, 1.6rem);
+    --fs-body: 0.95rem;
+    --fs-btn: 1.15rem;
+    --legal-text-size: 0.775rem;
+    --cta-h: 56px;
+    --circle-num: 44px;
+    --ok-circle: 80px;
+    --shut-size: 72px;
+    --qr-size: 260px;
+  }
+  html, body { height: 100svh; max-height: 100svh; }
+  .app-container, .screen { height: 100svh; max-height: 100svh; }
+  .screen-header { padding: 0 30px; height: 56px; }
+  .screen-content { padding: 8px 30px 0 30px; gap: 8px; }
+  .bt-img-pura.side { width: 66px; height: 200px; }
+  .bt-img-pura.mid  { width: 72px; height: 240px; }
+  .btn-primario, .btn-cta-red { padding: 14px 32px; }
+  .esc { gap: 16px; }
+}
+
+/* Tablets medianas landscape (1200..1399w) — TCL 1280×800 destino + iPad Air 13" */
+@media (orientation: landscape) and (min-width: 1200px) and (max-width: 1399px) and (min-height: 700px) {
+  :root {
+    --screen-pad-x: 36px;
+    --screen-pad-y: 8px;
+    --bt-side-h: 220px;
+    --bt-mid-h: 260px;
+    --bt-w: 76px;
+    --header-h: 56px;
+    --legal-h: 38px;
+    --step-seg-w: 30px;
+    --fs-h1: clamp(1.95rem, 3.1svw, 2.35rem);
+    --fs-h2: clamp(1.4rem, 2.2svw, 1.6rem);
+    --fs-body: 0.975rem;
+    --fs-btn: 1.22rem;
+    --legal-text-size: 0.79rem;
+    --cta-h: 58px;
+    --circle-num: 46px;
+    --ok-circle: 86px;
+    --shut-size: 76px;
+    --qr-size: 290px;
+  }
+  html, body { height: 100svh; max-height: 100svh; }
+  .app-container, .screen { height: 100svh; max-height: 100svh; }
+  .screen-header { padding: 0 36px; height: 56px; }
+  .screen-content { padding: 8px 36px 0 36px; gap: 8px; }
+  .bt-img-pura.side { width: 70px; height: 220px; }
+  .bt-img-pura.mid  { width: 78px; height: 260px; }
+  .btn-primario, .btn-cta-red { padding: 14px 38px; }
+  .esc { gap: 18px; }
+}
+
+/* Tablets grandes / Laptop landscape (1400..1600w) — Surface 1500×1000, Laptop 15.6" */
+@media (orientation: landscape) and (min-width: 1400px) and (max-width: 1600px) and (min-height: 780px) {
+  :root {
+    --screen-pad-x: 44px;
+    --screen-pad-y: 10px;
+    --bt-side-h: 240px;
+    --bt-mid-h: 280px;
+    --bt-w: 84px;
     --header-h: 60px;
     --legal-h: 40px;
     --step-seg-w: 34px;
-    --fs-h1: 2.25rem;
-    --fs-h2: 1.55rem;
+    --fs-h1: clamp(2.1rem, 3svw, 2.6rem);
+    --fs-h2: clamp(1.5rem, 2.2svw, 1.75rem);
     --fs-body: 1rem;
-    --fs-btn: 1.35rem;
-    --legal-text-size: 0.8125rem;
-    --cta-h: 60px;
+    --fs-btn: 1.3rem;
+    --legal-text-size: 0.82rem;
+    --cta-h: 62px;
     --circle-num: 48px;
-    --ok-circle: 88px;
+    --ok-circle: 92px;
     --shut-size: 80px;
-    --qr-size: 300px;
+    --qr-size: 320px;
   }
-  html { font-size: 16px; }
-  body { font-size: 16px; }
-  .screen-header { padding: 0 40px; height: 60px; min-height: 60px; }
-  .screen-content { padding-left: 40px; padding-right: 40px; padding-top: 8px; gap: 10px; }
-  .header-titulo, .seleccion-titulo { font-size: 1.35rem !important; }
-  .stepper-seg { width: 34px; }
-  .bt-img-pura.side { width: 76px; height: 220px; }
-  .bt-img-pura.mid  { width: 82px; height: 260px; }
-  .btn-primario, .btn-cta-red { padding: 16px 44px; font-size: 1.25rem; }
-  .fr { border-radius: 14px; }
+  html, body { height: 100svh; max-height: 100svh; }
+  .app-container, .screen { height: 100svh; max-height: 100svh; }
+  .screen-header { padding: 0 44px; height: 60px; }
+  .screen-content { padding: 10px 44px 0 44px; gap: 10px; }
+  .bt-img-pura.side { width: 78px; height: 240px; }
+  .bt-img-pura.mid  { width: 86px; height: 280px; }
+  .btn-primario, .btn-cta-red { padding: 16px 44px; }
   .esc { gap: 20px; }
-  .op { min-height: 84px; padding: 10px; gap: 12px; }
-  .op .sw { width: 96px; }
 }
 
 @media (orientation: portrait) and (max-width: 760px) {

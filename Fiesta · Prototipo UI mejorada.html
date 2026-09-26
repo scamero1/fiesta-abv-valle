@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fiesta · Prototipo UI mejorada</title>
+<style>
+:root{--azul:#002a7a;--azul2:#0047BA;--rojo:#E4002B;--oro:#d4a017;--ok:#16a34a;--tx:#fff;--ease:cubic-bezier(.2,.7,.2,1);
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;height:100%;background:#00133a;color:var(--tx);font-family:"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;display:flex;flex-direction:column;align-items:center;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid var(--oro);outline-offset:3px}
+#bar{display:flex;gap:8px;align-items:center;padding:10px;flex-wrap:wrap;justify-content:center;font-size:13px}
+#bar button{background:#0a2a6b;border:1px solid #3a5fb0;border-radius:8px;padding:6px 12px;font-size:13px}
+#bar button.on{background:var(--oro);color:#1a1200;border-color:var(--oro)}
+#wrap{position:relative;overflow:hidden;border-radius:10px;box-shadow:0 8px 30px #0008}
+#stage{position:absolute;left:0;top:0;transform-origin:0 0;display:flex;flex-direction:column;background:linear-gradient(165deg,var(--azul2) -30%,var(--azul) 55%)}
+#hd{height:72px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 40px}
+#hd.off{visibility:hidden}
+.mark{font-weight:800;font-size:20px;letter-spacing:.02em}.mark b{color:var(--oro)}
+.prog{display:flex;align-items:center;gap:8px}
+.prog span.t{font-size:18px;font-weight:700;margin-right:6px}
+.prog i{width:44px;height:8px;border-radius:4px;background:#ffffff40}
+.prog i.d{background:var(--ok)}.prog i.c{background:var(--oro)}
+#main{flex:1;position:relative;min-height:0}
+.legal{flex:none;height:44px;background:#000;color:#fff;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;text-align:center;padding:0 24px}
+.s{position:absolute;inset:0;display:none;flex-direction:column;padding:8px 40px 24px;min-height:0}
+.s.on{display:flex;animation:in .3s var(--ease)}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+h1{margin:0;font-size:44px;line-height:1.1}
+h2{margin:0 0 4px;font-size:36px;line-height:1.15}
+p.sub{margin:0 0 14px;font-size:20px;color:#dbe6ff}
+.row{display:flex;gap:14px;justify-content:center;align-items:center;flex-wrap:wrap}
+.cta{background:linear-gradient(#f5133f,var(--rojo));color:#fff;border:0;border-radius:16px;padding:18px 52px;font-size:26px;font-weight:800;box-shadow:0 6px 0 #97001d;transition:transform .15s var(--ease),box-shadow .15s var(--ease);min-height:64px}
+.cta:active{transform:translateY(4px);box-shadow:0 2px 0 #97001d}
+.cta[disabled]{background:#ffffff26;box-shadow:none;color:#ffffffa0;cursor:not-allowed}
+.gh{background:transparent;border:2px solid #fff;border-radius:16px;padding:16px 32px;font-size:22px;font-weight:700;min-height:64px;transition:background .15s}
+.gh:active{background:#ffffff26}
+/* Bienvenida */
+.hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center}
+.hero .mark{font-size:30px}
+.slogan{font-size:84px;font-weight:900;line-height:1;transform:rotate(-1.2deg);display:flex;gap:16px;align-items:center}
+.slogan em{font-style:normal;background:#fff;color:var(--rojo);padding:0 18px;border-radius:12px}
+.trip{display:flex;gap:44px;align-items:flex-end;margin:6px 0 10px}
+.bt{width:84px;height:236px;border-radius:30px 30px 10px 10px;position:relative;border:3px solid var(--oro);display:flex;align-items:flex-end;justify-content:center;padding-bottom:22px;font-size:13px;font-weight:800;text-align:center;line-height:1.2}
+.bt::before{content:"";position:absolute;top:-46px;left:50%;width:26px;height:50px;margin-left:-13px;background:inherit;border:3px solid var(--oro);border-bottom:0;border-radius:8px 8px 0 0}
+.bt.m{height:270px}
+.pt{position:absolute;width:8px;height:8px;border-radius:50%;background:var(--oro);opacity:.5;animation:fl 4s ease-in-out infinite}
+@keyframes fl{50%{opacity:.1}}
+/* Instrucciones */
+.steps{flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-content:center;margin-bottom:18px}
+.card{background:#ffffff1a;border:2px solid #ffffff40;border-radius:18px;padding:20px;font-size:20px;line-height:1.3}
+.card .n{width:52px;height:52px;border-radius:50%;background:var(--oro);color:#1a1200;font-size:28px;font-weight:900;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+.card b{display:block;font-size:24px;margin-bottom:6px}
+/* Camara */
+.camwrap{flex:1;min-height:0;display:flex;justify-content:center}
+.vp{height:100%;max-width:100%;aspect-ratio:16/9;border-radius:18px;border:3px solid var(--oro);position:relative;overflow:hidden;background:radial-gradient(ellipse at 50% 40%,#2a3a5e,#0b1226)}
+.sil{position:absolute;left:50%;bottom:0;width:26%;height:78%;transform:translateX(-50%);border:3px dashed #ffffff80;border-radius:50% 50% 8px 8px/38% 38% 8px 8px}
+.hint{position:absolute;top:14px;left:0;right:0;text-align:center;font-size:20px;font-weight:700;text-shadow:0 1px 4px #000}
+.cd{position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:200px;font-weight:900;background:#00133a66}
+.cd.on{display:flex}.cd span{animation:pop .9s var(--ease)}
+@keyframes pop{from{opacity:0;transform:scale(1.4)}to{opacity:1;transform:none}}
+.fl{position:absolute;inset:0;background:#fff3d6;opacity:0;pointer-events:none;transition:opacity .25s}
+.fl.on{opacity:.85}
+.ctl{height:104px;flex:none;display:flex;align-items:center;justify-content:center;gap:24px}
+.shut{width:84px;height:84px;border-radius:50%;background:var(--rojo);border:6px solid #fff;box-shadow:0 0 0 4px var(--rojo);transition:transform .12s}
+.shut:active{transform:scale(.95)}
+/* Escenario */
+.esc{flex:1;min-height:0;display:flex;gap:24px}
+.pv{flex:1.35;display:flex;flex-direction:column;justify-content:center;min-width:0}
+.fr{aspect-ratio:16/9;border-radius:16px;border:3px solid var(--oro);position:relative;overflow:hidden;width:100%;background:radial-gradient(ellipse at 50% 40%,#2a3a5e,#0b1226);transition:background .3s}
+.fr .sil{border-style:solid;border-color:#ffffff55;background:#ffffff26}
+.opts{flex:1;display:flex;flex-direction:column;gap:12px;justify-content:center}
+.op{display:flex;gap:14px;align-items:center;text-align:left;background:#ffffff1a;border:3px solid #ffffff40;border-radius:16px;padding:12px;min-height:92px;transition:border-color .15s}
+.op[aria-pressed=true]{border-color:var(--oro);background:#ffffff33}
+.op .sw{width:112px;aspect-ratio:16/9;border-radius:10px;flex:none}
+.op b{display:block;font-size:22px}.op small{font-size:16px;color:#dbe6ff}
+.ov{position:absolute;inset:0;background:#001a4dee;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;font-size:28px;font-weight:700;z-index:5}
+.ov.on{display:flex}
+.ov i{width:56px;height:56px;border:6px solid #ffffff40;border-top-color:var(--oro);border-radius:50%;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+/* Resultado */
+.res{flex:1;min-height:0;display:flex;gap:28px;align-items:center}
+.res .l{flex:1.5;min-width:0}
+.res .r{flex:1;display:flex;flex-direction:column;align-items:center;gap:14px}
+.qr{width:340px;height:340px;background:#fff;padding:16px;border-radius:16px;display:grid;grid-template-columns:repeat(25,1fr)}
+.qr i{background:#000}.qr i.w{background:#fff}
+.lb{position:absolute;left:0;right:0;bottom:0;height:4.5%;min-height:8px;background:#fff}
+/* Listo */
+.ok{width:96px;height:96px;border-radius:50%;background:var(--ok);display:flex;align-items:center;justify-content:center;font-size:56px;font-weight:900}
+/* Portrait */
+.p .s{padding:8px 32px 24px}
+.p #hd{padding:0 32px}
+.p h1{font-size:40px}.p .slogan{font-size:72px}
+.p .steps{grid-template-columns:1fr 1fr}
+.p .esc{flex-direction:column;gap:16px}
+.p .opts{flex-direction:row;flex:none}
+.p .op{flex-direction:column;text-align:center;flex:1;min-height:0}
+.p .op .sw{width:100%}
+.p .pv{flex:none}
+.p .res{flex-direction:column;justify-content:center}
+.p .res .l{flex:none;width:100%}
+.p .res .r{flex:none}
+.p .qr{width:300px;height:300px}
+.p .ctl{height:120px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="bar">
+  <span>Prototipo:</span>
+  <button id="bL" class="on">Landscape 1280×800</button>
+  <button id="bP">Portrait 800×1280</button>
+  <span id="nav"></span>
+</div>
+<div id="wrap">
+<div id="stage">
+  <div id="hd" class="off"><div class="mark">Aguardiente Blanco del Valle <b>FIESTA</b></div><div class="prog" id="prog"></div></div>
+  <div id="main">
+    <section class="s on" id="s0">
+      <div class="hero">
+        <div class="mark">Aguardiente Blanco del Valle <b>FIESTA</b></div>
+        <div class="slogan">¡VA CON <em>TODO!</em></div>
+        <div class="trip">
+          <div class="bt" style="background:#0047BA">Fiesta<br>24%</div>
+          <div class="bt m" style="background:#c40026">Sin azúcar<br>29%</div>
+          <div class="bt" style="background:#5a2a9a">Night<br>27%</div>
+        </div>
+        <button class="cta" data-go="1" autofocus>¡INICIAR!</button>
+      </div>
+    </section>
+    <section class="s" id="s1">
+      <h2>Así de fácil</h2><p class="sub">Cuatro pasos y tu foto está lista para llevar.</p>
+      <div class="steps">
+        <div class="card"><div class="n">1</div><b>Ponte al frente</b>Párate frente a la cámara, con la cara dentro del marco.</div>
+        <div class="card"><div class="n">2</div><b>Sonríe</b>Cuando pulses el botón rojo hay 3 segundos de cuenta.</div>
+        <div class="card"><div class="n">3</div><b>Elige tu escenario</b>Calle del Sabor, Plaza Varela o Cristo Rey.</div>
+        <div class="card"><div class="n">4</div><b>Llévatela</b>Escanea el QR y descarga la foto en tu celular.</div>
+      </div>
+      <div class="row"><button class="cta" data-go="2">CONTINUAR</button></div>
+    </section>
+    <section class="s" id="s2">
+      <div class="camwrap"><div class="vp"><div class="hint" id="hint">Ubícate dentro de la silueta</div><div class="sil"></div><div class="cd" id="cd"><span></span></div><div class="fl" id="fl"></div></div></div>
+      <div class="ctl" id="ctl1"><button class="shut" id="shut" aria-label="Sacar foto"></button></div>
+      <div class="ctl" id="ctl2" style="display:none"><button class="gh" id="rep">Repetir</button><button class="cta" id="use">USAR FOTO</button></div>
+    </section>
+    <section class="s" id="s3">
+      <div class="esc">
+        <div class="pv"><div class="fr" id="fr"><div class="sil"></div></div></div>
+        <div class="opts" id="opts"></div>
+      </div>
+      <div class="row" style="margin-top:14px"><button class="cta" id="mk" disabled>CREAR MI FOTO</button></div>
+      <div class="ov" id="ov"><i></i><span>Creando tu foto…</span></div>
+    </section>
+    <section class="s" id="s4">
+      <div class="res">
+        <div class="l"><div class="fr" id="fr2"><div class="sil"></div><div class="lb"></div></div></div>
+        <div class="r"><b style="font-size:24px">Escanea y descarga</b><div class="qr" id="qr"></div><div class="row"><button class="cta" data-go="5">TERMINAR</button><button class="gh" data-go="2">Repetir</button></div></div>
+      </div>
+    </section>
+    <section class="s" id="s5">
+      <div class="hero"><div class="ok">✓</div><h1>¡Gracias por participar!</h1><p class="sub">Tu foto ya está en tu celular.</p><button class="cta" data-go="0">VOLVER A EMPEZAR</button></div>
+    </section>
+  </div>
+  <div class="legal">EL EXCESO DE ALCOHOL ES PERJUDICIAL PARA LA SALUD. PROHÍBASE EL EXPENDIO DE BEBIDAS EMBRIAGANTES A MENORES DE EDAD.</div>
+</div>
+</div>
+<script>
+var $=function(i){return document.getElementById(i)},st=$('stage'),wrap=$('wrap'),cur=0,esc=null;
+var E=[{n:'Calle del Sabor',d:'Colores de feria',g:'linear-gradient(135deg,#ff8a3d,#c2185b)'},{n:'Plaza Varela',d:'Tarde en la plaza',g:'linear-gradient(135deg,#1aa37a,#0b4f6c)'},{n:'Cristo Rey',d:'El mirador de Cali',g:'linear-gradient(135deg,#8fb8ff,#e8efff)'}];
+function fit(){var p=st.classList.contains('p'),w=p?800:1280,h=p?1280:800,s=Math.min((innerWidth-16)/w,(innerHeight-56)/h,1);
+st.style.width=w+'px';st.style.height=h+'px';st.style.transform='scale('+s+')';wrap.style.width=w*s+'px';wrap.style.height=h*s+'px'}
+function go(n){cur=n;for(var i=0;i<6;i++)$('s'+i).classList.toggle('on',i==n);
+var hd=$('hd');hd.classList.toggle('off',n==0||n==5);var h='<span class="t">Paso '+(n-0)+' de 5</span>';
+if(n>=1&&n<=4){h='<span class="t">Paso '+(n+1)+' de 5</span>'}
+var k='';for(var i=1;i<=5;i++){var idx=(n>=1&&n<=4)?n+1:0;k+='<i class="'+(i<idx?'d':i==idx?'c':'')+'"></i>'}
+$('prog').innerHTML=h+k;
+if(n==2)cam(0);
+var b=document.querySelector('#s'+n+' .cta');if(b&&!b.disabled)b.focus({preventScroll:true});
+[].forEach.call(document.querySelectorAll('#nav button'),function(x,i){x.classList.toggle('on',i==n)})}
+document.querySelectorAll('[data-go]').forEach(function(b){b.onclick=function(){go(+b.dataset.go)}});
+function cam(m){$('ctl1').style.display=m?'none':'flex';$('ctl2').style.display=m?'flex':'none';$('hint').textContent=m?'¿Te gusta cómo quedó?':'Ubícate dentro de la silueta'}
+$('shut').onclick=function(){var c=$('cd'),n=3,sp=c.firstChild;c.classList.add('on');sp.textContent=n;
+var t=setInterval(function(){n--;if(n>0){var x=document.createElement('span');x.textContent=n;c.replaceChild(x,c.firstChild)}else{clearInterval(t);c.classList.remove('on');$('fl').classList.add('on');setTimeout(function(){$('fl').classList.remove('on');cam(1)},250)}},900)};
+$('rep').onclick=function(){cam(0)};$('use').onclick=function(){go(3)};
+E.forEach(function(e,i){var b=document.createElement('button');b.className='op';b.setAttribute('aria-pressed','false');
+b.innerHTML='<div class="sw" style="background:'+e.g+'"></div><div><b>'+e.n+'</b><small>'+e.d+'</small></div>';
+b.onclick=function(){esc=e;[].forEach.call($('opts').children,function(x){x.setAttribute('aria-pressed',x===b)});$('fr').style.background=e.g;$('mk').disabled=false};$('opts').appendChild(b)});
+$('mk').onclick=function(){$('ov').classList.add('on');setTimeout(function(){$('ov').classList.remove('on');$('fr2').style.background=esc.g;go(4)},1400)};
+(function(){var q=$('qr'),s=7;function fin(r,c){return (r<7&&c<7)||(r<7&&c>17)||(r>17&&c<7)}
+for(var r=0;r<25;r++)for(var c=0;c<25;c++){var on;if(fin(r,c)){var a=r%18,b=c%18;on=(a==0||a==6||b==0||b==6||(a>=2&&a<=4&&b>=2&&b<=4))}else{s=(s*9301+49297)%233280;on=s/233280>.5}
+var i=document.createElement('i');if(!on)i.className='w';q.appendChild(i)}})();
+for(var i=0;i<18;i++){var d=document.createElement('div');d.className='pt';d.style.cssText='left:'+(Math.random()*100)+'%;top:'+(Math.random()*100)+'%;animation-delay:'+(Math.random()*4)+'s';$('s0').appendChild(d)}
+var nv=$('nav');['Bienvenida','Instrucciones','Cámara','Escenario','Resultado','Listo'].forEach(function(t,i){var b=document.createElement('button');b.textContent=t;b.onclick=function(){go(i)};nv.appendChild(b)});
+$('bL').onclick=function(){st.classList.remove('p');$('bL').classList.add('on');$('bP').classList.remove('on');fit()};
+$('bP').onclick=function(){st.classList.add('p');$('bP').classList.add('on');$('bL').classList.remove('on');fit()};
+addEventListener('resize',fit);fit();go(0);
+</script>
+</body>
+</html>

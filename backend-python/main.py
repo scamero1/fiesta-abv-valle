@@ -442,40 +442,44 @@ def remove_bg_b64(body: BodyB64):
 ESCENARIO_CONFIG = {
     # IDs NUEVOS prompt: Atardecer Vallecaucano = Cristo Rey, Feria de Cali = Plaza Varela, Salsa Neón = Museo Salsa
     #   x_offset_pct: + = MOVER A LA DERECHA, - = MOVER A LA IZQUIERDA (para no tapar objetos principales del fondo).
-    #   scale_in_frame: cuánto del ancho FRAME_W (1812px) ocupa la persona (0.72 = 72% ancho del marco blanco).
-    #   bottom_from_frame_pct: 0.45 = 45% DESDE LA PARTE INFERIOR del marco blanco FRAME_Y2 (ideal selfies torso/cabeza).
+    #   scale_in_frame: cuánto del ancho FRAME_W (1812px) ocupa la persona → NUEVO 0.64~0.66:
+    #                   Achicamos UN POCO MÁS que antes (0.72), PERO NUNCA < 0.60 (user: "no se chique tanto porfa").
+    #   bottom_from_frame_pct: 0.15 = 15% DESDE ABAJO marco FRAME_Y2. REGLA NUEVA USUARIO:
+    #                          "la persona debe salir desde el borde de la foto hacia arriba"
+    #                          → la parte inferior (cintura/hombros) toca casi el BORDE INFERIOR marco (poca distancia).
+    #                          NUNCA está flotando arriba con vacío debajo.
     "sunset": {
         "nombre": "Atardecer Vallecaucano",
         "botellaImg": "botella-fiesta-azul.png",
         "backgroundImg": "esc-cristorey.jpg",
         "fallback_gradient": ((14, 165, 233), (7, 89, 133)),
-        "persona_scale": 0.86,
-        "persona_bottom_pct": 0.36,
+        "persona_scale": 0.78,
+        "persona_bottom_pct": 0.16,
         "x_offset_pct": -0.18,   # Cristo Rey estatua en el MEDIO → persona IZQUIERDA 18% para no taparla
-        "scale_in_frame": 0.72,
-        "bottom_from_frame_pct": 0.42,
+        "scale_in_frame": 0.66,
+        "bottom_from_frame_pct": 0.16,
     },
     "feria": {
         "nombre": "Feria de Cali",
         "botellaImg": "botella-night.png",
         "backgroundImg": "esc-plazavarela.jpg",
         "fallback_gradient": ((124, 58, 237), (76, 29, 149)),
-        "persona_scale": 0.86,
-        "persona_bottom_pct": 0.36,
+        "persona_scale": 0.78,
+        "persona_bottom_pct": 0.16,
         "x_offset_pct": -0.10,   # Trompeta Plaza Varela ocupa centro-dcha → persona +10% IZQ
-        "scale_in_frame": 0.74,
-        "bottom_from_frame_pct": 0.42,
+        "scale_in_frame": 0.66,
+        "bottom_from_frame_pct": 0.16,
     },
     "neon": {
         "nombre": "Salsa Neón",
         "botellaImg": "botella-sin-azucar.png",
         "backgroundImg": "esc-museosalsa.jpg",
         "fallback_gradient": ((249, 115, 22), (180, 83, 9)),
-        "persona_scale": 0.86,
-        "persona_bottom_pct": 0.36,
+        "persona_scale": 0.78,
+        "persona_bottom_pct": 0.16,
         "x_offset_pct": -0.20,   # Museo graffiti MUSEO DE LA SALSA en DERECHA → persona 20% IZQ no taparlo
-        "scale_in_frame": 0.70,
-        "bottom_from_frame_pct": 0.42,
+        "scale_in_frame": 0.64,
+        "bottom_from_frame_pct": 0.16,
     },
     # IDs EXISTENTES (compatibilidad con frontend actual)
     "calle-del-sabor": {
@@ -483,33 +487,33 @@ ESCENARIO_CONFIG = {
         "botellaImg": "botella-fiesta-azul.png",
         "backgroundImg": "esc-museosalsa.jpg",
         "fallback_gradient": ((249, 115, 22), (180, 83, 9)),
-        "persona_scale": 0.86,
-        "persona_bottom_pct": 0.36,
+        "persona_scale": 0.78,
+        "persona_bottom_pct": 0.16,
         "x_offset_pct": -0.20,
-        "scale_in_frame": 0.70,
-        "bottom_from_frame_pct": 0.42,
+        "scale_in_frame": 0.64,
+        "bottom_from_frame_pct": 0.16,
     },
     "plaza-varela": {
         "nombre": "Plaza Varela",
         "botellaImg": "botella-night.png",
         "backgroundImg": "esc-plazavarela.jpg",
         "fallback_gradient": ((124, 58, 237), (76, 29, 149)),
-        "persona_scale": 0.86,
-        "persona_bottom_pct": 0.36,
+        "persona_scale": 0.78,
+        "persona_bottom_pct": 0.16,
         "x_offset_pct": -0.10,
-        "scale_in_frame": 0.74,
-        "bottom_from_frame_pct": 0.42,
+        "scale_in_frame": 0.66,
+        "bottom_from_frame_pct": 0.16,
     },
     "cristo-rey": {
         "nombre": "Cristo Rey",
         "botellaImg": "botella-sin-azucar.png",
         "backgroundImg": "esc-cristorey.jpg",
         "fallback_gradient": ((14, 165, 233), (7, 89, 133)),
-        "persona_scale": 0.86,
-        "persona_bottom_pct": 0.36,
+        "persona_scale": 0.78,
+        "persona_bottom_pct": 0.16,
         "x_offset_pct": -0.18,
-        "scale_in_frame": 0.72,
-        "bottom_from_frame_pct": 0.42,
+        "scale_in_frame": 0.66,
+        "bottom_from_frame_pct": 0.16,
     },
 }
 

@@ -447,8 +447,8 @@ def remove_bg_b64(body: BodyB64):
 
 ESCENARIO_CONFIG = {
     # IDs NUEVOS prompt: Atardecer Vallecaucano = Cristo Rey, Feria de Cali = Plaza Varela, Salsa Neón = Museo Salsa
-    #   x_offset_pct: + = MOVER A LA DERECHA, - = MOVER A LA IZQUIERDA (para no tapar objetos principales del fondo).
-    #   scale_in_frame: cuánto del ancho FRAME_W (1812px) ocupa la persona → NUEVO 0.64~0.66:
+    #   x_offset_pct: + = MOVER A LA DERECHA, - = MOVER A LA IZQUIERDA. REGLA USUARIO AHORA: CENTRAR PERSONA = 0.0.
+    #   scale_in_frame: cuánto del ancho FRAME_W (1812px) ocupa la persona → 0.64~0.66:
     #                   Achicamos UN POCO MÁS que antes (0.72), PERO NUNCA < 0.60 (user: "no se chique tanto porfa").
     #   bottom_from_frame_pct: 0.15 = 15% DESDE ABAJO marco FRAME_Y2. REGLA NUEVA USUARIO:
     #                          "la persona debe salir desde el borde de la foto hacia arriba"
@@ -461,7 +461,7 @@ ESCENARIO_CONFIG = {
         "fallback_gradient": ((14, 165, 233), (7, 89, 133)),
         "persona_scale": 0.78,
         "persona_bottom_pct": 0.16,
-        "x_offset_pct": -0.18,   # Cristo Rey estatua en el MEDIO → persona IZQUIERDA 18% para no taparla
+        "x_offset_pct": 0.0,   # REGLA USUARIO: CENTRAR a la persona horizontalmente (0 = centro marco blanco)
         "scale_in_frame": 0.66,
         "bottom_from_frame_pct": 0.16,
     },
@@ -472,7 +472,7 @@ ESCENARIO_CONFIG = {
         "fallback_gradient": ((124, 58, 237), (76, 29, 149)),
         "persona_scale": 0.78,
         "persona_bottom_pct": 0.16,
-        "x_offset_pct": -0.10,   # Trompeta Plaza Varela ocupa centro-dcha → persona +10% IZQ
+        "x_offset_pct": 0.0,   # CENTRADO
         "scale_in_frame": 0.66,
         "bottom_from_frame_pct": 0.16,
     },
@@ -483,7 +483,7 @@ ESCENARIO_CONFIG = {
         "fallback_gradient": ((249, 115, 22), (180, 83, 9)),
         "persona_scale": 0.78,
         "persona_bottom_pct": 0.16,
-        "x_offset_pct": -0.20,   # Museo graffiti MUSEO DE LA SALSA en DERECHA → persona 20% IZQ no taparlo
+        "x_offset_pct": 0.0,   # CENTRADO
         "scale_in_frame": 0.64,
         "bottom_from_frame_pct": 0.16,
     },
@@ -495,7 +495,7 @@ ESCENARIO_CONFIG = {
         "fallback_gradient": ((249, 115, 22), (180, 83, 9)),
         "persona_scale": 0.78,
         "persona_bottom_pct": 0.16,
-        "x_offset_pct": -0.20,
+        "x_offset_pct": 0.0,   # CENTRADO
         "scale_in_frame": 0.64,
         "bottom_from_frame_pct": 0.16,
     },
@@ -506,7 +506,7 @@ ESCENARIO_CONFIG = {
         "fallback_gradient": ((124, 58, 237), (76, 29, 149)),
         "persona_scale": 0.78,
         "persona_bottom_pct": 0.16,
-        "x_offset_pct": -0.10,
+        "x_offset_pct": 0.0,   # CENTRADO
         "scale_in_frame": 0.66,
         "bottom_from_frame_pct": 0.16,
     },
@@ -517,7 +517,7 @@ ESCENARIO_CONFIG = {
         "fallback_gradient": ((14, 165, 233), (7, 89, 133)),
         "persona_scale": 0.78,
         "persona_bottom_pct": 0.16,
-        "x_offset_pct": -0.18,
+        "x_offset_pct": 0.0,   # CENTRADO
         "scale_in_frame": 0.66,
         "bottom_from_frame_pct": 0.16,
     },

@@ -30,7 +30,22 @@ except Exception:
 # ====== PATHS / CONSTANTES GLOBALES ======
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
-PUBLIC_ASSETS = os.environ.get("PUBLIC_ASSETS_DIR", os.path.join(PROJECT_ROOT, "public", "assets"))
+# PUBLIC_ASSETS: PRIMERO busca en ./backend-python/assets/ (para Railway Nixpacks: COPY . /app
+# → los 3 JPG esc-cristorey/museosalsa/plazavarela están aquí).
+# Fallback al antiguo PROJECT_ROOT/public/assets (desarrollo local Windows/Linux).
+def _resolve_public_assets() -> str:
+    env_dir = os.environ.get("PUBLIC_ASSETS_DIR", "").strip()
+    if env_dir and os.path.isdir(env_dir):
+        return env_dir
+    p1 = os.path.join(BASE_DIR, "assets")
+    if os.path.isdir(p1):
+        return p1
+    p2 = os.path.join(PROJECT_ROOT, "public", "assets")
+    if os.path.isdir(p2):
+        return p2
+    os.makedirs(p1, exist_ok=True)
+    return p1
+PUBLIC_ASSETS = _resolve_public_assets()
 STORAGE_DIR = os.environ.get("STORAGE_DIR", os.path.join(BASE_DIR, "public-fotos"))
 os.makedirs(STORAGE_DIR, exist_ok=True)
 
@@ -414,30 +429,30 @@ def remove_bg_b64(body: BodyB64):
 # ==========================================================================
 
 ESCENARIO_CONFIG = {
-    # IDs NUEVOS prompt: Atardecer Vallecaucano / Feria de Cali / Salsa Neón
+    # IDs NUEVOS prompt: Atardecer Vallecaucano = Cristo Rey, Feria de Cali = Plaza Varela, Salsa Neón = Museo Salsa
     "sunset": {
         "nombre": "Atardecer Vallecaucano",
         "botellaImg": "botella-fiesta-azul.png",
         "backgroundImg": "esc-cristorey.jpg",
         "fallback_gradient": ((14, 165, 233), (7, 89, 133)),
-        "persona_scale": 0.82,
-        "persona_bottom_pct": 0.09,
+        "persona_scale": 0.94,
+        "persona_bottom_pct": 0.22,
     },
     "feria": {
         "nombre": "Feria de Cali",
         "botellaImg": "botella-night.png",
-        "backgroundImg": "esc-cristorey.jpg",
+        "backgroundImg": "esc-plazavarela.jpg",
         "fallback_gradient": ((124, 58, 237), (76, 29, 149)),
-        "persona_scale": 0.82,
-        "persona_bottom_pct": 0.09,
+        "persona_scale": 0.94,
+        "persona_bottom_pct": 0.22,
     },
     "neon": {
         "nombre": "Salsa Neón",
         "botellaImg": "botella-sin-azucar.png",
-        "backgroundImg": "esc-cristorey.jpg",
+        "backgroundImg": "esc-museosalsa.jpg",
         "fallback_gradient": ((249, 115, 22), (180, 83, 9)),
-        "persona_scale": 0.82,
-        "persona_bottom_pct": 0.09,
+        "persona_scale": 0.94,
+        "persona_bottom_pct": 0.22,
     },
     # IDs EXISTENTES (compatibilidad con frontend actual)
     "calle-del-sabor": {
@@ -445,24 +460,24 @@ ESCENARIO_CONFIG = {
         "botellaImg": "botella-fiesta-azul.png",
         "backgroundImg": "esc-museosalsa.jpg",
         "fallback_gradient": ((249, 115, 22), (180, 83, 9)),
-        "persona_scale": 0.82,
-        "persona_bottom_pct": 0.09,
+        "persona_scale": 0.94,
+        "persona_bottom_pct": 0.22,
     },
     "plaza-varela": {
         "nombre": "Plaza Varela",
         "botellaImg": "botella-night.png",
         "backgroundImg": "esc-plazavarela.jpg",
         "fallback_gradient": ((124, 58, 237), (76, 29, 149)),
-        "persona_scale": 0.82,
-        "persona_bottom_pct": 0.09,
+        "persona_scale": 0.94,
+        "persona_bottom_pct": 0.22,
     },
     "cristo-rey": {
         "nombre": "Cristo Rey",
         "botellaImg": "botella-sin-azucar.png",
         "backgroundImg": "esc-cristorey.jpg",
         "fallback_gradient": ((14, 165, 233), (7, 89, 133)),
-        "persona_scale": 0.82,
-        "persona_bottom_pct": 0.09,
+        "persona_scale": 0.94,
+        "persona_bottom_pct": 0.22,
     },
 }
 
@@ -545,6 +560,24 @@ def feather_borders_alpha(person: Image.Image, feather_px: int = 2) -> Image.Ima
     return out
 
 
+def close_alpha_holes(person: Image.Image, radius_px: int = 3) -> Image.Image:
+    """Cierra agujeros/transparencias DENTRO de la persona (camisa, cuello, botones).
+       Morphology: MaxFilter(expandir alfa) -> MinFilter(encoger alfa) = cerrar huecos <= radius_px.
+       NO TOCA los bordes EXTERIORES de la silueta, solo los interiores transparentes."""
+    if radius_px <= 0:
+        return person
+    r, g, b, a = person.split()
+    # Paso 1: Dilatación (max filter) → rellenar agujeritos
+    a_dilate = a.filter(ImageFilter.MaxFilter(radius_px * 2 + 1))
+    # Paso 2: Erosión (min filter) → mantener tamaño original silueta exterior
+    a_close = a_dilate.filter(ImageFilter.MinFilter(radius_px * 2 + 1))
+    # Paso 3: Fusionar con el original para no engordar bordes → elija MAX alpha final (si original tenía borde, lo mantiene)
+    from PIL import ImageChops
+    a_final = ImageChops.lighter(a_close, a)
+    out = Image.merge("RGBA", (r, g, b, a_final))
+    return out
+
+
 def draw_legal_bar_minimal(composed: Image.Image) -> Image.Image:
     """
     CAPA 2 MINIMA (LO UNICO QUE SE AGREGA A LA FOTO JPG, NADA MAS):
@@ -592,25 +625,32 @@ def compose_full(
     canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (0, 0, 0, 0))
     canvas.alpha_composite(fondo.convert("RGBA"), (0, 0))
 
-    # ====== CAPA 1: PERSONA — FEATHER MINIMO 2PX, SIN BLUR NI SOMBRAS. TOCANDO EL SUELO ======
-    persona_clean = feather_borders_alpha(persona_rgba.convert("RGBA"), feather_px=2)
-    scale = cfg.get("persona_scale", 0.86)
+    # ====== CAPA 1: PERSONA — (1) CLOSE HOLES morphology interior (camisa agujeritos), (2) FEATHER mínima.
+    #          Escala grande 94% canvas, persona arriba 22% desde el suelo para selfies torso/cabeza (no corta)
+    persona_rgba = persona_rgba.convert("RGBA")
+    persona_no_holes = close_alpha_holes(persona_rgba, radius_px=3)
+    persona_clean = feather_borders_alpha(persona_no_holes, feather_px=2)
+    scale = cfg.get("persona_scale", 0.94)
     target_max_w = int(CANVAS_W * scale)
     target_max_h = int(CANVAS_H * (scale * 1.08))
     fitted = fit_contain(persona_clean, target_max_w, target_max_h)
     fw, fh = fitted.size
     x = (CANVAS_W - fw) // 2
-    # AHORA LEGAL OCUPA SOLO 4.5% (no 17% de antes) -> la persona toca el suelo REALMENTE
+    # Ya NO hay barra legal dentro del JPG final (eliminada capa 2).
+    # Pero mantenemos margen inferior 4.5% para que los pies no se corten en previews HTML.
     legal_only_h = max(30, int(CANVAS_H * 0.045))
-    bottom_pct = cfg.get("persona_bottom_pct", 0.15)
-    # Baseline: justamente 1px antes de que empiece la barra legal
+    bottom_pct = cfg.get("persona_bottom_pct", 0.22)
     y_floor = CANVAS_H - legal_only_h - 1
-    # Pies de la persona tocan exactamente y_floor (suelo del escenario)
-    # Aplicamos bottom_pct SOLO para escenarios con horizonte alto (ej: Cristo Rey tiene horizonte bajo)
-    y_baseline = y_floor - max(0, int(CANVAS_H * (bottom_pct - 0.02)))
+    # bottom_pct ALTO (0.22) = persona ESTÁ MÁS ARRIBA (ideal selfies de torso/cabeza sin pies, foto webcam)
+    # bottom_pct BAJO (0.02) = persona PEGADA al suelo (ideal fotos completas con pies, estudio)
+    y_baseline = y_floor - max(0, int(CANVAS_H * bottom_pct))
     y = y_baseline - fh
-    # Nunca superar 6% del top (evita que la cabeza se corte)
-    y = max(int(CANVAS_H * 0.06), y)
+    # Nunca superar 5% del top (evita que la cabeza se corte)
+    y = max(int(CANVAS_H * 0.05), y)
+    # Nunca superar el fondo inferior por debajo del margen (si persona es muy alta)
+    if y + fh > CANVAS_H - 4:
+        y = CANVAS_H - 4 - fh
+        y = max(int(CANVAS_H * 0.05), y)
     canvas.alpha_composite(fitted, (x, y))
 
     # ====== CAPA 2 ELIMINADA (Usuario confirmó: NO meter barra legal en el JPG) ======

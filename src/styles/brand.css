@@ -224,8 +224,76 @@
   transform: none !important;
 }
 
-/* Fallbacks de colores background prototipo */
 .bg-pantone-2728,
 .camara-bg-dark {
   background: linear-gradient(165deg, var(--azul2) -30%, var(--azul) 55%) !important;
+}
+
+/* Landscape TCL 800h — Componentes GLOBALES (Slogan / Legal / Stepper / Logos / Botones CTA)
+   TOKENS HARD Landscape TCL 1280×800 10.1" PWA standalone */
+@media (orientation: landscape) and (min-width: 1200px) and (max-width: 1399px) and (min-height: 600px) {
+  /* LEGAL FOOTER (franja negra 44px → 36px compacto TCL) */
+  .legal-footer, .legal-disclaimer.legal-footer.legal-stripe-black {
+    min-height: 36px;
+    height: 36px;
+    padding: 0 18px;
+  }
+  .legal-text, .legal-inner.legal-inner-black .legal-text {
+    font-size: 0.8125rem !important;  /* 13px exacto legal reglamentario */
+    font-weight: 600;
+    line-height: 1.25;
+  }
+  /* SLOGAN ¡VA CON TODO! */
+  .slogan-vacontodo {
+    font-size: clamp(3.6rem, 7svw, 5rem) !important;
+    letter-spacing: -0.03em;
+    gap: 0.1em;
+  }
+  .slogan-vacontodo .svt-sufix-pastilla {
+    padding: 0 22px !important;
+    border-radius: 16px !important;
+    margin-left: 8px;
+  }
+  .slogan-sm { font-size: clamp(1.6rem, 3.2svw, 2.2rem) !important; }
+  .slogan-md { font-size: clamp(2.2rem, 5svw, 3.2rem) !important; }
+  .slogan-lg { font-size: clamp(3.6rem, 7svw, 5rem) !important; }
+  /* STEPPER (pantallas 2-5, barritas arriba derecha) */
+  .stepper-wrapper {
+    max-width: 360px;
+    gap: 12px;
+  }
+  .StepperPaso .stepper-label {
+    font-size: 16px;
+    font-weight: 700;
+    margin-right: 8px;
+  }
+  .StepperPaso .stepper-bar {
+    gap: 10px;
+  }
+  .StepperPaso .stepper-seg {
+    width: 36px !important;
+    max-width: 36px !important;
+    height: 10px !important;
+    border-radius: 5px;
+  }
+  /* LOGO HEADER STACK */
+  .logo-header-stack {
+    gap: 14px;
+  }
+  .logo-fiesta-main {
+    height: 52px;
+    max-width: 360px;
+  }
+  .mark {
+    font-size: 20px;
+    letter-spacing: 0.02em;
+  }
+  /* BOTONES ROJO CTA GLOBALES (¡INICIAR! / CONTINUAR / etc.) */
+  .btn-cta-red {
+    border-radius: 20px !important;
+    box-shadow: 0 8px 0 var(--color-rojo-sombra, #97001d) !important;
+  }
+  .btn-cta-red:active {
+    box-shadow: 0 3px 0 var(--color-rojo-sombra, #97001d) !important;
+  }
 }

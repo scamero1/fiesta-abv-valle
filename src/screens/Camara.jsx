@@ -171,10 +171,7 @@ export default function Camara() {
         <div className="camara-body">
           <div className="camwrap">
             <div className="vp viewport-marco foto-preview-frame">
-              {/* NUEVO: ¡SONRÍE! TEXTO GRANDE CENTRADO ARRIBA (usuario pidió centrarlo) */}
-              {!preview && <div className="camara-sonrie" aria-hidden>¡Sonríe!</div>}
-
-              {/* NUEVO: hint SE OCULTA (quitamos colocanet), user pidió centrar SONRÍE. */}
+              {/* Usuario eliminó pastilla azul ¡Sonríe! que estaba aquí → NO VOLVER A PONERLA. */}
               <div className="hint camara-hint" id="camara-hint" style={{ display: 'none' }}>
                 {preview ? '¿Te gusta cómo quedó?' : 'Ubícate en el centro de la cruz'}
               </div>

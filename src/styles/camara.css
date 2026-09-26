@@ -30,12 +30,22 @@
   min-height: 0;
 }
 
-.camara-header .header-left { flex: 0 0 auto; justify-content: flex-start; }
+.camara-header { position: relative; }
+
+.camara-header .header-left { flex: 0 0 auto; justify-content: flex-start; position: relative; z-index: 2; }
 .camara-header .header-middle {
-  flex: 1 1 auto;
+  position: absolute !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: auto !important;
+  max-width: 55% !important;
+  padding: 0 8px !important;
   justify-content: center;
-  padding: 0 12px;
-  overflow: hidden;
+  align-items: center;
+  display: flex !important;
+  z-index: 1;
 }
 .camara-header .header-right {
   flex: 0 0 auto;
@@ -43,7 +53,12 @@
   max-width: clamp(180px, 30dvw, 300px);
   min-width: 160px;
   width: auto;
+  position: relative;
+  z-index: 2;
 }
+
+/* BLOQUEO TOTAL: pastilla azul ¡Sonríe! de DENTRO del viewport NUNCA MÁS aparece. */
+.camara-sonrie { display: none !important; visibility: hidden !important; opacity: 0 !important; }
 
 .camara-titulo {
   display: flex;

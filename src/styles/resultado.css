@@ -231,15 +231,15 @@
   animation: in .25s var(--ease) both;
 }
 
-/* Landscape TCL 800h crítico — foto + qr stack no se desborden */
+/* Landscape TCL 800h crítico — foto + qr stack no se desborden + operario btns grandes */
 @media (orientation: landscape) and (min-height: 620px) and (max-height: 900px) and (min-width: 1200px) and (max-width: 1399px) {
-  .resultado-header { padding: 0 32px; height: 48px; min-height: 48px; }
-  .resultado-header .header-right { max-width: 260px; min-width: 170px; }
-  .resultado-titulo { font-size: 1.9rem !important; font-weight: 900 !important; }
-  .resultado-content { padding-top: 2px; gap: 2px; padding-bottom: calc(var(--legal-h) + 14px); }
-  .res { gap: 24px; }
+  .resultado-header { padding: 0 28px; height: 44px; min-height: 44px; }
+  .resultado-header .header-right { max-width: 240px; min-width: 160px; }
+  .resultado-titulo { font-size: 1.9rem !important; font-weight: 900 !important; white-space: nowrap; }
+  .resultado-content { padding-top: 0; gap: 0; padding-bottom: calc(var(--legal-h) + 10px); }
+  .res { gap: 18px; padding: 0 24px; }
   .res .l { flex: 1.5 1 0%; }
-  .res .r { flex: 1 1 0%; gap: 16px; }
+  .res .r { flex: 1 1 0%; gap: 14px; }
   .res .fr, .foto-final-frame {
     aspect-ratio: 16/9;
     min-width: 980px;
@@ -257,16 +257,16 @@
     border-radius: 22px;
   }
   .qr-leyenda-titulo { font-size: 1.5rem !important; line-height: 1.2; }
-  .res-botones { margin-top: 6px; gap: 18px; }
+  .res-botones { margin-top: 6px; gap: 16px; }
   .res-botones .btn-primario,
   .res-botones .btn-secundario,
   .res-botones .btn-cta-red {
-    min-width: 200px !important;
-    min-height: 72px !important;
-    font-size: 1.4rem !important;
-    padding: 18px 40px !important;
+    min-width: 260px !important;
+    min-height: 74px !important;
+    font-size: 1.45rem !important;
+    padding: 18px 48px !important;
   }
-  .res-botones-2 button { padding: 12px 22px !important; font-size: 1rem !important; min-height: 52px !important; }
+  .res-botones-2 button { padding: 12px 24px !important; font-size: 1.05rem !important; min-height: 52px !important; }
 }
 @media (orientation: portrait) {
   .res {

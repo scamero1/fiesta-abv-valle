@@ -172,7 +172,7 @@ export default function Camara() {
           <div className="camwrap">
             <div className="vp viewport-marco foto-preview-frame">
               <div className="hint camara-hint" id="camara-hint">
-                {preview ? '¿Te gusta cómo quedó?' : 'Ubícate dentro de la silueta'}
+                {preview ? '¿Te gusta cómo quedó?' : 'Ubícate en el centro de la cruz'}
               </div>
 
               <div className="sil" aria-hidden></div>

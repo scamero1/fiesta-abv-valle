@@ -113,7 +113,7 @@
 
 .btn-iniciar { min-width: min(420px, 68dvw); }
 
-/* Landscape prototipo 1280×800 — acomodar stack */
+/* Landscape prototipo 1280×800 — operario evento, btns GRANDES sin confusión */
 @media (orientation: landscape) and (min-height: 620px) and (max-height: 900px) and (min-width: 1200px) and (max-width: 1399px) {
   .bienvenida-content { gap: 0; padding-top: 2px; }
   .hero { gap: 0; align-items: center; justify-content: space-between; }
@@ -135,7 +135,7 @@
     50% { transform: translateY(-18px) rotate(0.4deg); }
   }
   .hero-cta-wrap { margin-top: 0; padding-bottom: 0; }
-  .btn-iniciar { min-width: 540px !important; min-height: 74px !important; font-size: 1.6rem !important; padding: 18px 48px !important; }
+  .btn-iniciar { min-width: 600px !important; min-height: 76px !important; font-size: 1.7rem !important; padding: 18px 64px !important; }
 }
 
 /* Portrait TCL 800x1280 */

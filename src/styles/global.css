@@ -576,7 +576,7 @@ img {
 
 /* Landscape TCL 800h — PANTALLA DESTINO 1280×800 10.1" 149ppi —
    Tokens DUROS para eliminar variación excesiva + HEIGHT usando 100svh (standalone-PWA no tiene chrome browser bar → más alto útil) */
-@media (orientation: landscape) and (min-height: 720px) and (max-height: 860px) and (min-width: 1200px) and (max-width: 1320px) {
+@media (orientation: landscape) and (min-height: 620px) and (max-height: 900px) and (min-width: 1200px) and (max-width: 1320px) {
   :root {
     --screen-pad-x: 40px;
     --screen-pad-y: 8px;
@@ -619,7 +619,7 @@ img {
    Usa tokens DUROS + svh (no dvh) por PWA (Chrome bar no existe).
    ============================================================ */
 /* Tablets chicas landscape (1000..1199w) — iPad mini, iPad 9 1024w 4:3 */
-@media (orientation: landscape) and (min-width: 1000px) and (max-width: 1199px) and (min-height: 600px) {
+@media (orientation: landscape) and (min-width: 1000px) and (max-width: 1199px) and (min-height: 560px) {
   :root {
     --screen-pad-x: 30px;
     --screen-pad-y: 8px;
@@ -651,7 +651,7 @@ img {
 }
 
 /* Tablets medianas landscape (1200..1399w) — TCL 1280×800 destino + iPad Air 13" */
-@media (orientation: landscape) and (min-width: 1200px) and (max-width: 1399px) and (min-height: 700px) {
+@media (orientation: landscape) and (min-width: 1200px) and (max-width: 1399px) and (min-height: 600px) {
   :root {
     --screen-pad-x: 32px;
     --screen-pad-y: 4px;
@@ -669,9 +669,9 @@ img {
     --legal-text-size: 0.8125rem;
     --cta-h: 72px;
     --circle-num: 58px;
-    --ok-circle: 96px;
+    --ok-circle: 140px;
     --shut-size: 96px;
-    --qr-size: 320px;
+    --qr-size: 340px;
   }
   html, body { height: 100svh; max-height: 100svh; }
   .app-container, .screen { height: 100svh; max-height: 100svh; }

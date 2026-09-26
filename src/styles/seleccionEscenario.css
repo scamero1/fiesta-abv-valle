@@ -359,16 +359,83 @@
 }
 
 /* Landscape TCL 800h crítico */
-@media (orientation: landscape) and (min-height: 720px) and (max-height: 860px) {
-  .seleccion-header { padding: 0 28px; height: 60px; min-height: 60px; }
-  .seleccion-header .header-right { max-width: 230px; min-width: 140px; }
-  .seleccion-titulo { font-size: clamp(1rem, 2.4dvw, 1.6rem); }
-  .esc { gap: 18px; }
-  .op { min-height: 84px; padding: 10px; gap: 12px; }
-  .op .sw { width: 96px; }
-  .op b { font-size: 16px; }
-  .op small { font-size: 13px; }
-  .seleccion-content { padding-top: 6px; gap: 10px; }
+@media (orientation: landscape) and (min-height: 620px) and (max-height: 900px) and (min-width: 1200px) and (max-width: 1399px) {
+  .seleccion-header { padding: 0 32px; height: 48px; min-height: 48px; }
+  .seleccion-header .header-right { max-width: 260px; min-width: 170px; }
+  .seleccion-titulo { font-size: 1.9rem !important; font-weight: 900 !important; }
+  .seleccion-content { padding-top: 2px; gap: 2px; padding-bottom: calc(var(--legal-h) + 14px); }
+  .esc { gap: 24px; }
+  .pv { flex: 1.4 1 0%; }
+  .fr {
+    aspect-ratio: 16/9;
+    min-width: 900px;
+    min-height: 506px;
+    max-width: 100%;
+    width: min(100%, 1060px);
+    border-radius: 24px;
+    border-width: 4px;
+  }
+  .fr-fg {
+    z-index: 2;
+    inset: auto 6% 9% 6%;
+    width: 88%;
+    bottom: 11%;
+    filter: drop-shadow(0 14px 28px rgba(0,0,0,0.55));
+  }
+  .opts { flex: 1 1 0%; gap: 16px; }
+  .op {
+    min-height: 150px;
+    padding: 16px 18px;
+    gap: 18px;
+    border-radius: 22px;
+    border-width: 4px;
+  }
+  .op .sw {
+    width: 168px;
+    aspect-ratio: 16/9;
+    border-radius: 14px;
+    box-shadow: 0 10px 22px -8px rgba(0,0,0,0.6);
+  }
+  .op b { font-size: 1.75rem !important; line-height: 1.1; margin-bottom: 4px; }
+  .op small { font-size: 1.1rem !important; line-height: 1.35; }
+  .op-info { gap: 4px; }
+  .seleccion-row { margin-top: 0; }
+  .btn-crear-foto,
+  .seleccion-row .btn-primario,
+  .seleccion-row .btn-cta-red {
+    min-width: 520px !important;
+    min-height: 74px !important;
+    font-size: 1.5rem !important;
+    padding: 18px 48px !important;
+  }
+  /* Overlay Creando tu foto... */
+  .ov {
+    gap: 24px;
+    font-size: 2.4rem !important;
+    font-weight: 700;
+    padding: 36px;
+    border-radius: 24px;
+    left: 32px;
+    right: 32px;
+    top: calc(48px + 4px);
+    bottom: calc(var(--legal-h) + var(--pad-safe-b) + 14px);
+  }
+  .ov i {
+    width: 120px;
+    height: 120px;
+    border-width: 10px;
+  }
+  .ov::before {
+    content: "";
+    width: 160px;
+    height: 160px;
+    background: url(/assets/botella-01-blanco-sin-azucar.png) center/contain no-repeat;
+    animation: floaty 2.8s ease-in-out infinite;
+    display: block;
+    flex: 0 0 auto;
+    margin-bottom: 0;
+    filter: drop-shadow(0 10px 20px rgba(0,0,0,0.55));
+  }
 }
 
 /* Portrait general: 2 filas */

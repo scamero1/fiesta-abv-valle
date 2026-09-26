@@ -114,7 +114,7 @@
 .btn-iniciar { min-width: min(420px, 68dvw); }
 
 /* Landscape prototipo 1280×800 — acomodar stack */
-@media (orientation: landscape) and (min-height: 720px) and (max-height: 860px) and (min-width: 1200px) and (max-width: 1399px) {
+@media (orientation: landscape) and (min-height: 620px) and (max-height: 900px) and (min-width: 1200px) and (max-width: 1399px) {
   .bienvenida-content { gap: 0; padding-top: 2px; }
   .hero { gap: 0; align-items: center; justify-content: space-between; }
   .hero-logo-wrap { padding-top: 2px; }

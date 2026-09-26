@@ -8,6 +8,14 @@ import '../styles/seleccionEscenario.css'
 
 const ERROR_MSG_SIMPLE = 'No pudimos crear tu foto: Revisa que la tableta tenga conexión a la red del evento.'
 
+const buildErrorDetallado = (error) => {
+  const mensaje = error?.message || error?.toString?.() || ERROR_MSG_SIMPLE
+  if (!mensaje || mensaje.includes('revisa') || mensaje.length < 12) {
+    return ERROR_MSG_SIMPLE
+  }
+  return mensaje
+}
+
 export default function SeleccionEscenario() {
   const navigate = useNavigate()
   const {
@@ -55,10 +63,14 @@ export default function SeleccionEscenario() {
 
     timeoutRef.current = setTimeout(() => {
       if (cancelado) return
-      setErrorProcesamiento(ERROR_MSG_SIMPLE)
+      setErrorProcesamiento(
+        '⏱️ La foto tardó más de lo normal en procesarse.\n\n' +
+        'Pulsa REINTENTAR — la primera vez tarda un poco más en cargar la IA.\n' +
+        'Si sigue fallando, confirma que el servicio backend está deployado en Railway Pro.'
+      )
       setProcesando(false)
       setLoadingProcesamiento(false)
-    }, 30000)
+    }, 75000)
 
     try {
       const resultado = await processFullPipeline(fotoCapturada, seleccionado)
@@ -78,7 +90,7 @@ export default function SeleccionEscenario() {
     } catch (error) {
       if (cancelado) return
       limpiarTimeout()
-      setErrorProcesamiento(ERROR_MSG_SIMPLE)
+      setErrorProcesamiento(buildErrorDetallado(error))
       setProcesando(false)
       setLoadingProcesamiento(false)
     } finally {

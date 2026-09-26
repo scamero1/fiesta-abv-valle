@@ -1,6 +1,21 @@
 const API_CONFIG = {
-  PROCESS_FULL_ENDPOINT: import.meta.env.VITE_PROCESS_URL || import.meta.env.VITE_RAILWAY_URL || '',
-  BACKGROUND_REMOVAL_ENDPOINT: import.meta.env.VITE_BG_REMOVAL_URL || '',
+  // PRIORIDAD 1: VITE_BACKEND_URL  (la que configuras en el Dashboard del Frontend Railway)
+  // PRIORIDAD 2: VITE_PROCESS_URL   (legacy Fase2)
+  // PRIORIDAD 3: VITE_RAILWAY_URL   (legacy)
+  PROCESS_FULL_ENDPOINT:
+    import.meta.env.VITE_BACKEND_URL ||
+    import.meta.env.VITE_PROCESS_URL ||
+    import.meta.env.VITE_RAILWAY_URL ||
+    '',
+  // Background removal endpoint: si no hay uno específico, intenta deducirlo desde BACKEND_URL
+  // (así solo con configurar VITE_BACKEND_URL ya funciona todo, sin 3 variables distintas)
+  BACKGROUND_REMOVAL_ENDPOINT:
+    import.meta.env.VITE_BG_REMOVAL_URL ||
+    (() => {
+      const base = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_PROCESS_URL || import.meta.env.VITE_RAILWAY_URL || ''
+      if (!base) return ''
+      return base.replace(/\/+$/, '') + '/api/remove-bg-b64'
+    })(),
   BACKGROUND_REMOVAL_API_KEY: import.meta.env.VITE_BG_REMOVAL_KEY || '',
   COMPOSITION_ENDPOINT: import.meta.env.VITE_COMPOSITION_URL || '',
   UPLOAD_ENDPOINT: import.meta.env.VITE_UPLOAD_URL || '',

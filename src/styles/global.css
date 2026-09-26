@@ -583,6 +583,118 @@ img {
   }
 }
 
+/* ============================================================
+   MEDIAS QUERIES ESPECÍFICAS POR DISPOSITIVO —
+   iPad 4:3 / Laptop 1366×768 / Celular 390×844 / Pequeños
+   ============================================================ */
+
+/* iPad 1024×768 landscape (4:3 clásico) */
+@media (orientation: landscape) and (min-width: 1000px) and (max-width: 1080px) and (min-height: 720px) and (max-height: 800px) {
+  :root {
+    --header-h: 60px;
+    --legal-h: 40px;
+    --screen-pad-x: 32px;
+    --screen-pad-y: 10px;
+    --step-seg-w: 32px;
+    --bt-side-h: clamp(200px, 30dvh, 230px);
+    --bt-mid-h: clamp(230px, 35dvh, 260px);
+  }
+  html, body { font-size: calc(13px + (16 - 13) * ((100vh - 720px) / (800 - 720))); }
+}
+
+/* iPad 768×1024 portrait (4:3 clásico) */
+@media (orientation: portrait) and (min-width: 740px) and (max-width: 800px) and (min-height: 1000px) and (max-height: 1080px) {
+  :root {
+    --header-h: 62px;
+    --legal-h: 40px;
+    --screen-pad-x: 28px;
+    --screen-pad-y: 12px;
+    --step-seg-w: 30px;
+    --bt-side-h: clamp(190px, 18dvh, 220px);
+    --bt-mid-h: clamp(220px, 22dvh, 250px);
+  }
+}
+
+/* Laptop 1366×768 (muy común en eventos/oficinas) */
+@media (orientation: landscape) and (min-width: 1320px) and (max-width: 1400px) and (min-height: 740px) and (max-height: 790px) {
+  :root {
+    --header-h: 60px;
+    --legal-h: 40px;
+    --screen-pad-x: 44px;
+    --screen-pad-y: 8px;
+    --step-seg-w: 38px;
+    --bt-side-h: clamp(195px, 28dvh, 225px);
+    --bt-mid-h: clamp(225px, 33dvh, 260px);
+    --fs-h1: clamp(1.6rem, 3.2dvw, 2.4rem);
+  }
+  .screen-content { padding-top: 10px; padding-bottom: calc(var(--legal-h) + var(--pad-safe-b) + 8px); }
+}
+
+/* Celulares modernos 375-430w portrait (iPhone 12/13/14/15 390×844) */
+@media (orientation: portrait) and (min-width: 340px) and (max-width: 440px) and (min-height: 700px) {
+  :root {
+    --header-h: 56px;
+    --legal-h: 40px;
+    --screen-pad-x: 16px;
+    --screen-pad-y: 8px;
+    --step-seg-w: 22px;
+    --fs-h1: clamp(1.4rem, 6.2dvw, 1.9rem);
+    --fs-h2: clamp(1.05rem, 4.4dvw, 1.4rem);
+    --fs-body: clamp(0.85rem, 3.2dvw, 1rem);
+    --cta-h: 56px;
+    --btn-cta-pad-x: 28px;
+    --qr-size: 280px;
+    --ok-circle: 80px;
+    --circle-num: 44px;
+  }
+  .logo-oficial-img { height: clamp(34px, 6dvh, 48px); max-width: 70dvw; }
+  .trip { gap: 12px; }
+  .bt-img-pura.side { width: 64px; height: clamp(160px, 26dvh, 200px); }
+  .bt-img-pura.mid  { width: 72px; height: clamp(190px, 31dvh, 230px); }
+  .btn-nueva-foto, .btn-iniciar { min-width: 100%; }
+}
+
+/* Celulares pequeños < 340w portrait (ej: iPhone SE 1/2 320w) */
+@media (orientation: portrait) and (max-width: 340px) {
+  :root {
+    --header-h: 52px;
+    --legal-h: 38px;
+    --screen-pad-x: 12px;
+    --screen-pad-y: 6px;
+    --step-seg-w: 18px;
+    --fs-h1: 1.25rem;
+    --fs-h2: 1rem;
+    --fs-body: 0.85rem;
+    --cta-h: 52px;
+    --btn-cta-pad-x: 20px;
+    --qr-size: 240px;
+    --ok-circle: 72px;
+    --circle-num: 40px;
+  }
+  .trip { gap: 10px; }
+  .bt-img-pura.side { width: 56px; height: 150px; }
+  .bt-img-pura.mid  { width: 64px; height: 175px; }
+  .btn-nueva-foto, .btn-iniciar { min-width: 100%; }
+}
+
+/* Landscape en celulares (poco usado pero hay que cubrir) */
+@media (orientation: landscape) and (max-height: 500px) {
+  :root {
+    --header-h: 48px;
+    --legal-h: 34px;
+    --screen-pad-x: 28px;
+    --screen-pad-y: 6px;
+    --step-seg-w: 26px;
+    --cta-h: 52px;
+    --bt-side-h: clamp(140px, 32dvh, 170px);
+    --bt-mid-h: clamp(165px, 38dvh, 195px);
+  }
+  .logo-oficial-img { height: clamp(30px, 7dvh, 44px); }
+  .hero { gap: 6px; }
+  .trip { margin: 0; padding: 0; gap: 16px; }
+  .screen-content { padding-top: 4px; padding-bottom: calc(var(--legal-h) + var(--pad-safe-b) + 4px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }

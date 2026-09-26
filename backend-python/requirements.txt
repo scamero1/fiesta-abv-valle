@@ -1,0 +1,20 @@
+# Aguardiente ABV Fiesta - Python Backend U2Net (rembg) + PostgreSQL Private Network
+# Compatible: Python 3.10, 3.11, 3.12, 3.13 (tu Windows tiene 3.13)
+#
+# IMPORTANTE: DEJAMOS QUE rembg SELECCIONE LAS VERSIONES CORRECTAS DE
+# onnxruntime, numpy y pillow, para NO generar conflictos. rembg pide:
+#   - onnxruntime >= 1.23.2 , < 2.0.0
+#   - numpy >= 2.3.0 , < 3.0.0
+#   - pillow >= 12.1.0 , < 13.0.0
+fastapi>=0.115,<0.118
+uvicorn[standard]>=0.30,<0.33
+python-multipart>=0.0.12,<0.1
+pydantic>=2.9,<2.11
+# Libreria OFICIAL de segmentacion U2Net / ISNet (contiene todos los modelos onnx)
+rembg[cpu]>=2.0.85,<2.1
+Pillow>=12.1,<13
+onnxruntime>=1.23.2,<2
+numpy>=2.3,<3
+# PostgreSQL via PRIVATE NETWORK Railway (0 costo egress, host *.railway.internal)
+psycopg[binary]>=3.2.3,<3.3
+python-dotenv>=1.0.1,<2

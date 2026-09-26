@@ -1,0 +1,23 @@
+# --- Node / Vite ---
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+
+# --- Python ---
+backend-python/.venv/
+backend-python/venv/
+backend-python/__pycache__/
+backend-python/*.pyc
+backend-python/public-fotos/
+
+# --- Env vars (NO subir credenciales) ---
+.env
+.env.local
+.env.production.local
+.railway/
+
+# --- OS ---
+Thumbs.db
+.DS_Store

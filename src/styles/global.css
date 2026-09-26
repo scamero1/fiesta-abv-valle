@@ -1,0 +1,855 @@
+:root {
+  /* ===== MANUAL ILV MARCA FIESTA - COLORES OFICIALES PANTONE ===== */
+  /* AZUL PRINCIPAL PANTONE 2728 C */
+  --color-azul-primario: #002a7a;
+  --color-azul-secundario: #0047BA;
+  --color-azul-terciario: #0063d4;
+  --color-azul-claro: #6aa6ff;
+  --color-azul-glow: #0047BA;
+  /* ROJO PRINCIPAL PANTONE 185 C (CTA + ¡TODO!) */
+  --color-rojo-acento: #E4002B;
+  --color-rojo-sombra: #b1001f;
+  /* DORADO OFICIAL ILV */
+  --color-dorado: #d4a017;
+  --color-dorado-claro: #f4cf5b;
+  /* TEXTOS + FONDOS */
+  --color-blanco: #ffffff;
+  --color-blanco-crema: #fffdf5;
+  --color-negro: #000000;
+  --color-gris: #6b7280;
+  --color-gris-claro: #e5e7eb;
+  --color-morado-fiesta: #4a148c;
+  --color-verde-acento: #16a34a; /* WCAG, regla 1 */
+  --color-verde-ok: #16a34a;
+  --color-rosa-fiesta: #E4002B;
+
+  /* ===== TIPOGRAFIA ===== */
+  --font-display: 'Fraunces', 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-legal: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* ===== ESCALA TIPOGRAFICA REGLAMENTARIA (Seccion 6.A) ===== */
+  --fs-h1: clamp(2.75rem, 6.5vw, 5.25rem);   /* 44 – 84 px títulos 1 */
+  --fs-h2: clamp(1.625rem, 3.6vw, 3rem);     /* 26 – 48 px títulos 2 */
+  --fs-h3: clamp(1.25rem, 2.2vw, 1.875rem);  /* 20 – 30 px subtítulos */
+  --fs-body: clamp(1.05rem, 1.5vw, 1.375rem); /* 16.8 – 22 px cuerpo (min 20px efecto visual grande) */
+  --fs-caption: clamp(0.85rem, 1.15vw, 1rem); /* 13.6 – 16 px pequeños */
+  --legal-text-size: max(0.8125rem, clamp(0.8125rem, 1.1vw, 0.9375rem)); /* MÍNIMO 13px (regla 3) — nunca bajar de 13px */
+  --fs-btn: clamp(1.15rem, 1.9vw, 1.6rem);    /* 18.4 – 25.6 px botones (26-32 px objetivo 6.A) */
+  --fs-eyebrow: clamp(0.75rem, 1vw, 0.95rem); /* 12 – 15 px eyebrow */
+
+  /* ===== SOMBRAS NITIDAS (sin blur grande GPU heavy) ===== */
+  --shadow-lux: 0 24px 48px -14px rgba(0, 71, 186, 0.48);
+  --shadow-soft: 0 8px 22px -6px rgba(0, 71, 186, 0.22);
+  --shadow-gold: 0 0 28px rgba(212, 160, 23, 0.3);
+  --shadow-red: 0 12px 28px -8px rgba(228, 0, 43, 0.52);
+  --shadow-card: 0 10px 28px -10px rgba(0, 0, 0, 0.35);
+  --shadow-inset-soft: inset 0 1px 0 rgba(255,255,255,0.3);
+  --shadow-focus-ring: 0 0 0 3px rgba(212, 160, 23, 0.55);
+
+  /* ===== ESPACIADO BASE 8px (regla 6.A) ===== */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 28px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+
+  /* ===== RADIOS (12/16/24 regla 6.A) ===== */
+  --radius-xs: 6px;
+  --radius-sm: 12px;   /* 12 */
+  --radius-md: 16px;   /* 16 */
+  --radius-lg: 24px;   /* 24 */
+  --radius-xl: 32px;
+  --radius-full: 9999px;
+
+  /* ===== Z-INDEX ===== */
+  --z-bg: 0;
+  --z-particles: 1;
+  --z-screen: 5;
+  --z-content: 10;
+  --z-sticky: 20;
+  --z-overlay: 100;
+  --z-modal: 200;
+  --z-legal: 500;
+
+  /* ===== PADDING PANTALLA (safe-area + clamp fluid dvh/dvw fallback) ===== */
+  --pad-screen: clamp(18px, 4dvw, 56px);
+  --pad-screen-x: clamp(16px, 4dvw, 56px);
+  --pad-screen-y: clamp(16px, 3dvh, 40px);
+  --pad-safe-t: env(safe-area-inset-top, 0px);
+  --pad-safe-r: env(safe-area-inset-right, 0px);
+  --pad-safe-b: env(safe-area-inset-bottom, 0px);
+  --pad-safe-l: env(safe-area-inset-left, 0px);
+  --content-max-w: min(100%, 1600px);
+  --content-px: clamp(18px, 3.6dvw, 64px);
+
+  /* ===== TAMAÑOS ===== */
+  --size-h1: var(--fs-h1);
+  --size-h2: var(--fs-h2);
+  --size-h3: var(--fs-h3);
+  --size-body: var(--fs-body);
+  --size-btn: var(--fs-btn);
+  --size-logo: clamp(42px, 6dvw, 72px);
+  --btn-min-h: 64px;   /* Alto minimo tactil 64px regla 6.A */
+  --btn-min-h-lg: clamp(64px, 9dvh, 84px);
+  --btn-w-base: clamp(240px, 30dvw, 420px);
+  --legal-text-size: var(--fs-legal);
+
+  /* ===== STEPPER 5 SEGMENTOS ===== */
+  --step-seg-h: clamp(6px, 0.9dvh, 10px);
+  --step-seg-r: 9999px;
+  --step-done: var(--color-verde-ok);
+  --step-current: var(--color-dorado);
+  --step-pending: rgba(255,255,255,0.2);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  height: 100dvh;
+  width: 100%;
+  width: 100dvw;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  box-sizing: border-box;
+}
+
+html {
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+  viewport-fit: cover;
+  overscroll-behavior: none;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--color-azul-primario);
+  color: var(--color-blanco);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  font-size: calc(14px + (18 - 14) * ((100vw - 320px) / (1920 - 320px)));
+  line-height: 1.5;
+  margin: 0;
+  padding: 0;
+}
+
+.app-container {
+  width: 100vw;
+  width: 100dvw;
+  height: 100vh;
+  height: 100dvh;
+  position: relative;
+  overflow: hidden;
+  display: block;
+  overscroll-behavior: none;
+}
+
+.screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  contain: layout;
+  padding: var(--pad-safe-t) var(--pad-safe-r) 0 var(--pad-safe-l);
+}
+
+.screen-bg,
+.camara-bg-dark {
+  position: absolute;
+  inset: 0;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  overflow: hidden;
+  z-index: var(--z-bg);
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.screen > *:not(.screen-bg):not(.camara-bg-dark) {
+  position: relative;
+  z-index: var(--z-content);
+  min-width: 0;
+  min-height: 0;
+}
+
+:root.is-portrait .screen-content {
+  padding: var(--pad-screen-y) var(--pad-screen-x) !important;
+}
+:root.is-portrait [class*="-main"] {
+  grid-template-columns: 1fr !important;
+}
+:root.is-portrait [class*="-visual"],
+:root.is-portrait [class*="foto-preview-col"],
+:root.is-portrait [class*="listo-visual-col"],
+:root.is-portrait [class*="qr-col"] {
+  min-height: auto;
+  order: -1;
+}
+:root.is-wide [class*="-main"] {
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: clamp(12px, 2vw, 36px) !important;
+}
+:root.is-landscape [class*="-content"] {
+  padding: clamp(12px, 2.2vh, 32px) clamp(18px, 3vw, 56px) !important;
+  gap: clamp(6px, 1.2vh, 16px) !important;
+}
+:root[data-form="phone"] .btn-primario {
+  min-width: 240px;
+  padding: 14px 30px !important;
+  font-size: 1rem !important;
+}
+:root[data-form="tablet-sm"] .btn-primario {
+  min-width: 280px;
+  padding: 18px 44px !important;
+  font-size: 1.2rem !important;
+}
+:root[data-form="tablet-md"] .btn-primario {
+  min-width: 320px;
+}
+:root[data-form="tablet-lg"] .btn-primario {
+  min-width: 360px;
+  padding: 24px 60px !important;
+  font-size: 1.5rem !important;
+}
+:root[data-form="kiosk"] .btn-primario {
+  min-width: 440px;
+  padding: 28px 80px !important;
+  font-size: 1.7rem !important;
+}
+
+/* ============================================================
+   TABLETS PEQUENAS 8-10.5" - TCL TAB 10 GEN 3 (800x1280 / 1280x800)
+   Bloque ESPECIFICO para evitar overflow en portrait 800px estrecho
+   y landscape 800px de ALTO (mas comun en tablets economicas)
+   ============================================================ */
+
+/* --- Portrait TCL 800px ancho (760 .. 860px) --- */
+@media (orientation: portrait) and (min-width: 760px) and (max-width: 860px) {
+  :root {
+    --pad-screen-x: clamp(12px, 2vw, 20px);
+    --pad-screen-y: clamp(12px, 2vh, 24px);
+    --size-h1: clamp(2.2rem, 7vw, 3.8rem);
+    --size-h2: clamp(1.2rem, 3vw, 2.2rem);
+    --size-btn: clamp(1rem, 2.2vw, 1.25rem);
+    --btn-min-h: clamp(52px, 8.5vh, 66px);
+    --btn-w-base: clamp(220px, 42vw, 310px);
+    --size-logo: clamp(40px, 7.5vw, 60px);
+    /* REGLA 3 RIGUROSA: legal NUNCA menor 13px. En 800w 0.95vw=7.6px -> usamos MINIMO 13px fijo. */
+    --legal-text-size: 0.8125rem;
+  }
+  .logo-oficial-img { max-height: clamp(38px, 6vh, 52px) !important; max-width: min(200px, 46vw) !important; }
+  .btn-primario { padding: clamp(12px, 2.2vh, 20px) clamp(24px, 5vw, 44px) !important; }
+  .btn-secundario { padding: clamp(8px, 1.5vh, 14px) clamp(18px, 3.5vw, 32px) !important; font-size: clamp(0.9rem, 1.6vw, 1.05rem) !important; }
+  .screen-content { padding: var(--pad-screen-y) var(--pad-screen-x) !important; padding-top: calc(var(--pad-screen-y) + var(--pad-safe-t)) !important; padding-bottom: calc(var(--pad-screen-y) + 96px + var(--pad-safe-b)) !important; gap: clamp(6px, 1.2vh, 16px) !important; }
+  .bienvenida-main, .listo-main, .resultado-body, .seleccion-body { grid-template-columns: 1fr !important; }
+  .bienvenida-botellas-stack { gap: 8px !important; }
+  .hero-titulo-linea1 { font-size: clamp(2rem, 6.6vw, 3.3rem) !important; }
+  .hero-titulo-linea2 { font-size: clamp(1.7rem, 5.4vw, 2.8rem) !important; }
+  .hero-titulo-linea3 { font-size: clamp(1.5rem, 4.6vw, 2.3rem) !important; }
+  .botella-estrella .botella-img-real { max-height: min(40vh, 460px) !important; }
+  .botella-left, .botella-right { display: none !important; } /* En 800px portrait tan estrecho las laterales sobran y desbordan */
+}
+
+/* --- Landscape TCL 800px ALTO (720 .. 860px high) --- ¡EL MAS CRITICO! */
+@media (orientation: landscape) and (min-height: 720px) and (max-height: 860px) {
+  :root {
+    --pad-screen-x: clamp(16px, 2.2vw, 32px);
+    --pad-screen-y: clamp(10px, 1.6vh, 20px);
+    --size-h1: clamp(1.9rem, 4.6vw, 3.3rem);
+    --size-h2: clamp(1.15rem, 2.6vw, 2.0rem);
+    --size-body: clamp(0.82rem, 1.1vw, 0.95rem);
+    --size-btn: clamp(0.98rem, 1.6vw, 1.25rem);
+    --btn-min-h: clamp(48px, 8vh, 62px);
+    --btn-w-base: clamp(240px, 26vw, 320px);
+    --size-logo: clamp(40px, 6.5vh, 60px);
+    /* REGLA 3 — NUNCA < 13px legal aunque 0.85vh en 800h sea 6.8px */
+    --legal-text-size: 0.8125rem;
+  }
+  html, body { font-size: calc(13px + (16 - 13) * ((100vh - 720px) / (860 - 720))); }
+  .screen-content { padding: var(--pad-screen-y) var(--pad-screen-x) !important; padding-top: calc(var(--pad-screen-y) + var(--pad-safe-t)) !important; padding-bottom: calc(var(--pad-screen-y) + 96px + var(--pad-safe-b)) !important; gap: clamp(6px, 1.2vh, 16px) !important; }
+  .logo-oficial-img { max-height: clamp(38px, 6vh, 52px) !important; max-width: min(220px, 24vw) !important; }
+  .header-logo { font-size: clamp(0.85rem, 1.3vw, 1.1rem) !important; }
+  .btn-primario {
+    min-width: var(--btn-w-base) !important;
+    padding: clamp(12px, 2vh, 20px) clamp(28px, 4.2vw, 50px) !important;
+    font-size: var(--size-btn) !important;
+  }
+  .btn-secundario { padding: clamp(10px, 1.6vh, 16px) clamp(20px, 2.8vw, 36px) !important; font-size: clamp(0.88rem, 1.3vw, 1.05rem) !important; }
+  .hero-titulo-linea1 { font-size: clamp(2rem, 5vw, 3.2rem) !important; }
+  .hero-titulo-linea2 { font-size: clamp(1.6rem, 4vw, 2.5rem) !important; }
+  .hero-titulo-linea3 { font-size: clamp(1.35rem, 3.2vw, 2.1rem) !important; }
+  .botella-estrella .botella-img-real { max-height: min(46vh, 380px) !important; height: auto !important; }
+  .botella-left .botella-img-real,
+  .botella-right .botella-img-real { max-height: min(36vh, 300px) !important; height: auto !important; }
+  .camara-side-info { display: none !important; } /* No hay espacio vertical para side-info */
+  .bienvenida-main { grid-template-columns: 0.95fr 1.05fr !important; gap: clamp(12px, 1.6vw, 24px) !important; }
+  .seleccion-escenarios-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 12px !important; }
+  .screen-header { min-height: 0 !important; }
+  /* Legal footer reducido pero NUNCA MENOR 13px — 0.8125rem (13px) exacto por regla 3 */
+  .legal-disclaimer, .legal-stripe-black, .legal-inner { font-size: 0.8125rem !important; line-height: 1.25 !important; padding-top: 7px !important; padding-bottom: 7px !important; max-height: none !important; }
+}
+
+/* --- Fallback media queries 600/450 height (anteriores, intactos) --- */
+@media (orientation: portrait) and (max-width: 760px) {
+  .app-container { font-size: 15px; }
+  .bienvenida-main, .listo-main, .camara-body, .seleccion-body, .resultado-body { grid-template-columns: 1fr !important; }
+  .camara-side-info { display: none; }
+  .botella-left, .botella-right { display: none !important; }
+}
+@media (orientation: landscape) and (max-height: 720px) {
+  .header-logo .logo-oficial-img { max-height: 40px !important; }
+  .btn-primario { min-width: 240px !important; padding: 14px 40px !important; font-size: 1rem !important; }
+  .bienvenida-main { grid-template-columns: 1fr 0.9fr; }
+  .hero-titulo-linea1 { font-size: clamp(1.8rem, 5vw, 3.5rem) !important; }
+  .hero-titulo-linea2 { font-size: clamp(1.5rem, 4vw, 2.8rem) !important; }
+  .hero-titulo-linea3 { font-size: clamp(1.3rem, 3.5vw, 2.4rem) !important; }
+  .botella-estrella .botella-img-real { max-height: 340px !important; height: auto !important; }
+  .botella-left .botella-img-real,
+  .botella-right .botella-img-real { max-height: 280px !important; height: auto !important; }
+  .camara-side-info { display: none !important; }
+}
+@media (orientation: landscape) and (max-height: 450px) {
+  .camara-side-info { display: none; }
+  .logo-oficial-img { max-height: 36px !important; }
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+button {
+  font-family: var(--font-ui);
+  border: none;
+  cursor: pointer;
+  outline: none;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  touch-action: manipulation;
+  min-height: var(--btn-min-h);
+  white-space: nowrap;
+}
+
+button:active {
+  transform: scale(0.97);
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.btn-primario {
+  background: linear-gradient(135deg, var(--color-dorado) 0%, var(--color-dorado-claro) 100%);
+  color: var(--color-azul-primario);
+  font-size: var(--size-btn);
+  font-weight: 800;
+  padding: clamp(14px, 2.8vh, 24px) clamp(30px, 6vw, 60px);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-gold), 0 8px 28px rgba(245, 197, 24, 0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  min-width: var(--btn-w-base);
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+}
+
+.btn-primario::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.6s ease;
+}
+
+.btn-primario:hover::after {
+  left: 150%;
+}
+
+.btn-primario:hover {
+  box-shadow: 0 0 60px rgba(245, 197, 24, 0.55), 0 12px 36px rgba(245, 197, 24, 0.45);
+  transform: translateY(-2px);
+}
+
+.btn-secundario {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-blanco);
+  border: 2px solid rgba(255, 255, 255, 0.32);
+  font-size: var(--fs-body);
+  font-weight: 700;
+  padding: clamp(12px, 1.8dvh, 18px) clamp(22px, 3.4dvw, 40px);
+  border-radius: var(--radius-full);
+  min-height: var(--btn-min-h);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform 0.22s cubic-bezier(.2,.7,.2,1), background 0.22s, border-color 0.22s, color 0.22s, box-shadow 0.22s;
+}
+
+.btn-secundario:active {
+  transform: translateY(4px) scale(0.985);
+}
+
+.btn-secundario:focus-visible {
+  outline: none;
+  border-color: var(--color-dorado) !important;
+  box-shadow: var(--shadow-focus-ring), 0 0 0 2px rgba(255,255,255,0.2) inset !important;
+}
+
+@media (hover: hover) {
+  .btn-secundario:hover {
+    background: rgba(255, 255, 255, 0.18);
+    border-color: var(--color-dorado);
+    color: var(--color-dorado-claro);
+  }
+}
+
+/* ===== screen-content (flex columna, flex1 = content usa espacio restante hasta legal) ===== */
+.screen-content {
+  position: relative;
+  z-index: var(--z-content);
+  width: 100%;
+  max-width: var(--content-max-w);
+  margin: 0 auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--pad-screen-y) var(--pad-screen-x);
+  padding-top: calc(var(--pad-screen-y) + var(--pad-safe-t));
+  /* RESERVA OBLIGATORIA legal footer (≈44px) + 64px margen seguridad + safe-area-inset-bottom NUNCA pisar botón último */
+  padding-bottom: calc(var(--pad-screen-y) + 96px + var(--pad-safe-b));
+  gap: clamp(8px, 1.4dvh, 22px);
+  contain: layout;
+  -webkit-user-select: none;
+  box-sizing: border-box;
+}
+
+.screen-bg {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-bg);
+  background:
+    radial-gradient(1200px 700px at 12% 8%, rgba(255,255,255,0.16) 0%, transparent 60%),
+    radial-gradient(900px 600px at 90% 18%, rgba(212, 160, 23, 0.22) 0%, transparent 55%),
+    radial-gradient(900px 900px at 50% 105%, rgba(228, 0, 43, 0.22) 0%, transparent 60%),
+    linear-gradient(180deg, #002a7a 0%, #0047BA 35%, #003590 70%, #002a7a 100%);
+}
+
+.bg-pantone-2728 {
+  background:
+    radial-gradient(1200px 700px at 12% 8%, rgba(255,255,255,0.16) 0%, transparent 60%),
+    radial-gradient(900px 600px at 90% 18%, rgba(212, 160, 23, 0.22) 0%, transparent 55%),
+    radial-gradient(900px 900px at 50% 105%, rgba(228, 0, 43, 0.22) 0%, transparent 60%),
+    linear-gradient(180deg, #002a7a 0%, #0047BA 35%, #003590 70%, #002a7a 100%);
+}
+
+/* ===== PARTICLES: SOLO opacity, NADA de transform (GPU TCL débil — regla 6.B.1 y 9) ===== */
+.particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: var(--z-particles);
+}
+
+.particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: var(--color-dorado);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--color-dorado);
+  animation: float-particle 8s ease-in-out infinite;
+  opacity: 0.55;
+  will-change: opacity;
+}
+
+@keyframes float-particle {
+  0%, 100% { opacity: 0.18; }
+  25%      { opacity: 0.82; }
+  50%      { opacity: 0.4; }
+  75%      { opacity: 0.7; }
+}
+
+.screen-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  min-height: 0;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+/* ===== HEADER / LOGOS ===== */
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 1dvw, 12px);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(0.9rem, 1.3dvw, 1.3rem);
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.logo-oficial-img {
+  height: clamp(38px, 6dvw, 72px);
+  width: auto;
+  max-width: min(320px, 38dvw);
+  object-fit: contain;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.35));
+  transition: transform 0.26s ease;
+  -webkit-user-drag: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+:root.is-portrait .logo-oficial-img {
+  max-height: clamp(34px, 6.2dvh, 58px);
+  max-width: min(240px, 52dvw);
+}
+
+@media (hover: hover) {
+  .logo-oficial-img:hover { transform: scale(1.015); }
+}
+
+/* ===== ANIMACIONES LIGERAS solo opacity / transform — max 0.3s, cubic-bezier(.2,.7,.2,1) ===== */
+.fade-in {
+  animation: fadeIn 0.3s cubic-bezier(.2,.7,.2,1) both;
+  will-change: opacity;
+}
+
+.slide-up {
+  animation: slideUp 0.3s cubic-bezier(.2,.7,.2,1) both;
+  will-change: opacity, transform;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 22px rgba(212, 160, 23, 0.4); }
+  50%      { box-shadow: 0 0 44px rgba(212, 160, 23, 0.7); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-spinner {
+  width: 56px;
+  height: 56px;
+  border: 5px solid rgba(212, 160, 23, 0.2);
+  border-top-color: var(--color-dorado);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+/* ===== PREFERS-REDUCED-MOTION — desactiva animaciones (regla 9) ===== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .particle { animation: none !important; opacity: 0.35 !important; }
+  .fade-in, .slide-up { animation: none !important; opacity: 1 !important; transform: none !important; }
+}
+
+/* ===== BOTONES GLOBAL: alto 64px, area tactil 64px, active translateY(4px), focus-visible dorado ===== */
+button {
+  font-family: var(--font-ui);
+  border: none;
+  cursor: pointer;
+  outline: none;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition: transform 0.22s cubic-bezier(.2,.7,.2,1), box-shadow 0.22s, filter 0.22s, background 0.22s;
+  touch-action: manipulation;
+  min-height: var(--btn-min-h);
+  min-width: 48px;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+button:active {
+  transform: translateY(4px) scale(0.985);
+}
+
+button:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus-ring);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: saturate(0.6);
+  transform: none !important;
+}
+
+.btn-desactivado, button[disabled], button:disabled {
+  opacity: 0.5 !important;
+  pointer-events: none !important;
+  transform: none !important;
+  filter: saturate(0.5) !important;
+}
+
+/* ===== btn-primario: CTA. Usar junto a la clase btn-cta-red (PANTONE 185C, ROJO UNICO) ===== */
+.btn-primario {
+  background: linear-gradient(135deg, var(--color-dorado) 0%, var(--color-dorado-claro) 100%);
+  color: var(--color-azul-primario);
+  font-size: var(--size-btn);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: clamp(14px, 2.4dvh, 22px) clamp(30px, 6dvw, 64px);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-gold), 0 8px 28px rgba(212, 160, 23, 0.35), var(--shadow-inset-soft);
+  text-transform: uppercase;
+  min-height: var(--btn-min-h-lg);
+  min-width: var(--btn-w-base);
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6em;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-primario:active {
+  transform: translateY(4px) scale(0.985);
+}
+
+.btn-primario:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus-ring), var(--shadow-gold), 0 8px 28px rgba(212, 160, 23, 0.4);
+  filter: brightness(1.04);
+}
+
+@media (hover: hover) {
+  .btn-primario:hover { transform: translateY(-2px); filter: brightness(1.04); }
+}
+
+.btn-flecha {
+  display: inline-block;
+  font-size: 1.15em;
+  line-height: 1;
+  margin-left: 0.2em;
+  transform: translateY(-1px);
+}
+
+.btn-back {
+  background: rgba(255,255,255,0.1);
+  color: var(--color-blanco);
+  border: 1.5px solid rgba(255,255,255,0.28);
+  border-radius: var(--radius-full);
+  padding: clamp(8px, 1.3dvh, 12px) clamp(16px, 2.6dvw, 22px);
+  min-height: 48px;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.btn-back:active { transform: translateY(2px) scale(0.98); }
+.btn-back:focus-visible { outline: none; border-color: var(--color-dorado); box-shadow: var(--shadow-focus-ring); }
+@media (hover: hover) {
+  .btn-back:hover { background: rgba(255,255,255,0.18); border-color: var(--color-dorado); color: var(--color-dorado-claro); }
+}
+
+.pasos-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.1);
+  border: 1.5px solid rgba(212, 160, 23, 0.4);
+  border-radius: var(--radius-full);
+  font-family: var(--font-ui);
+  font-weight: 800;
+  font-size: var(--fs-caption);
+  color: rgba(255,255,255,0.88);
+  white-space: nowrap;
+}
+.pasos-badge .paso-actual {
+  color: var(--color-dorado);
+  font-weight: 900;
+  font-size: 1.2em;
+}
+
+/* ===== STEPPER 5 SEGMENTOS (Regla 6.A, barra consistente pantallas 2-5) ===== */
+.stepper-bar {
+  width: 100%;
+  max-width: min(640px, 70dvw);
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: clamp(6px, 0.9dvw, 12px);
+  align-items: center;
+  margin: 0 auto;
+}
+
+.stepper-seg {
+  height: var(--step-seg-h);
+  border-radius: var(--step-seg-r);
+  background: var(--step-pending);
+  overflow: hidden;
+  position: relative;
+  transition: background 0.28s ease;
+}
+
+.stepper-seg.done {
+  background: var(--step-done);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.15) inset, 0 0 14px rgba(22, 163, 74, 0.35);
+}
+
+.stepper-seg.current {
+  background: var(--step-current);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.25) inset, 0 0 14px rgba(212, 160, 23, 0.5);
+  animation: stepper-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes stepper-pulse {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.3); }
+}
+
+.stepper-leyenda {
+  display: flex;
+  width: 100%;
+  max-width: min(640px, 70dvw);
+  margin: 6px auto 0;
+  justify-content: space-between;
+  font-family: var(--font-ui);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: rgba(255,255,255,0.66);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.stepper-leyenda .sl-current { color: var(--color-dorado); font-weight: 900; }
+.stepper-leyenda .sl-done { color: rgba(255,255,255,0.92); }
+
+/* ===== HEADERS COMUNES DE PANTALLA (PASOS 2-5) ===== */
+.common-header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.common-header-row1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.common-header-row2 {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.destacado-dorado {
+  color: var(--color-dorado);
+  font-weight: 900;
+}
+
+/* ===== LAYOUT PANEL LATERAL FIJO 35% LANDSCAPE (Prop2 + Prop1 mezcla) ===== */
+.panel-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  gap: clamp(12px, 2dvw, 28px);
+  width: 100%;
+}
+:root.is-landscape .panel-layout { grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr); }
+:root.is-portrait  .panel-layout { grid-template-columns: 1fr; }
+
+.panel-area-work {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.panel-area-side {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: clamp(12px, 1.8dvh, 22px) clamp(14px, 2dvw, 24px);
+  background: rgba(0, 31, 92, 0.55);
+  border: 1.5px solid rgba(212, 160, 23, 0.22);
+  border-radius: var(--radius-lg);
+}
+:root.is-portrait .panel-area-side {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.btn-lat {
+  width: 100%;
+  justify-content: center;
+}

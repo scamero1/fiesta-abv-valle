@@ -261,9 +261,9 @@ JPEG_QUALITY = 95
 FRAME_X1 = 54     # px desde el borde izquierdo (azul) hasta el blanco empieza
 FRAME_Y1 = 86     # px desde el borde superior (azul, CRISTO REY/MUSEO/PLAZA title) hasta blanco empieza
 FRAME_X2 = 1866   # px desde el izquierdo hasta el fin blanco (empieza azul dcha)
-FRAME_Y2 = 970    # px desde arriba hasta fin blanco (empieza franja legal al pie blanca)
+FRAME_Y2 = 1032   # ✅ NUEVA LINEA BLANCA INFERIOR = justo 1px ARRIBA de donde EMPIEZA la barra legal nuestra (~y=1031). Así bottom_from_frame_pct=0.0 coloca la persona TOCANDO directamente la advertencia, SIN ESPACIO AZUL EN MEDIO.
 FRAME_W = FRAME_X2 - FRAME_X1   # 1812 px ancho útil interno
-FRAME_H = FRAME_Y2 - FRAME_Y1   # 884 px alto útil interno (NO se usa, pero útil)
+FRAME_H = FRAME_Y2 - FRAME_Y1   # 946 px alto útil interno (llega hasta 1px antes barra legal)
 
 # Colores Manual ILV MARCA FIESTA (Pantone)
 AZUL_2728 = (0, 42, 122, 255)
@@ -691,20 +691,21 @@ def compose_full(
     frame_center_x = FRAME_X1 + (FRAME_W // 2)
     x_offset_pct = float(cfg.get("x_offset_pct", 0.0))
     x = int(frame_center_x - (fw // 2) + (FRAME_W * x_offset_pct))
-    x_min = FRAME_X1 + 6
-    x_max = FRAME_X2 - fw - 6
+    x_min = FRAME_X1 + 1
+    x_max = FRAME_X2 - fw - 1
     x = max(x_min, min(x_max, x))
 
     # Paso 3: Posición Y dentro del marco blanco
-    #   bottom_from_frame_pct: 0.42 = 42% DESDE ABAJO del marco blanco (FRAME_Y2)
-    #   → ideal selfies torso/cabeza sin pies. Nunca se sale por arriba ni por abajo del marco.
+    #   bottom_from_frame_pct: 0.00 = PERSONA PEGADA DIRECTAMENTE A LA BARRA LEGAL (FRAME_Y2=1032 → línea superior legal).
+    #                          0.50 = a mitad del marco.
+    #   NUNCA se sale por arriba ni por abajo del rango útil (hasta 1px antes barra legal).
     bottom_pct_frame = float(cfg.get("bottom_from_frame_pct", cfg.get("persona_bottom_pct", 0.38)))
-    # Baseline (pies de la persona, o parte inferior del recorte selfies):
-    # FRAME_Y2 - 4 es el "suelo" interior (justo antes de que empiece la franja legal blanca inferior del JPG)
-    y_baseline_inside_frame = int(FRAME_Y2 - 6 - (FRAME_H * bottom_pct_frame))
+    # Baseline = FRAME_Y2 - 1 - desplazamiento por porcentaje. Cuando bottom_pct_frame=0 → baseline=1031,
+    # así y + fh = 1031 y la persona TOCA EXACTAMENTE el inicio de la barra legal blanca (1031→1080).
+    y_baseline_inside_frame = int(FRAME_Y2 - 1 - (FRAME_H * bottom_pct_frame))
     y = int(y_baseline_inside_frame - fh)
-    y_min = FRAME_Y1 + 6
-    y_max = FRAME_Y2 - fh - 6
+    y_min = FRAME_Y1 + 1
+    y_max = FRAME_Y2 - fh - 1
     y = max(y_min, min(y_max, y))
     canvas.alpha_composite(fitted, (x, y))
 

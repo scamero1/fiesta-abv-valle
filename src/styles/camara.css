@@ -321,9 +321,11 @@
   opacity: 1 !important;
 }
 
-/* ✅ NUNCA MÁS VOLTEAR FOTO (selfie no-espejo retro) — FORZADO !important */
-.webcam-feed,
-.preview-img {
+/* ✅ NUNCA MÁS VOLTEAR FOTO (selfie no-espejo retro) — FORZADO !important
+   ✅ SELECTOR NUCLEAR: ETIQUETA (video/img) + CLASE → ESPECIFICIDAD MÁXIMA,
+      VENCE A CUALQUIER INLINE STYLE QUE METEA react-webcam POR JS. */
+video.webcam-feed,
+img.preview-img {
   transform: scaleX(1) !important;
   filter: none !important;
   object-fit: cover !important;
@@ -668,14 +670,27 @@
     border: 3px solid var(--oro);  /* borde oro 3px (antes 4 → +2px ganado interior) */
     flex: 0 0 auto;
   }
-  /* CRUZ crosshair TCL (PEQUEÑA + TRANSPARENTE, igual que global pero ajustada a TCL: no visible más grande que global) */
+  /* ✅ CRUZ crosshair TCL — MISMOS VALORES QUE GLOBAL (MINI + CASI INVISIBLE, solo guía).
+     ✅ ANTES ESTABA MAL: width 34%/height 66%/opacity 0.55 PISABA la regla global → la cruz se veía GRANDE.
+     ✅ AHORA: 18% / 34% / opacity 0.18 = misma que global, NUNCA pisa. */
   .sil {
-    width: 34% !important;      /* NUEVO: PEQUEÑA, igual que selector base */
-    height: 66% !important;
-    opacity: 0.55 !important;   /* NUEVO: transparente */
+    width: 18% !important;
+    height: 34% !important;
+    opacity: 0.18 !important;
   }
-  .sil::before { width: 2px !important; }
-  .sil::after  { height: 2px !important; }
+  .sil::before { width: 1px !important; }
+  .sil::after  { height: 1px !important; }
+
+  /* ✅ ANTI-FLIP NUCLEAR DENTRO DEL MEDIA QUERY DE LA TCL:
+     POR SI react-webcam METE inline-style SCALEX(-1) CUANDO facingMode='user'.
+     AQUÍ DENTRO DEL MQ TCL LO VOLVEMOS A FORZAR scaleX(1) OTRA VEZ CON ETIQUETA+CLASE !important.
+     NUNCA MÁS CÁMARA INVERTIDA EN LA TABLETA TCL. */
+  video.webcam-feed,
+  img.preview-img {
+    transform: scaleX(1) !important;
+    filter: none !important;
+    object-fit: cover !important;
+  }
 
   /* ¡SONRÍE! TEXTO en TCL (más grande, pero ajustado para no tapar) */
   .camara-sonrie {

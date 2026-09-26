@@ -199,9 +199,15 @@ export default function Camara() {
                   mirrored={false}
                   className="webcam-feed"
                   onUserMediaError={onUserMediaError}
+                  style={{ transform: 'scaleX(1)', WebkitTransform: 'scaleX(1)' }}
                 />
               ) : (
-                <img src={preview} alt="Preview captura" className="preview-img" />
+                <img
+                  src={preview}
+                  alt="Preview captura"
+                  className="preview-img"
+                  style={{ transform: 'scaleX(1)', WebkitTransform: 'scaleX(1)' }}
+                />
               )}
 
               <div className={`cd countdown-overlay ${countdown !== null && countdown > 0 ? 'on' : ''}`}>

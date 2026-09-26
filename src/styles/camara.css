@@ -130,18 +130,46 @@
   backface-visibility: hidden;
 }
 
+/* NUEVA CRUZ CROSSHAIR GLOBAL (FUERA DE CUALQUIER MEDIA QUERY) — 
+   SUSTITUYE COMPLETAMENTE la silueta persona. FUNCIONA EN TODAS LAS RESOLUCIONES.
+   TCL: selector MQ más abajo solo cambia tamaño y grosor, nunca el diseño. */
 .sil {
   position: absolute;
   left: 50%;
-  bottom: 0;
-  width: 26%;
-  height: 78%;
-  transform: translateX(-50%);
-  border: 3px dashed rgba(255,255,255,0.55);
-  border-radius: 50% 50% 8px 8px / 38% 38% 8px 8px;
+  top: 50%;
+  width: 46%;
+  height: 80%;
+  transform: translate(-50%, -50%);
+  border: 0;
+  border-radius: 0;
   pointer-events: none;
   z-index: 2;
   box-sizing: border-box;
+  background: transparent;
+}
+.sil::before,
+.sil::after {
+  content: "";
+  position: absolute;
+  background: rgba(255,255,255,0.92);
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.6);
+  border-radius: 3px;
+}
+.sil::before {
+  /* Línea VERTICAL cruz (+) */
+  left: 50%;
+  top: 4%;
+  bottom: 4%;
+  width: 3px;
+  transform: translateX(-50%);
+}
+.sil::after {
+  /* Línea HORIZONTAL cruz (+) */
+  top: 50%;
+  left: 6%;
+  right: 6%;
+  height: 3px;
+  transform: translateY(-50%);
 }
 
 .hint,

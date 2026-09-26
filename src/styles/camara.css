@@ -131,14 +131,13 @@
 }
 
 /* NUEVA CRUZ CROSSHAIR GLOBAL (FUERA DE CUALQUIER MEDIA QUERY) — 
-   SUSTITUYE COMPLETAMENTE la silueta persona. FUNCIONA EN TODAS LAS RESOLUCIONES.
-   TCL: selector MQ más abajo solo cambia tamaño y grosor, nunca el diseño. */
+   AHORA MÁS PEQUEÑA + TRANSPARENTE (usuario: pequeña transparentosa PERO visible) */
 .sil {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 46%;
-  height: 80%;
+  width: 34%;          /* NUEVO: más pequeña (antes 46%) */
+  height: 66%;         /* NUEVO: más baja (antes 80%) */
   transform: translate(-50%, -50%);
   border: 0;
   border-radius: 0;
@@ -146,30 +145,64 @@
   z-index: 2;
   box-sizing: border-box;
   background: transparent;
+  opacity: 0.58;       /* NUEVO: transparente pero visible (58%) */
 }
 .sil::before,
 .sil::after {
   content: "";
   position: absolute;
-  background: rgba(255,255,255,0.92);
-  box-shadow: 0 0 0 2px rgba(0,0,0,0.6);
-  border-radius: 3px;
+  background: rgba(255,255,255,0.95);
+  box-shadow: 0 0 0 1.5px rgba(0,0,0,0.5);   /* sombra más pequeña */
+  border-radius: 2px;
 }
 .sil::before {
   /* Línea VERTICAL cruz (+) */
   left: 50%;
-  top: 4%;
-  bottom: 4%;
-  width: 3px;
+  top: 2%;
+  bottom: 2%;
+  width: 2px;          /* NUEVO: más delgada (antes 3px) */
   transform: translateX(-50%);
 }
 .sil::after {
   /* Línea HORIZONTAL cruz (+) */
   top: 50%;
-  left: 6%;
-  right: 6%;
-  height: 3px;
+  left: 4%;
+  right: 4%;
+  height: 2px;         /* NUEVO: más delgada (antes 3px) */
   transform: translateY(-50%);
+}
+
+/* NUEVO: ¡SONRÍE! TEXTO CENTRADO ARRIBA (usuario pidió centralo) */
+.camara-sonrie {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(26px, 3.2dvw, 40px);
+  color: #fff;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  padding: 8px 22px;
+  background: rgba(0, 42, 122, 0.62);
+  border: 2px solid rgba(255,255,255,0.9);
+  border-radius: 9999px;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.85);
+  z-index: 3;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 12px 30px -10px rgba(0,0,0,0.75);
+}
+
+/* NUEVO: CAMBIO IMPORTANTE — NO VOLTEAR FOTO (usuario pide NO voltees).
+   - Webcam frontal (selfie): mostramos NORMAL (NO mirrored) al usuario.
+   - Preview foto capturada: NUNCA se escala horizontalmente.
+   Ambos cambios aseguran que la foto guardada y la vista previa COINCIDEN 100% SIN VOLTEO. */
+.webcam-feed,
+.preview-img {
+  transform: none !important;  /* NUNCA más scaleX(-1) */
+  filter: none !important;
 }
 
 .hint,
@@ -510,13 +543,22 @@
     border: 3px solid var(--oro);  /* borde oro 3px (antes 4 → +2px ganado interior) */
     flex: 0 0 auto;
   }
-  /* CRUZ crosshair TCL (más delgada 3px para no tapar, 50%/82%) */
+  /* CRUZ crosshair TCL (PEQUEÑA + TRANSPARENTE, igual que global pero ajustada a TCL: no visible más grande que global) */
   .sil {
-    width: 50%;
-    height: 82%;
+    width: 34% !important;      /* NUEVO: PEQUEÑA, igual que selector base */
+    height: 66% !important;
+    opacity: 0.55 !important;   /* NUEVO: transparente */
   }
-  .sil::before { width: 3px; }
-  .sil::after  { height: 3px; }
+  .sil::before { width: 2px !important; }
+  .sil::after  { height: 2px !important; }
+
+  /* ¡SONRÍE! TEXTO en TCL (más grande, pero ajustado para no tapar) */
+  .camara-sonrie {
+    top: 20px;
+    font-size: clamp(30px, 3.8svw, 44px);
+    padding: 10px 28px;
+    border-radius: 9999px;
+  }
 
   /* ✅ NUEVO: QUITAR el "colocanet" (hint texto arriba centro) — PIDE USUARIO, 
      gana ~50px altura + estorba menos a la cámara. */

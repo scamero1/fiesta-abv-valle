@@ -92,6 +92,126 @@
   }
 }
 
+/* ✅ CELULAR (portrait < 540px) — LANDINGDESCARGA: NO sobreponer legal, 1 columna, tipografías chicas, botones pequeños 
+   Usuario reportó: "text de exceso se sobrepone arriba y pasa lo mismo con inicio" */
+@media (orientation: portrait) and (max-width: 540px) {
+  .landing-screen {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow-x: hidden;
+  }
+  .landing-contenido {
+    gap: 14px;
+    padding:
+      calc(12px + env(safe-area-inset-top, 0px))
+      14px
+      calc(90px + env(safe-area-inset-bottom, 0px)); /* MÁS GRANDE (90px) para que legal-footer NO SOBREPONE nada */
+    min-height: 100%;
+  }
+  .landing-header { gap: 8px; padding: 4px 0 0; }
+  .landing-logo {
+    height: clamp(32px, 5.2dvh, 44px);
+    max-width: 78dvw !important;
+  }
+  .landing-hero { gap: 8px; }
+  .landing-title { gap: 4px; }
+  .lt-1 { font-size: 1.55rem !important; font-weight: 900 !important; line-height: 1.08; }
+  .hashtag { font-size: 1.05rem !important; letter-spacing: 0.04em; }
+  .landing-sub {
+    font-size: 0.92rem !important;
+    line-height: 1.4 !important;
+    max-width: 52ch !important;
+    margin: 0 auto;
+    padding: 0 4px;
+    color: #dbe6ff;
+  }
+  .landing-main-wrap {
+    grid-template-columns: 1fr !important;
+    gap: 16px;
+    margin-top: 6px;
+  }
+  .landing-foto-card {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-height: 46dvh;
+    aspect-ratio: 16/9;
+    border-radius: 18px;
+    border-width: 3px;
+  }
+  .landing-foto-img { object-fit: cover; }
+  .landing-cargando, .landing-error {
+    gap: 14px;
+    padding: 28px 20px;
+    border-radius: 18px;
+  }
+  .landing-spinner {
+    width: 68px;
+    height: 68px;
+    border-width: 6px;
+  }
+  .le-icon {
+    width: 72px;
+    height: 72px;
+    font-size: 1.7rem;
+    border-width: 3px;
+  }
+  .landing-error p {
+    font-size: 1rem;
+    max-width: 44ch;
+    line-height: 1.4;
+  }
+  .btn-error-reintentar {
+    min-width: 80dvw !important;
+    min-height: 60px !important;
+    font-size: 1.15rem !important;
+    padding: 14px 24px !important;
+    margin-top: 6px !important;
+    border-radius: 16px !important;
+  }
+  .landing-acciones-col {
+    gap: 14px;
+    padding: 18px 16px;
+    border-radius: 20px;
+    border-width: 2px;
+  }
+  .btn-landing {
+    min-height: 60px !important;
+    font-size: 1.15rem !important;
+    padding: 14px 20px !important;
+    border-radius: 16px !important;
+    gap: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .btn-landing .bl-icono { font-size: 1.3rem; }
+  .landing-info {
+    gap: 12px;
+    padding: 16px;
+    border-radius: 16px;
+  }
+  .li-item { gap: 12px; }
+  .li-chip {
+    width: 32px; height: 32px;
+    flex-basis: 32px;
+    font-size: 1rem;
+  }
+  .li-texto { font-size: 0.95rem; line-height: 1.4; }
+  .li-texto b { font-size: 1rem; }
+  /* LEGAL FOOTER celular: altura 48px, texto pequeño 11.5px (sobrepone NUNCA por padding-bottom 90px del contenido) */
+  .landing-screen .legal-footer {
+    min-height: 48px !important;
+    height: 48px !important;
+    padding: 0 12px !important;
+  }
+  .landing-screen .legal-text {
+    font-size: 0.72rem !important;    /* 11.5px legal */
+    line-height: 1.2 !important;
+    font-weight: 600;
+  }
+}
+
 .landing-foto-card {
   position: relative;
   border-radius: var(--radius-lg);

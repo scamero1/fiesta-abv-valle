@@ -171,7 +171,11 @@ export default function Camara() {
         <div className="camara-body">
           <div className="camwrap">
             <div className="vp viewport-marco foto-preview-frame">
-              <div className="hint camara-hint" id="camara-hint">
+              {/* NUEVO: ¡SONRÍE! TEXTO GRANDE CENTRADO ARRIBA (usuario pidió centrarlo) */}
+              {!preview && <div className="camara-sonrie" aria-hidden>¡Sonríe!</div>}
+
+              {/* NUEVO: hint SE OCULTA (quitamos colocanet), user pidió centrar SONRÍE. */}
+              <div className="hint camara-hint" id="camara-hint" style={{ display: 'none' }}>
                 {preview ? '¿Te gusta cómo quedó?' : 'Ubícate en el centro de la cruz'}
               </div>
 
@@ -185,7 +189,7 @@ export default function Camara() {
                   screenshotFormat="image/jpeg"
                   screenshotQuality={0.95}
                   videoConstraints={currentConstraints}
-                  mirrored={facingMode === 'user'}
+                  mirrored={false}
                   className="webcam-feed"
                   onUserMediaError={onUserMediaError}
                 />

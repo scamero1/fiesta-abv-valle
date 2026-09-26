@@ -254,6 +254,17 @@ CANVAS_W = 1920
 CANVAS_H = 1080  # Relación 16:9 HORIZONTAL (Full HD) — para fotos anchas de evento
 JPEG_QUALITY = 95
 
+# ============ RECTÁNGULO BLANCO INTERNO (MARCO) COMÚN A LOS 3 JPG DE FONDO ========
+# Medido exactamente desde los JPG originales Cristo Rey / Museo Salsa / Plaza Varela:
+#   - Borde azul exterior: 0..CANVAS_W / 0..CANVAS_H
+#   - Marco BLANCO INTERNO donde va la persona:
+FRAME_X1 = 54     # px desde el borde izquierdo (azul) hasta el blanco empieza
+FRAME_Y1 = 86     # px desde el borde superior (azul, CRISTO REY/MUSEO/PLAZA title) hasta blanco empieza
+FRAME_X2 = 1866   # px desde el izquierdo hasta el fin blanco (empieza azul dcha)
+FRAME_Y2 = 970    # px desde arriba hasta fin blanco (empieza franja legal al pie blanca)
+FRAME_W = FRAME_X2 - FRAME_X1   # 1812 px ancho útil interno
+FRAME_H = FRAME_Y2 - FRAME_Y1   # 884 px alto útil interno (NO se usa, pero útil)
+
 # Colores Manual ILV MARCA FIESTA (Pantone)
 AZUL_2728 = (0, 42, 122, 255)
 AZUL_2728_SEC = (0, 71, 186, 255)
@@ -430,29 +441,41 @@ def remove_bg_b64(body: BodyB64):
 
 ESCENARIO_CONFIG = {
     # IDs NUEVOS prompt: Atardecer Vallecaucano = Cristo Rey, Feria de Cali = Plaza Varela, Salsa Neón = Museo Salsa
+    #   x_offset_pct: + = MOVER A LA DERECHA, - = MOVER A LA IZQUIERDA (para no tapar objetos principales del fondo).
+    #   scale_in_frame: cuánto del ancho FRAME_W (1812px) ocupa la persona (0.72 = 72% ancho del marco blanco).
+    #   bottom_from_frame_pct: 0.45 = 45% DESDE LA PARTE INFERIOR del marco blanco FRAME_Y2 (ideal selfies torso/cabeza).
     "sunset": {
         "nombre": "Atardecer Vallecaucano",
         "botellaImg": "botella-fiesta-azul.png",
         "backgroundImg": "esc-cristorey.jpg",
         "fallback_gradient": ((14, 165, 233), (7, 89, 133)),
-        "persona_scale": 0.94,
-        "persona_bottom_pct": 0.22,
+        "persona_scale": 0.86,
+        "persona_bottom_pct": 0.36,
+        "x_offset_pct": -0.18,   # Cristo Rey estatua en el MEDIO → persona IZQUIERDA 18% para no taparla
+        "scale_in_frame": 0.72,
+        "bottom_from_frame_pct": 0.42,
     },
     "feria": {
         "nombre": "Feria de Cali",
         "botellaImg": "botella-night.png",
         "backgroundImg": "esc-plazavarela.jpg",
         "fallback_gradient": ((124, 58, 237), (76, 29, 149)),
-        "persona_scale": 0.94,
-        "persona_bottom_pct": 0.22,
+        "persona_scale": 0.86,
+        "persona_bottom_pct": 0.36,
+        "x_offset_pct": -0.10,   # Trompeta Plaza Varela ocupa centro-dcha → persona +10% IZQ
+        "scale_in_frame": 0.74,
+        "bottom_from_frame_pct": 0.42,
     },
     "neon": {
         "nombre": "Salsa Neón",
         "botellaImg": "botella-sin-azucar.png",
         "backgroundImg": "esc-museosalsa.jpg",
         "fallback_gradient": ((249, 115, 22), (180, 83, 9)),
-        "persona_scale": 0.94,
-        "persona_bottom_pct": 0.22,
+        "persona_scale": 0.86,
+        "persona_bottom_pct": 0.36,
+        "x_offset_pct": -0.20,   # Museo graffiti MUSEO DE LA SALSA en DERECHA → persona 20% IZQ no taparlo
+        "scale_in_frame": 0.70,
+        "bottom_from_frame_pct": 0.42,
     },
     # IDs EXISTENTES (compatibilidad con frontend actual)
     "calle-del-sabor": {
@@ -460,24 +483,33 @@ ESCENARIO_CONFIG = {
         "botellaImg": "botella-fiesta-azul.png",
         "backgroundImg": "esc-museosalsa.jpg",
         "fallback_gradient": ((249, 115, 22), (180, 83, 9)),
-        "persona_scale": 0.94,
-        "persona_bottom_pct": 0.22,
+        "persona_scale": 0.86,
+        "persona_bottom_pct": 0.36,
+        "x_offset_pct": -0.20,
+        "scale_in_frame": 0.70,
+        "bottom_from_frame_pct": 0.42,
     },
     "plaza-varela": {
         "nombre": "Plaza Varela",
         "botellaImg": "botella-night.png",
         "backgroundImg": "esc-plazavarela.jpg",
         "fallback_gradient": ((124, 58, 237), (76, 29, 149)),
-        "persona_scale": 0.94,
-        "persona_bottom_pct": 0.22,
+        "persona_scale": 0.86,
+        "persona_bottom_pct": 0.36,
+        "x_offset_pct": -0.10,
+        "scale_in_frame": 0.74,
+        "bottom_from_frame_pct": 0.42,
     },
     "cristo-rey": {
         "nombre": "Cristo Rey",
         "botellaImg": "botella-sin-azucar.png",
         "backgroundImg": "esc-cristorey.jpg",
         "fallback_gradient": ((14, 165, 233), (7, 89, 133)),
-        "persona_scale": 0.94,
-        "persona_bottom_pct": 0.22,
+        "persona_scale": 0.86,
+        "persona_bottom_pct": 0.36,
+        "x_offset_pct": -0.18,
+        "scale_in_frame": 0.72,
+        "bottom_from_frame_pct": 0.42,
     },
 }
 
@@ -626,37 +658,57 @@ def compose_full(
     canvas.alpha_composite(fondo.convert("RGBA"), (0, 0))
 
     # ====== CAPA 1: PERSONA — (1) CLOSE HOLES morphology interior (camisa agujeritos), (2) FEATHER mínima.
-    #          Escala grande 94% canvas, persona arriba 22% desde el suelo para selfies torso/cabeza (no corta)
+    #          Calculamos posición DENTRO DEL MARCO BLANCO INTERNO (FRAME_X1/X2/Y1/Y2) medido exacto en cada JPG.
+    #          No se sale del marco, no se corta con los bordes azules exteriores.
     persona_rgba = persona_rgba.convert("RGBA")
     persona_no_holes = close_alpha_holes(persona_rgba, radius_px=3)
     persona_clean = feather_borders_alpha(persona_no_holes, feather_px=2)
-    scale = cfg.get("persona_scale", 0.94)
-    target_max_w = int(CANVAS_W * scale)
-    target_max_h = int(CANVAS_H * (scale * 1.08))
-    fitted = fit_contain(persona_clean, target_max_w, target_max_h)
+
+    # Paso 1: Tamaño persona. Priorizamos scale_in_frame (% del ancho útil del marco blanco)
+    #           si está definido, fallback al antiguo persona_scale (% del canvas).
+    scale_in_frame = cfg.get("scale_in_frame", None)
+    if scale_in_frame and 0.2 < float(scale_in_frame) < 1.0:
+        sif = float(scale_in_frame)
+        target_max_w_frame = int(FRAME_W * sif)
+        target_max_h_frame = int(FRAME_H * (sif * 1.12))
+        fitted = fit_contain(persona_clean, target_max_w_frame, target_max_h_frame)
+    else:
+        scale_legacy = cfg.get("persona_scale", 0.82)
+        t_w = int(CANVAS_W * scale_legacy)
+        t_h = int(CANVAS_H * (scale_legacy * 1.12))
+        fitted = fit_contain(persona_clean, t_w, t_h)
     fw, fh = fitted.size
-    x = (CANVAS_W - fw) // 2
-    # Ya NO hay barra legal dentro del JPG final (eliminada capa 2).
-    # Pero mantenemos margen inferior 4.5% para que los pies no se corten en previews HTML.
-    legal_only_h = max(30, int(CANVAS_H * 0.045))
-    bottom_pct = cfg.get("persona_bottom_pct", 0.22)
-    y_floor = CANVAS_H - legal_only_h - 1
-    # bottom_pct ALTO (0.22) = persona ESTÁ MÁS ARRIBA (ideal selfies de torso/cabeza sin pies, foto webcam)
-    # bottom_pct BAJO (0.02) = persona PEGADA al suelo (ideal fotos completas con pies, estudio)
-    y_baseline = y_floor - max(0, int(CANVAS_H * bottom_pct))
-    y = y_baseline - fh
-    # Nunca superar 5% del top (evita que la cabeza se corte)
-    y = max(int(CANVAS_H * 0.05), y)
-    # Nunca superar el fondo inferior por debajo del margen (si persona es muy alta)
-    if y + fh > CANVAS_H - 4:
-        y = CANVAS_H - 4 - fh
-        y = max(int(CANVAS_H * 0.05), y)
+
+    # Paso 2: Posición X dentro del marco blanco
+    #   x_offset_pct: + = mover a la DERECHA sobre el centro; - = mover a la IZQUIERDA.
+    #   Siempre dentro del rango [FRAME_X1, FRAME_X2 - fw] (no se sale del marco).
+    frame_center_x = FRAME_X1 + (FRAME_W // 2)
+    x_offset_pct = float(cfg.get("x_offset_pct", 0.0))
+    x = int(frame_center_x - (fw // 2) + (FRAME_W * x_offset_pct))
+    x_min = FRAME_X1 + 6
+    x_max = FRAME_X2 - fw - 6
+    x = max(x_min, min(x_max, x))
+
+    # Paso 3: Posición Y dentro del marco blanco
+    #   bottom_from_frame_pct: 0.42 = 42% DESDE ABAJO del marco blanco (FRAME_Y2)
+    #   → ideal selfies torso/cabeza sin pies. Nunca se sale por arriba ni por abajo del marco.
+    bottom_pct_frame = float(cfg.get("bottom_from_frame_pct", cfg.get("persona_bottom_pct", 0.38)))
+    # Baseline (pies de la persona, o parte inferior del recorte selfies):
+    # FRAME_Y2 - 4 es el "suelo" interior (justo antes de que empiece la franja legal blanca inferior del JPG)
+    y_baseline_inside_frame = int(FRAME_Y2 - 6 - (FRAME_H * bottom_pct_frame))
+    y = int(y_baseline_inside_frame - fh)
+    y_min = FRAME_Y1 + 6
+    y_max = FRAME_Y2 - fh - 6
+    y = max(y_min, min(y_max, y))
     canvas.alpha_composite(fitted, (x, y))
 
-    # ====== CAPA 2 ELIMINADA (Usuario confirmó: NO meter barra legal en el JPG) ======
-    # La composición final SOLO tiene: Capa 0 (Fondo) + Capa 1 (Persona recortada IA)
-    # NINGÚN texto, NINGÚN marco, NINGUNA barra legal se pinta dentro de la foto.
-    # El aviso legal sigue apareciendo en la franja negra del footer de todas las pantallas web.
+    # ====== CAPA 2: BARRA LEGAL BLANCA AL PIE DEL JPG FINAL (SIEMPRE PINTADA) ======
+    # Usuario lo confirma VERBATIM en 2 mensajes:
+    #   "EL EXCESO DE ALCOHOL ES PERJUDICIAL PARA LA SALUD. PROHÍBASE EL EXPENDIO DE BEBIDAS
+    #    EMBRIAGANTES A MENORES DE EDAD. en la foto"
+    # Se pinta a pesar de que los JPG ya la incluyan, para asegurar la ley colombiana 100%
+    # (incluso si alguien usa un fondo custom sin ella). El overlay no daña, se ve igual.
+    canvas = draw_legal_bar_minimal(canvas)
 
     return canvas
 

@@ -19,8 +19,8 @@
   margin: 0 auto;
   padding:
     calc(clamp(16px, 3.2dvh, 36px) + env(safe-area-inset-top, 0px))
-    clamp(16px, 4.4dvw, 72px)
-    calc(clamp(80px, 13.5dvh, 140px) + env(safe-area-inset-bottom, 0px));
+    clamp(16px, 2.6dvw, 32px)
+    calc(var(--legal-h) + 14px + env(safe-area-inset-bottom, 0px));  /* ✅ JUSTO legal + 14px gap. SIN espacio AZUL GRANDE (antes clamp 80→140px = enorme abajo!) */
   min-height: 100%;
   box-sizing: border-box;
 }
@@ -105,7 +105,7 @@
     padding:
       calc(12px + env(safe-area-inset-top, 0px))
       14px
-      calc(90px + env(safe-area-inset-bottom, 0px)); /* MÁS GRANDE (90px) para que legal-footer NO SOBREPONE nada */
+      calc(62px + env(safe-area-inset-bottom, 0px)); /* ✅ 62px = legal 48px + 14px gap JUSTO. SIN espacio AZUL GRANDE abajo (antes 90px=mucho). Legal NO sobrepone botones. */
     min-height: 100%;
   }
   .landing-header { gap: 8px; padding: 4px 0 0; }
@@ -371,7 +371,7 @@
     padding:
       calc(4px + env(safe-area-inset-top, 0px))
       32px
-      calc(var(--legal-h) + 16px + env(safe-area-inset-bottom, 0px));
+      calc(var(--legal-h) + 20px + env(safe-area-inset-bottom, 0px));  /* ✅ legal+20px: botones descargar/compartir 100% VISIBLES encima del legal-footer en TCL. Antes +16 (muy justo se cortaba). */
   }
   .landing-header { padding: 0; gap: 10px; }
   .landing-logo { height: 56px; max-width: 440px; }

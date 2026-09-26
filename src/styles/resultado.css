@@ -137,12 +137,13 @@
   border-top: 1px solid rgba(0,0,0,0.06);
 }
 
-/* QR 340 padding 16 blanco radio 16 */
+/* QR padding 16 blanco radio 16 — ✅ OVERFLOW VISIBLE para NUNCA CORTAR los bordes del QR
+   ✅ Tamaño máximo 310px (antes 340) → más pequeño, ocupa menos altura en TCL */
 .qr {
-  width: clamp(260px, 44dvw, 340px);
-  height: clamp(260px, 44dvw, 340px);
-  max-width: 340px;
-  max-height: 340px;
+  width: clamp(260px, 38dvw, 310px);
+  height: clamp(260px, 38dvw, 310px);
+  max-width: 310px;
+  max-height: 310px;
   background: #fff;
   padding: 16px;
   border-radius: 16px;
@@ -156,6 +157,7 @@
   z-index: 2;
   flex: 0 0 auto;
   box-sizing: border-box;
+  overflow: visible !important;   /* NUNCA MÁS CORTAR EL QR POR NINGÚN MOTIVO */
 }
 
 .qr::after {
@@ -236,10 +238,10 @@
   .resultado-header { padding: 0 28px; height: 44px; min-height: 44px; }
   .resultado-header .header-right { max-width: 240px; min-width: 160px; }
   .resultado-titulo { font-size: 1.9rem !important; font-weight: 900 !important; white-space: nowrap; }
-  .resultado-content { padding-top: 0; gap: 0; padding-bottom: calc(var(--legal-h) + 10px); }
+  .resultado-content { padding-top: 0; gap: 0; padding-bottom: calc(var(--legal-h) + 24px); }
   .res { gap: 18px; padding: 0 24px; }
   .res .l { flex: 1.5 1 0%; }
-  .res .r { flex: 1 1 0%; gap: 14px; }
+  .res .r { flex: 1 1 0%; gap: 12px; }
   .res .fr, .foto-final-frame {
     aspect-ratio: 16/9;
     min-width: 980px;
@@ -248,13 +250,16 @@
     border-radius: 24px;
     border-width: 4px;
   }
+  /* ✅ QR TCL: 300x300 (antes 340+20pad = 380 → MUY GRANDE y se cortaba).
+     ✅ overflow:visible NUNCA MÁS CORTAR BORDES. padding 16 igual que global. */
   .qr {
-    width: 340px !important;
-    height: 340px !important;
-    max-width: 340px !important;
-    max-height: 340px !important;
-    padding: 20px;
-    border-radius: 22px;
+    width: 300px !important;
+    height: 300px !important;
+    max-width: 300px !important;
+    max-height: 300px !important;
+    padding: 16px;
+    border-radius: 20px;
+    overflow: visible !important;
   }
   .qr-leyenda-titulo { font-size: 1.5rem !important; line-height: 1.2; }
   .res-botones { margin-top: 6px; gap: 16px; }

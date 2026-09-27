@@ -15,17 +15,11 @@ export default function Resultado() {
     reiniciarFlujo,
   } = useApp()
   const [mostrarMensaje, setMostrarMensaje] = useState('')
-  const autoTimerRef = useRef(null)
 
   useEffect(() => {
     if (!fotoProcesada || !fotoUrlDescarga) {
       setTimeout(() => navigate('/escenario'), 50)
-      return
     }
-    autoTimerRef.current = setTimeout(() => {
-      navigate('/listo')
-    }, 90000)
-    return () => clearTimeout(autoTimerRef.current)
   }, [fotoProcesada, fotoUrlDescarga, navigate])
 
   const downloadObj = fotoUrlDescarga && typeof fotoUrlDescarga === 'object'
@@ -44,7 +38,7 @@ export default function Resultado() {
   })()
   const qrValue = `${qrBase}/foto/${fotoId}`
 
-  const qrSizePx = 340
+  const qrSizePx = 250
 
   const handleDescargar = () => {
     const a = document.createElement('a')
@@ -72,12 +66,10 @@ export default function Resultado() {
   }
 
   const handleRepetir = () => {
-    clearTimeout(autoTimerRef.current)
     navigate('/camara')
   }
 
   const handleTerminar = () => {
-    clearTimeout(autoTimerRef.current)
     navigate('/listo')
   }
 

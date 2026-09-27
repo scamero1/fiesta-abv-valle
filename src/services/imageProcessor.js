@@ -324,9 +324,22 @@ export async function processFullPipelineServerSide(fotoBase64, escenario) {
   const base = (API_CONFIG.PROCESS_FULL_ENDPOINT || '').replace(/\/+$/, '')
   const url = base + '/api/procesar-foto'
 
-  // ✅ MAX_RETRIES 4 + Retry-After para evento 10k / 4 tablets.
+  // ✅ MAX_RETRIES 6 (antes 4) + timeout 120s (antes 75s) para WiFi/4G inestable de EVENTOS MASIVOS.
   //    Si backend retorna HTTP 503 Service Unavailable (overloaded): reintenta automáticamente.
-  const MAX_RETRIES = 4
+  //    Si hay errores de red (conexión WiFi evento se cayó, 4G intermitente): reintento 6 veces con wait creciente.
+  const MAX_RETRIES = 6
+  const FETCH_TIMEOUT_MS = 120000 // 2 min — Railway workers=2 en modo IA, foto grande 4G lento.
+
+  // Diagnóstico Network Information API (si existe, Chrome Android)
+  let netDiag = ''
+  try {
+    const conn = (typeof navigator !== 'undefined' && (navigator.connection || navigator.mozConnection || navigator.webkitConnection))
+    if (conn) {
+      netDiag = ` | Net: ${conn.effectiveType || ''} down~${conn.downlink || '?'}Mbps RTT~${conn.rtt || '?'}ms online=${navigator.onLine}`
+    } else {
+      netDiag = ` | online=${typeof navigator !== 'undefined' ? navigator.onLine : 'n/a'}`
+    }
+  } catch { netDiag = '' }
 
   console.info('[processFullPipeline] → Endpoint calculado:', {
     base_raw: API_CONFIG.PROCESS_FULL_ENDPOINT,
@@ -334,12 +347,13 @@ export async function processFullPipelineServerSide(fotoBase64, escenario) {
     url_final: url,
     escenario_id: escenario?.id,
     escenario_nombre: escenario?.nombre,
+    net_diag: netDiag,
   })
 
   const fdBase = new FormData()
   fdBase.append('foto', dataUrlToBlob(fotoBase64), `foto-${Date.now()}.jpg`)
   fdBase.append('escenario', String(escenario?.id || '').toLowerCase())
-  fdBase.append('alpha_matting', 'true')
+  fdBase.append('alpha_matting', 'false')   // alpha_matting=False GLOBAL (2x más rápido) 🔥 Velocidad evento
   fdBase.append('af', '240')
   fdBase.append('ab', '10')
   fdBase.append('ae', '10')
@@ -355,30 +369,41 @@ export async function processFullPipelineServerSide(fotoBase64, escenario) {
   let lastError = null
   for (let intento = 1; intento <= MAX_RETRIES; intento++) {
     let res
+    let timeoutId = null
     try {
-      res = await fetch(url, { method: 'POST', headers, body: fdBase })
+      // Timeout fetch con AbortController (evita que request se quede colgado 5min en red mala)
+      const ctrl = new AbortController()
+      timeoutId = setTimeout(() => ctrl.abort(new Error(`Timeout ${FETCH_TIMEOUT_MS / 1000}s — red del evento muy lenta.`)), FETCH_TIMEOUT_MS)
+      res = await fetch(url, { method: 'POST', headers, body: fdBase, signal: ctrl.signal })
+      clearTimeout(timeoutId)
     } catch (networkError) {
+      clearTimeout(timeoutId)
       lastError = networkError
       if (intento < MAX_RETRIES) {
-        const wait = 800 * intento
-        console.warn(`[processFullPipeline] retry=${intento} network → wait=${wait}ms`)
+        // Wait creciente: intento 1=800ms, 2=1600, 3=2400, 4=3200, 5=4200, 6=5500.
+        // Suficiente para que el WiFi/4G del evento se recupere en picos.
+        const wait = 700 * intento + Math.floor(Math.random() * 400)
+        console.warn(`[processFullPipeline] retry=${intento}/${MAX_RETRIES} network → wait=${wait}ms | err=${networkError?.message || networkError}${netDiag}`)
         await new Promise(r => setTimeout(r, wait))
         continue
       }
-      console.error('[processFullPipeline] X NETWORK ERROR fetch (agotados reintentos):', networkError?.message || networkError)
+      const esTimeout = /timeout|abort/i.test(String(networkError?.message || ''))
+      console.error('[processFullPipeline] X NETWORK ERROR fetch (agotados ' + MAX_RETRIES + ' reintentos):', networkError?.message || networkError)
       throw new Error(
-        '🌐 NO SE PUDO CONECTAR CON EL SERVIDOR DE IA.\n\n' +
-        `Dominio que intentó: ${base || '(VACÍO — falta configurar VITE_BACKEND_URL)'}\n\n` +
-        `Detalle de red: ${networkError?.message || String(networkError)}\n\n` +
-        'Verifica:\n' +
-        '  1. El servicio backend está deployado en Railway.\n' +
-        '  2. VITE_BACKEND_URL apunta al backend NO al frontend.\n' +
-        '  3. VITE_BACKEND_URL empieza con https:// y NO lleva / al final.\n' +
-        '  4. Redes privada / pública en Railway permiten tráfico HTTPS.'
+        '🌐 FALLO LA CONEXIÓN CON EL SERVIDOR (RED DEL EVENTO).\n\n' +
+        `Intento ${intento} de ${MAX_RETRIES}.\n\n` +
+        (esTimeout ? `Tiempo máximo agotado (${FETCH_TIMEOUT_MS / 1000}s) — WiFi/4G está lento.\n\n` : '') +
+        `Dominio: ${base || '(FALTA VITE_BACKEND_URL — revisa variables Railway Servicio 2 Frontend)'}\n\n` +
+        `Detalle: ${networkError?.message || String(networkError)}${netDiag}\n\n` +
+        'QUÉ HACER AHORA:\n' +
+        '  1. Apaga y enciende el WiFi de la tableta.\n' +
+        '  2. Si sigue fallando, usa Hotspot de datos móviles 4G.\n' +
+        '  3. Presiona ✅ REINTENTAR cuando la red vuelva.\n' +
+        '  4. Verifica Railway Proyecto: Servicio 1 Backend = VERDE (no está redeployando).'
       )
     }
 
-    console.info('[processFullPipeline] ← HTTP Status del backend (intento ' + intento + '):', res.status, res.statusText)
+    console.info('[processFullPipeline] ← HTTP Status del backend (intento ' + intento + '/' + MAX_RETRIES + '):', res.status, res.statusText)
 
     // ✅ HTTP 503 overloaded: reintento según Retry-After header (1s por defecto)
     if (res.status === 503) {
@@ -388,7 +413,8 @@ export async function processFullPipelineServerSide(fotoBase64, escenario) {
         waitMs = Math.min(4000, Math.max(500, ((json || {}).retry_after_ms) || ((res.headers.get('Retry-After') || '1') | 0) * 1000))
       } catch {}
       if (intento < MAX_RETRIES) {
-        console.warn(`[processFullPipeline] retry=${intento} 503 overloaded → wait=${waitMs}ms`)
+        waitMs += Math.floor(Math.random() * 500)
+        console.warn(`[processFullPipeline] retry=${intento}/${MAX_RETRIES} 503 overloaded → wait=${waitMs}ms${netDiag}`)
         await new Promise(r => setTimeout(r, waitMs))
         continue
       }
@@ -412,8 +438,9 @@ export async function processFullPipelineServerSide(fotoBase64, escenario) {
       throw new Error(
         `⚠️ NO SE PUDO PROCESAR LA FOTO EN EL SERVIDOR.\n\n` +
         `Código HTTP: ${res.status}\n` +
-        `Detalle del servidor: ${payload?.detail || payload?.error || JSON.stringify(payload).substring(0, 200)}\n\n` +
-        `Endpoint usado: ${url}`
+        `Detalle: ${payload?.detail || payload?.error || JSON.stringify(payload).substring(0, 200)}\n\n` +
+        `Endpoint usado: ${url}\n\n` +
+        'Reintenta pulsando REINTENTAR (la foto no se pierde, se vuelve a enviar).'
       )
     }
     if (!payload?.ok || !payload?.url) {
@@ -423,7 +450,7 @@ export async function processFullPipelineServerSide(fotoBase64, escenario) {
     const composed = payload.preview && typeof payload.preview === 'string'
       ? payload.preview
       : payload.url
-    console.info('[processFullPipeline] ✅ Éxito en intento ' + intento + '. fotoId=' + (payload.id || 'sin-id') + ' | URL pública=' + payload.url)
+    console.info('[processFullPipeline] ✅ Éxito en intento ' + intento + '/' + MAX_RETRIES + '. fotoId=' + (payload.id || 'sin-id') + ' | URL pública=' + payload.url)
     return {
       noBg: null,
       composed,
@@ -441,7 +468,9 @@ export async function processFullPipelineServerSide(fotoBase64, escenario) {
   }
   // Llegar aquí significa que agotamos retries y falló en todos (503 persistentemente o error).
   throw new Error(
-    `⚠️ Servidor saturado o no respondió luego de ${MAX_RETRIES} intentos. Por favor reintenta en 2 segundos.\n\nEndpoint: ${url}`
+    `⚠️ Servidor saturado o red del evento inestable tras ${MAX_RETRIES} intentos.\n\n` +
+    `Espera 2 segundos y pulsa ✅ REINTENTAR.\n\n` +
+    `Endpoint: ${url}${netDiag}`
   )
 }
 

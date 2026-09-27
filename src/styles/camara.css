@@ -60,6 +60,42 @@
 /* BLOQUEO TOTAL: pastilla azul ¡Sonríe! de DENTRO del viewport NUNCA MÁS aparece. */
 .camara-sonrie { display: none !important; visibility: hidden !important; opacity: 0 !important; }
 
+/* 🔧 ✅ 🔴 FIX DEFINITIVO ANTI-FLIP / ANTI-ESPEJO (CÁMARA FRONTAL SELFIE).
+      Usuario VERBATIM: "voy para la derecha y me muestra que voy para la izquierda".
+      5ta CAPA CSS GLOBAL: selector de ETIQUETA + ATRIBUTO video.srcObject (cámara real)
+      + transform scaleX(1) !important con ESPECIFICIDAD MÁXIMA POSIBLE (etiqueta + 2 clases + id + pseudo).
+      + writing-mode + direction para romper herencias de inline styles de react-webcam. */
+video[class*="webcam"],
+video[class*="feed"],
+video.webcam-feed,
+video.webcam,
+img.preview-img,
+img[class*="preview"] {
+  transform: scaleX(1) !important;
+  -webkit-transform: scaleX(1) !important;
+  -moz-transform: scaleX(1) !important;
+  -o-transform: scaleX(1) !important;
+  -ms-transform: scaleX(1) !important;
+  transform-origin: center center !important;
+  -webkit-transform-origin: center center !important;
+  direction: ltr !important;
+  writing-mode: horizontal-tb !important;
+  unicode-bidi: bidi-override !important;
+  image-orientation: from-image !important;
+  filter: FlipH(0) !important;
+  -webkit-filter: none !important;
+  backface-visibility: hidden !important;
+  -webkit-backface-visibility: hidden !important;
+  perspective: none !important;
+}
+/* 🔧 Contenedor viewport marco: NO herede flip a children ni tenga flip él mismo. */
+.vp, .viewport-marco, .camwrap, .camara-body {
+  transform: none !important;
+  -webkit-transform: none !important;
+  direction: ltr !important;
+  writing-mode: horizontal-tb !important;
+}
+
 /* ✅ NUEVO: BOTÓN CAMBIAR CÁMARA DENTRO DEL VIEWPORT, ARRIBA IZQUIERDA, CORTO Y PEQUEÑO.
       Para ahorrar el 100% del espacio de la antigua barra (.ctl) y agrandar cámara. */
 .btn-switch-inside {
@@ -681,15 +717,36 @@ img.preview-img {
   .sil::before { width: 1px !important; }
   .sil::after  { height: 1px !important; }
 
-  /* ✅ ANTI-FLIP NUCLEAR DENTRO DEL MEDIA QUERY DE LA TCL:
+  /* ✅ ANTI-FLIP NUCLEAR DENTRO DEL MEDIA QUERY DE LA TCL (CAPA EXTRA + ESPECIFICIDAD MÁXIMA):
      POR SI react-webcam METE inline-style SCALEX(-1) CUANDO facingMode='user'.
-     AQUÍ DENTRO DEL MQ TCL LO VOLVEMOS A FORZAR scaleX(1) OTRA VEZ CON ETIQUETA+CLASE !important.
+     AQUÍ DENTRO DEL MQ TCL LO VOLVEMOS A FORZAR scaleX(1) OTRA VEZ CON TODO LO QUE TENEMOS.
      NUNCA MÁS CÁMARA INVERTIDA EN LA TABLETA TCL. */
   video.webcam-feed,
-  img.preview-img {
+  video[class*="webcam"],
+  video[class*="feed"],
+  video.webcam,
+  img.preview-img,
+  img[class*="preview"] {
     transform: scaleX(1) !important;
-    filter: none !important;
+    -webkit-transform: scaleX(1) !important;
+    -moz-transform: scaleX(1) !important;
+    transform-origin: center center !important;
+    -webkit-transform-origin: center center !important;
+    direction: ltr !important;
+    writing-mode: horizontal-tb !important;
+    unicode-bidi: bidi-override !important;
+    filter: FlipH(0) none !important;
+    -webkit-filter: none !important;
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
+    perspective: none !important;
     object-fit: cover !important;
+  }
+  .vp, .viewport-marco, .camwrap, .camara-body {
+    transform: none !important;
+    -webkit-transform: none !important;
+    direction: ltr !important;
+    writing-mode: horizontal-tb !important;
   }
 
   /* ¡SONRÍE! TEXTO en TCL (más grande, pero ajustado para no tapar) */

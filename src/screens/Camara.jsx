@@ -26,6 +26,63 @@ export default function Camara() {
   const [constraintIdx, setConstraintIdx] = useState(0)
   const [webcamKey, setWebcamKey] = useState(0)
   const intentosRef = useRef(0)
+  const previewImgRef = useRef(null)
+
+  // 🔧 ✅ 🔴 FIX DEFINITIVO ANTI-FLIP CÁMARA FRONTAL (4TA CAPA: JAVASCRIPT DIRECTO EN DOM).
+  // react-webcam a veces mete style="transform:scaleX(-1)" por su cuenta en <video> cuando facingMode=user.
+  // Esto ocurre DESPUÉS de que React renderiza (useEffect post render), así que lo forzamos con polling corto 60ms
+  // cada 60ms durante 3s después de montar, y después 1s (anti-flip persistente).
+  useEffect(() => {
+    let frames = 0
+    let stop = false
+    const MAX_FRAMES = 200   // 200 * 60ms = 12seg polling inicial
+    const intervalMs = () => (frames < 60 ? 50 : 700)
+    const forceNoFlip = () => {
+      try {
+        const w = webcamRef?.current
+        // 🔧 FORZAR <video> (el real dentro de react-webcam)
+        if (w) {
+          const vEl = w.video || w
+          if (vEl && vEl.style) {
+            vEl.style.setProperty('transform', 'scaleX(1)', 'important')
+            vEl.style.setProperty('-webkit-transform', 'scaleX(1)', 'important')
+            vEl.style.setProperty('-moz-transform', 'scaleX(1)', 'important')
+            vEl.style.setProperty('transform-origin', 'center center', 'important')
+            vEl.style.setProperty('-webkit-transform-origin', 'center center', 'important')
+            vEl.style.setProperty('direction', 'ltr', 'important')
+            vEl.style.setProperty('writing-mode', 'horizontal-tb', 'important')
+            vEl.style.setProperty('filter', 'none', 'important')
+            vEl.style.setProperty('backface-visibility', 'hidden', 'important')
+            if (typeof vEl.setAttribute === 'function') {
+              vEl.setAttribute('data-no-flip', '1')
+              vEl.setAttribute('dir', 'ltr')
+            }
+          }
+        }
+        // 🔧 FORZAR <img> preview (ya tomada)
+        const imgEl = previewImgRef?.current
+        if (imgEl && imgEl.style) {
+          imgEl.style.setProperty('transform', 'scaleX(1)', 'important')
+          imgEl.style.setProperty('-webkit-transform', 'scaleX(1)', 'important')
+          imgEl.style.setProperty('direction', 'ltr', 'important')
+          imgEl.style.setProperty('writing-mode', 'horizontal-tb', 'important')
+        }
+      } catch {}
+    }
+    const tick = () => {
+      if (stop) return
+      frames++
+      forceNoFlip()
+      if (frames < MAX_FRAMES) setTimeout(tick, intervalMs())
+      else setTimeout(tick, 1200) // Anti-flip persistente siempre
+    }
+    tick()
+    // Correr inmediatamente 3 veces en 50ms para asegurar 1ra pasada
+    setTimeout(forceNoFlip, 50)
+    setTimeout(forceNoFlip, 180)
+    setTimeout(forceNoFlip, 420)
+    return () => { stop = true }
+  }, [webcamKey, facingMode, preview])
 
   const currentConstraints = {
     ...CONSTRAINT_SEQUENCE[Math.min(constraintIdx, CONSTRAINT_SEQUENCE.length - 1)],
@@ -199,14 +256,42 @@ export default function Camara() {
                   mirrored={false}
                   className="webcam-feed"
                   onUserMediaError={onUserMediaError}
-                  style={{ transform: 'scaleX(1)', WebkitTransform: 'scaleX(1)' }}
+                  dir="ltr"
+                  style={{
+                    transform: 'scaleX(1) !important',
+                    WebkitTransform: 'scaleX(1) !important',
+                    MozTransform: 'scaleX(1) !important',
+                    transformOrigin: 'center center',
+                    WebkitTransformOrigin: 'center center',
+                    direction: 'ltr',
+                    writingMode: 'horizontal-tb',
+                    backfaceVisibility: 'hidden',
+                    WebkitBackfaceVisibility: 'hidden',
+                    filter: 'none',
+                    WebkitFilter: 'none',
+                  }}
                 />
               ) : (
                 <img
+                  ref={previewImgRef}
                   src={preview}
                   alt="Preview captura"
                   className="preview-img"
-                  style={{ transform: 'scaleX(1)', WebkitTransform: 'scaleX(1)' }}
+                  dir="ltr"
+                  style={{
+                    transform: 'scaleX(1) !important',
+                    WebkitTransform: 'scaleX(1) !important',
+                    MozTransform: 'scaleX(1) !important',
+                    transformOrigin: 'center center',
+                    WebkitTransformOrigin: 'center center',
+                    direction: 'ltr',
+                    writingMode: 'horizontal-tb',
+                    backfaceVisibility: 'hidden',
+                    WebkitBackfaceVisibility: 'hidden',
+                    filter: 'none',
+                    WebkitFilter: 'none',
+                    objectFit: 'contain',
+                  }}
                 />
               )}
 

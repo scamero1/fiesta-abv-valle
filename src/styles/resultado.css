@@ -137,15 +137,15 @@
   border-top: 1px solid rgba(0,0,0,0.06);
 }
 
-/* QR padding 16 blanco radio 16 — ✅ OVERFLOW VISIBLE para NUNCA CORTAR los bordes del QR
-   ✅ Tamaño máximo 310px (antes 340) → más pequeño, ocupa menos altura en TCL */
+/* QR padding 12 blanco radio 16 — ✅ OVERFLOW VISIBLE para NUNCA CORTAR los bordes del QR
+   ✅ Tamaño máximo 280px (antes 310 → 300) → MÁS PEQUEÑO AÚN, cabe perfecto en TCL 1280x800 landscape */
 .qr {
-  width: clamp(260px, 38dvw, 310px);
-  height: clamp(260px, 38dvw, 310px);
-  max-width: 310px;
-  max-height: 310px;
+  width: clamp(240px, 34dvw, 280px);
+  height: clamp(240px, 34dvw, 280px);
+  max-width: 280px;
+  max-height: 280px;
   background: #fff;
-  padding: 16px;
+  padding: 12px;
   border-radius: 16px;
   display: flex;
   align-items: center;
@@ -250,15 +250,15 @@
     border-radius: 24px;
     border-width: 4px;
   }
-  /* ✅ QR TCL: 300x300 (antes 340+20pad = 380 → MUY GRANDE y se cortaba).
-     ✅ overflow:visible NUNCA MÁS CORTAR BORDES. padding 16 igual que global. */
+  /* ✅ QR TCL TABLET: 250x250 padding 10 → MÁS PEQUEÑO TODAVÍA.
+     ✅ overflow:visible NUNCA MÁS CORTAR BORDES. Total 270x270 con padding, cabe perfecto. */
   .qr {
-    width: 300px !important;
-    height: 300px !important;
-    max-width: 300px !important;
-    max-height: 300px !important;
-    padding: 16px;
-    border-radius: 20px;
+    width: 250px !important;
+    height: 250px !important;
+    max-width: 250px !important;
+    max-height: 250px !important;
+    padding: 10px;
+    border-radius: 16px;
     overflow: visible !important;
   }
   .qr-leyenda-titulo { font-size: 1.5rem !important; line-height: 1.2; }

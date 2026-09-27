@@ -293,6 +293,20 @@ FRAME_Y2 = 1008   # 1016 (blanco inf termina) - 8 (blanco inf) → FIN REAL PAIS
 FRAME_W = FRAME_X2 - FRAME_X1   # 1808 px ANCHO ÚTIL — SÓLO PAISAJE, SIN AZULES NI BLANCOS
 FRAME_H = FRAME_Y2 - FRAME_Y1   # 918 px ALTO ÚTIL — SÓLO PAISAJE, SIN TÍTULOS NI LEGALES
 
+# ✅ ✊ CORTE DE SANGRE (BLOQUEO TOTAL CONTRA BLANCO / AZUL):
+#    Usuario VERBATIM: "la foto sigue saliendo en lo blanco y en lo azul".
+#    Solución: PADDING INTERNO DE SEGURIDAD (48px) DENTRO DEL ÁREA DEL PAISAJE.
+#    Es decir: la persona NUNCA podrá acercarse a menos de 48px del borde del FRAME,
+#    evitando por COMPLETO que un brazo, hombro, cabello toque el borde blanco 8px o el azul 48px,
+#    incluso si la IA devuelve una silueta grande.
+SAFE_PADDING_PX = 48
+FRAME_SAFE_X1 = FRAME_X1 + SAFE_PADDING_PX   # 104 (zona segura empieza 48px después de borde blanco izq)
+FRAME_SAFE_Y1 = FRAME_Y1 + SAFE_PADDING_PX   # 138 (zona segura empieza 48px después de título)
+FRAME_SAFE_X2 = FRAME_X2 - SAFE_PADDING_PX   # 1816 (zona segura termina 48px antes de blanco dcho)
+FRAME_SAFE_Y2 = FRAME_Y2 - SAFE_PADDING_PX   # 960  (zona segura termina 48px antes de blanco inf)
+FRAME_SAFE_W = FRAME_SAFE_X2 - FRAME_SAFE_X1   # 1712 px (ancho util zona 100% segura)
+FRAME_SAFE_H = FRAME_SAFE_Y2 - FRAME_SAFE_Y1   # 822 px  (alto util zona 100% segura)
+
 # Colores Manual ILV MARCA FIESTA (Pantone)
 AZUL_2728 = (0, 42, 122, 255)
 AZUL_2728_SEC = (0, 71, 186, 255)
@@ -549,17 +563,18 @@ def remove_bg_b64(body: BodyB64):
 ESCENARIO_CONFIG = {
     # IDs NUEVOS prompt: Atardecer Vallecaucano = Cristo Rey, Feria de Cali = Plaza Varela, Salsa Neón = Museo Salsa
     #   x_offset_pct: + = MOVER A LA DERECHA, - = MOVER A LA IZQUIERDA. REGLA USUARIO AHORA: CENTRAR PERSONA = 0.0.
-    #   scale_in_frame: cuánto del ancho FRAME_W (1812px) ocupa la persona → 0.70 (un POCO MÁS GRANDE que anterior 0.64-0.66)
-    #   bottom_from_frame_pct: 0.00 = LA PERSONA EMPIEZA EXACTAMENTE DESDE LA LÍNEA BLANCA INFERIOR HACIA ARRIBA (NO HUECO ABAJO).
+    #   scale_in_frame: cuánto del ancho FRAME_SAFE_W (1712px SEGURO) ocupa la persona.
+    #                   REDUCIDO A 0.54 = LA PERSONA MÁS PEQUEÑA (54% ancho zona segura) = NUNCA MÁS TOCARÁ BLANCO NI AZUL.
+    #   bottom_from_frame_pct: 0.00 = LA PERSONA EMPIEZA EXACTAMENTE DESDE EL LÍNEA INFERIOR ZONA SEGURA, HACIA ARRIBA.
     "sunset": {
         "nombre": "Atardecer Vallecaucano",
         "botellaImg": "botella-fiesta-azul.png",
         "backgroundImg": "esc-cristorey.jpg",
         "fallback_gradient": ((14, 165, 233), (7, 89, 133)),
-        "persona_scale": 0.82,
+        "persona_scale": 0.72,
         "persona_bottom_pct": 0.00,
-        "x_offset_pct": 0.0,   # REGLA USUARIO: CENTRAR a la persona horizontalmente (0 = centro marco blanco)
-        "scale_in_frame": 0.68,
+        "x_offset_pct": 0.0,   # REGLA USUARIO: CENTRAR a la persona horizontalmente (0 = centro zona segura)
+        "scale_in_frame": 0.54,   # 🔻 54% ancho zona segura — NUNCA tocará blanco ni azul
         "bottom_from_frame_pct": 0.00,
     },
     "feria": {
@@ -567,10 +582,10 @@ ESCENARIO_CONFIG = {
         "botellaImg": "botella-night.png",
         "backgroundImg": "esc-plazavarela.jpg",
         "fallback_gradient": ((124, 58, 237), (76, 29, 149)),
-        "persona_scale": 0.82,
+        "persona_scale": 0.72,
         "persona_bottom_pct": 0.00,
         "x_offset_pct": 0.0,   # CENTRADO
-        "scale_in_frame": 0.68,
+        "scale_in_frame": 0.54,   # 🔻
         "bottom_from_frame_pct": 0.00,
     },
     "neon": {
@@ -578,10 +593,10 @@ ESCENARIO_CONFIG = {
         "botellaImg": "botella-sin-azucar.png",
         "backgroundImg": "esc-museosalsa.jpg",
         "fallback_gradient": ((249, 115, 22), (180, 83, 9)),
-        "persona_scale": 0.80,
+        "persona_scale": 0.70,
         "persona_bottom_pct": 0.00,
         "x_offset_pct": 0.0,   # CENTRADO
-        "scale_in_frame": 0.68,
+        "scale_in_frame": 0.54,   # 🔻
         "bottom_from_frame_pct": 0.00,
     },
     # IDs EXISTENTES (compatibilidad con frontend actual)
@@ -590,10 +605,10 @@ ESCENARIO_CONFIG = {
         "botellaImg": "botella-fiesta-azul.png",
         "backgroundImg": "esc-museosalsa.jpg",
         "fallback_gradient": ((249, 115, 22), (180, 83, 9)),
-        "persona_scale": 0.80,
+        "persona_scale": 0.70,
         "persona_bottom_pct": 0.00,
         "x_offset_pct": 0.0,   # CENTRADO
-        "scale_in_frame": 0.68,
+        "scale_in_frame": 0.54,   # 🔻
         "bottom_from_frame_pct": 0.00,
     },
     "plaza-varela": {
@@ -601,10 +616,10 @@ ESCENARIO_CONFIG = {
         "botellaImg": "botella-night.png",
         "backgroundImg": "esc-plazavarela.jpg",
         "fallback_gradient": ((124, 58, 237), (76, 29, 149)),
-        "persona_scale": 0.82,
+        "persona_scale": 0.72,
         "persona_bottom_pct": 0.00,
         "x_offset_pct": 0.0,   # CENTRADO
-        "scale_in_frame": 0.68,
+        "scale_in_frame": 0.54,   # 🔻
         "bottom_from_frame_pct": 0.00,
     },
     "cristo-rey": {
@@ -612,10 +627,10 @@ ESCENARIO_CONFIG = {
         "botellaImg": "botella-sin-azucar.png",
         "backgroundImg": "esc-cristorey.jpg",
         "fallback_gradient": ((14, 165, 233), (7, 89, 133)),
-        "persona_scale": 0.82,
+        "persona_scale": 0.72,
         "persona_bottom_pct": 0.00,
         "x_offset_pct": 0.0,   # CENTRADO
-        "scale_in_frame": 0.68,
+        "scale_in_frame": 0.54,   # 🔻
         "bottom_from_frame_pct": 0.00,
     },
 }
@@ -780,42 +795,41 @@ def compose_full(
     persona_no_holes = close_alpha_holes(persona_rgba, radius_px=3)
     persona_clean = feather_borders_alpha(persona_no_holes, feather_px=2)
 
-    # Paso 1: Tamaño persona. Priorizamos scale_in_frame (% del ancho útil del marco blanco)
+    # Paso 1: Tamaño persona. Priorizamos scale_in_frame (% del ancho útil ZONA SEGURA FRAME_SAFE_W)
     #           si está definido, fallback al antiguo persona_scale (% del canvas).
+    #           ✅ AHORA SIEMPRE DENTRO DE LA ZONA SEGURA (104≤x≤1816, 138≤y≤960) = NUNCA TOCARÁ BLANCO NI AZUL.
     scale_in_frame = cfg.get("scale_in_frame", None)
     if scale_in_frame and 0.2 < float(scale_in_frame) < 1.0:
         sif = float(scale_in_frame)
-        target_max_w_frame = int(FRAME_W * sif)
-        target_max_h_frame = int(FRAME_H * (sif * 1.12))
+        target_max_w_frame = int(FRAME_SAFE_W * sif)
+        target_max_h_frame = int(FRAME_SAFE_H * (sif * 1.12))
         fitted = fit_contain(persona_clean, target_max_w_frame, target_max_h_frame)
     else:
-        scale_legacy = cfg.get("persona_scale", 0.82)
+        scale_legacy = cfg.get("persona_scale", 0.72)
         t_w = int(CANVAS_W * scale_legacy)
         t_h = int(CANVAS_H * (scale_legacy * 1.12))
         fitted = fit_contain(persona_clean, t_w, t_h)
     fw, fh = fitted.size
 
-    # Paso 2: Posición X dentro del marco blanco
+    # Paso 2: Posición X DENTRO DE LA ZONA SEGURA (FRAME_SAFE)
     #   x_offset_pct: + = mover a la DERECHA sobre el centro; - = mover a la IZQUIERDA.
-    #   Siempre dentro del rango [FRAME_X1, FRAME_X2 - fw] (no se sale del marco).
-    frame_center_x = FRAME_X1 + (FRAME_W // 2)
+    #   Siempre dentro del rango [FRAME_SAFE_X1, FRAME_SAFE_X2 - fw] (100% garantizado no tocar blanco/azul).
+    safe_center_x = FRAME_SAFE_X1 + (FRAME_SAFE_W // 2)
     x_offset_pct = float(cfg.get("x_offset_pct", 0.0))
-    x = int(frame_center_x - (fw // 2) + (FRAME_W * x_offset_pct))
-    x_min = FRAME_X1 + 1
-    x_max = FRAME_X2 - fw - 1
+    x = int(safe_center_x - (fw // 2) + (FRAME_SAFE_W * x_offset_pct))
+    x_min = FRAME_SAFE_X1 + 2
+    x_max = FRAME_SAFE_X2 - fw - 2
     x = max(x_min, min(x_max, x))
 
-    # Paso 3: Posición Y dentro del marco blanco
-    #   bottom_from_frame_pct: 0.00 = PERSONA PEGADA DIRECTAMENTE A LA BARRA LEGAL (FRAME_Y2=1032 → línea superior legal).
-    #                          0.50 = a mitad del marco.
-    #   NUNCA se sale por arriba ni por abajo del rango útil (hasta 1px antes barra legal).
+    # Paso 3: Posición Y DENTRO DE LA ZONA SEGURA (FRAME_SAFE)
+    #   bottom_from_frame_pct: 0.00 = PERSONA PEGADA DIRECTAMENTE A LA LÍNEA INFERIOR DE LA ZONA SEGURA (y=960).
+    #                          0.50 = a mitad de la zona segura.
+    #   NUNCA se sale por arriba ni por abajo del rango seguro.
     bottom_pct_frame = float(cfg.get("bottom_from_frame_pct", cfg.get("persona_bottom_pct", 0.38)))
-    # Baseline = FRAME_Y2 - 1 - desplazamiento por porcentaje. Cuando bottom_pct_frame=0 → baseline=1031,
-    # así y + fh = 1031 y la persona TOCA EXACTAMENTE el inicio de la barra legal blanca (1031→1080).
-    y_baseline_inside_frame = int(FRAME_Y2 - 1 - (FRAME_H * bottom_pct_frame))
-    y = int(y_baseline_inside_frame - fh)
-    y_min = FRAME_Y1 + 1
-    y_max = FRAME_Y2 - fh - 1
+    y_baseline_inside_safe = int(FRAME_SAFE_Y2 - 2 - (FRAME_SAFE_H * bottom_pct_frame))
+    y = int(y_baseline_inside_safe - fh)
+    y_min = FRAME_SAFE_Y1 + 2
+    y_max = FRAME_SAFE_Y2 - fh - 2
     y = max(y_min, min(y_max, y))
     canvas.alpha_composite(fitted, (x, y))
 

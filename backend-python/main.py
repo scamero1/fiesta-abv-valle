@@ -574,11 +574,11 @@ ESCENARIO_CONFIG = {
     # IDs NUEVOS prompt: Atardecer Vallecaucano = Cristo Rey, Feria de Cali = Plaza Varela, Salsa Neón = Museo Salsa
     #   x_offset_pct: + = MOVER A LA DERECHA, - = MOVER A LA IZQUIERDA.
     #   persona_target_fill_pct: (NUEVO, OPCIONAL) ancho % de SAFE_W que ocupa LA PERSONA, OVERRIDE genérico 58%.
-    #                            Basado en ESCANEADO PIXEL x PIXEL de 3 NUEVOS PROTOTIPOS enviados 26Sep (medido al píxel):
-    #                              - CRISTO REY (sunset/cristo-rey) = fill 0.54 (más PEQUEÑO, NUNCA tapa estatua arriba)
-    #                              - MUSEO SALSA (neon/calle-del-sabor) = fill 0.59, x_offset = -0.17 (17% IZQ, NO tapa mural naranja der)
-    #                              - PLAZA VARELA (feria/plaza-varela)   = fill 0.81 (GRANDE, CENTRADO, como foto prototipo Plaza Varela)
-    #   bottom_from_frame_pct: 0.00 = baseline FRAME_Y2 = 1008 (pegado abajo al blanco inf). NEGATIVO = SUBIR persona, MÁS espacio abajo (78-90px del blanco).
+    #                            Basado en ESCANEADO PIXEL x PIXEL de 3 NUEVAS FOTOS PROTOTIPO user (esta última tanda):
+    #                              - CRISTO REY (sunset/cristo-rey) = fill 0.58, x=0 (centrado), bottom -0.022 (pegado abajo blanco inf)
+    #                              - MUSEO SALSA (neon/calle-del-sabor) = fill 0.56, x_offset = -0.14 (14% IZQ, NO tapa mural naranja "Salsa" derecha)
+    #                              - PLAZA VARELA (feria/plaza-varela)  = fill 0.64, x=0, bottom -0.022 (GRANDE centro, pega abajo blanco)
+    #   bottom_from_frame_pct: 0.00 = baseline FRAME_Y2 = 1008 (PEGADO al blanco inferior). NEGATIVO PEQUEÑO = pocos px arriba. POSITIVO = ¡SALE del blanco! (NO USAR)
     "sunset": {
         "nombre": "Atardecer Vallecaucano",
         "botellaImg": "botella-fiesta-azul.png",
@@ -587,9 +587,9 @@ ESCENARIO_CONFIG = {
         "persona_scale": 0.72,
         "persona_bottom_pct": 0.00,
         "x_offset_pct": 0.0,
-        "persona_target_fill_pct": 0.54,
-        "scale_in_frame": 0.54,
-        "bottom_from_frame_pct": -0.085,
+        "persona_target_fill_pct": 0.58,
+        "scale_in_frame": 0.58,
+        "bottom_from_frame_pct": -0.022,
     },
     "feria": {
         "nombre": "Feria de Cali",
@@ -599,9 +599,9 @@ ESCENARIO_CONFIG = {
         "persona_scale": 0.72,
         "persona_bottom_pct": 0.00,
         "x_offset_pct": 0.0,
-        "persona_target_fill_pct": 0.81,
-        "scale_in_frame": 0.81,
-        "bottom_from_frame_pct": -0.085,
+        "persona_target_fill_pct": 0.64,
+        "scale_in_frame": 0.64,
+        "bottom_from_frame_pct": -0.022,
     },
     "neon": {
         "nombre": "Salsa Neón",
@@ -610,10 +610,10 @@ ESCENARIO_CONFIG = {
         "fallback_gradient": ((249, 115, 22), (180, 83, 9)),
         "persona_scale": 0.70,
         "persona_bottom_pct": 0.00,
-        "x_offset_pct": -0.17,
-        "persona_target_fill_pct": 0.59,
-        "scale_in_frame": 0.59,
-        "bottom_from_frame_pct": -0.096,
+        "x_offset_pct": -0.14,
+        "persona_target_fill_pct": 0.56,
+        "scale_in_frame": 0.56,
+        "bottom_from_frame_pct": -0.025,
     },
     # IDs EXISTENTES (compatibilidad con frontend actual)
     "calle-del-sabor": {
@@ -623,10 +623,10 @@ ESCENARIO_CONFIG = {
         "fallback_gradient": ((249, 115, 22), (180, 83, 9)),
         "persona_scale": 0.70,
         "persona_bottom_pct": 0.00,
-        "x_offset_pct": -0.17,
-        "persona_target_fill_pct": 0.59,
-        "scale_in_frame": 0.59,
-        "bottom_from_frame_pct": -0.096,
+        "x_offset_pct": -0.14,
+        "persona_target_fill_pct": 0.56,
+        "scale_in_frame": 0.56,
+        "bottom_from_frame_pct": -0.025,
     },
     "plaza-varela": {
         "nombre": "Plaza Varela",
@@ -636,9 +636,9 @@ ESCENARIO_CONFIG = {
         "persona_scale": 0.72,
         "persona_bottom_pct": 0.00,
         "x_offset_pct": 0.0,
-        "persona_target_fill_pct": 0.81,
-        "scale_in_frame": 0.81,
-        "bottom_from_frame_pct": -0.085,
+        "persona_target_fill_pct": 0.64,
+        "scale_in_frame": 0.64,
+        "bottom_from_frame_pct": -0.022,
     },
     "cristo-rey": {
         "nombre": "Cristo Rey",
@@ -648,9 +648,9 @@ ESCENARIO_CONFIG = {
         "persona_scale": 0.72,
         "persona_bottom_pct": 0.00,
         "x_offset_pct": 0.0,
-        "persona_target_fill_pct": 0.54,
-        "scale_in_frame": 0.54,
-        "bottom_from_frame_pct": -0.085,
+        "persona_target_fill_pct": 0.58,
+        "scale_in_frame": 0.58,
+        "bottom_from_frame_pct": -0.022,
     },
 }
 
@@ -1038,23 +1038,46 @@ def compose_full(
     canvas.alpha_composite(fondo, (0, 0))
 
     # ====== 🧹 LIMPIAR OVERLAYS DUPLICADOS QUE VIENEN DE FÁBRICA DENTRO DE LOS JPG ORIGINALES.
-    #  ERRORES REPORTADOS x 3 fotos user:
-    #   (1) ESQ SUP-DER: 2 pastillas UNA ENCIMA DE OTRA (la negra "BLANCO DEL VALLE FIESTA" del JPG original +
-    #       nuestra blanca que caía debajo por tamaño) → ENCIMA DEL PAISAJE (trompetas/murales/Cristo).
-    #   (2) ESQ INF-IZQ: texto diminuto VERTICAL BLANCO / TODO! rojo que viene pintado en los 3 JPG.
-    #  SOLUCIÓN: parcheamos con colores del propio fondo ANTES de pintar persona ni overlays nuevos.
+    #  ERRORES REPORTADOS x 3 fotos user (TUS MUESTRAS):
+    #   (1) ESQ SUP-DER: 2 pastillas UNA ENCIMA DE OTRA (negra BLANCO DEL VALLE FIESTA del JPG original
+    #       + nuestra blanca caía debajo) → ENCIMA DEL PAISAJE TROMBETA/MURAL/CRISTO.
+    #   (2) ESQ INF-IZQ: SLOGAN ¡VA CON TODO! (rojo + blanco GRANDE 240×360) que traen los JPG pintados,
+    #       + texto diminuto VERTICAL BLANCO/TODO! debajo.
+    #  SOLUCIÓN: parcheamos con colores del fondo ANTES de persona/overlays nuevos. PARCHES MÁS GRANDES 100% ELIMINACIÓN TOTAL.
     draw_limp = ImageDraw.Draw(canvas, "RGBA")
-    # PARCHE 1: SUP-DER (1648..1908 x 4..148) → fill AZUL_2728 header (100% opaco). Tapa TODO lo duplicado.
-    draw_limp.rectangle([1648, 4, 1908, 148], fill=AZUL_2728)
-    # PARCHE 2: INF-IZQ (54..96 x 770..928) → sampleamos color vecino 20px más ARRIBA del texto vertical
-    #   para que coincida con el color del paisaje (gris carretera / azul museo / verde oscuro Cristo).
-    px_sample_x, px_sample_y = 74, 754  # 20px por arriba del inicio del texto vertical
-    try:
-        r, g, b, a = canvas.getpixel((px_sample_x, px_sample_y))
-        color_parche_izq = (r, g, b, 255)
-    except Exception:
-        color_parche_izq = (10, 18, 38, 255)  # fallback azul-negro oscuro
-    draw_limp.rectangle([54, 770, 96, 928], fill=color_parche_izq)
+    # PARCHE 1 SUP-DER: Toda la esquina SUP-DER header AZUL COMPLETO (1640..1920 x 0..160).
+    #   Tamaño: 280px ancho × 160px alto → 100% de ancho x 160px (todo el header azul y el borde blanco SUPERIOR).
+    #   Elimina las 2 pastillas duplicadas (negra + anterior nuestra) y cualquier texto sup.
+    draw_limp.rectangle([1640, 0, 1920, 160], fill=AZUL_2728)
+
+    # PARCHE 2 INF-IZQ: Toda el área SLOGAN + texto vertical.
+    #   Medido en tus 3 prototipos: Slogan ocupa (x=52..480, y=110..440) + texto vertical debajo (52..98, y=760..1000).
+    #   Solución: TOMAMOS 3 MUESTRAS DE COLOR EN 3 ZONAS DIFERENTES DEL PAISAJE CERCANAS,
+    #             y PARCHEAMOS EL ÁREA COMPLETA SLOGAN (52..490 x 92..1010) UTILIZANDO
+    #             LA MISMA TÉCNICA DE SAMPLE QUE ANTES PERO MÁS GRANDE (MEZCLA PROMEDIO 3 PUNTOS).
+    # Muestras: (x=520, y=250 = color mural/carretera/ciudad DERECHA del slogan, encima;
+    #           x=520, y=600 = color paisaje der medio;
+    #           x=520, y=960 = color paisaje abajo)
+    sample_points = [(516, 250), (516, 600), (516, 960)]
+    r_sum, g_sum, b_sum = 0, 0, 0
+    samples_ok = 0
+    for sx, sy in sample_points:
+        try:
+            rr, gg, bb, _ = canvas.getpixel((sx, sy))
+            r_sum += rr; g_sum += gg; b_sum += bb; samples_ok += 1
+        except Exception:
+            continue
+    if samples_ok >= 1:
+        r_avg = max(0, min(255, r_sum // samples_ok))
+        g_avg = max(0, min(255, g_sum // samples_ok))
+        b_avg = max(0, min(255, b_sum // samples_ok))
+        color_parche_inf_izq = (r_avg, g_avg, b_avg, 255)
+    else:
+        color_parche_inf_izq = (16, 24, 56, 255)  # fallback azul oscuro
+    # Parche GIGANTE inf-izq: x=50..490 y=90..1010 (TODO el ancho del slogan y todo el alto de blanco sup + paisaje)
+    draw_limp.rectangle([50, 90, 490, 1010], fill=color_parche_inf_izq)
+    # Parche pequeño EXTRA del texto inf-izq VERTICAL (blanco/todo diminuto) que se pueda ver
+    draw_limp.rectangle([52, 1010, 98, 1018], fill=color_parche_inf_izq)
     del draw_limp
 
     # ====== CAPA 1: PERSONA — PIPELINE ANTI-CROMA + IA AUTO-AJUSTE TAMAÑO (scale_in_frame YA NO ES NECESARIO).
@@ -1107,25 +1130,28 @@ def compose_full(
             fitted = fit_contain(persona_clean, t_w, t_h)
     fw, fh = fitted.size
 
-    # ====== Posición X DENTRO DEL FRAME DEL PAISAJE — MÁRGEN 8px SEGURO NUNCA TOCAR BLANCO (x<56 o x>1864)
-    #  🎯 PAISAJE EMPIEZA EN X=56, TERMINA EN X=1864. 8px extra seguro por ambos lados.
-    #  Relajado X para offset museo-salsa (-0.06) y cualquier otro escenario.
+    # ====== Posición X DENTRO DEL FRAME DEL PAISAJE — MÁRGEN 24px SEGURO NUNCA TOCAR BLANCO (x<56 o x>1864)
+    #  🎯 PAISAJE EMPIEZA EN X=56, TERMINA EN X=1864. 24px extra SEGURO por ambos lados.
+    #  Usuario: "la foto de la persona NO se ve en lo azul ni en lo blanco" → NUNCA cruzar 56 ni 1864.
     safe_center_x = FRAME_SAFE_X1 + (FRAME_SAFE_W // 2)
     x_offset_pct = float(cfg.get("x_offset_pct", 0.0))
     x = int(safe_center_x - (fw // 2) + (FRAME_SAFE_W * x_offset_pct))
-    x_min = FRAME_X1 + 8      # 56 + 8 = 64 ✅ NUNCA MENOR (no tocar blanco izq)
-    x_max = FRAME_X2 - fw - 8 # 1864 - fw - 8 = 1856 - fw ✅ NUNCA MAYOR (no tocar blanco dcho)
+    SAFE_PAD_X = 24
+    x_min = FRAME_X1 + SAFE_PAD_X      # 56 + 24 = 80 ✅ NUNCA MENOS (no tocar blanco izq)
+    x_max = FRAME_X2 - fw - SAFE_PAD_X # 1864 - fw - 24 = 1840 - fw ✅ NUNCA MÁS (no tocar blanco dcho)
     x = max(x_min, min(x_max, x))
 
-    # ====== Posición Y DENTRO DEL FRAME DEL PAISAJE — MÁRGEN 8px SEGURO NUNCA TOCAR AZUL (y<90) ni BLANCO (y>1008)
+    # ====== Posición Y DENTRO DEL FRAME DEL PAISAJE — MÁRGEN 24px SEGURO NUNCA TOCAR AZUL (y<90) ni BLANCO (y>1008)
     #  🎯 PAISAJE EMPIEZA EN Y=90 (después azul 0..82 + blanco sup 82..90), TERMINA EN Y=1008.
-    #  Usuario: "debe empezar desde donde empieza el paisaje" → y_min = FRAME_Y1 + 8 = 98 ✅
-    #  Baseline (pies): FRAME_Y2 - 8 = 1000 ✅
+    #  Usuario: "NUNCA persona AZUL (y≤82) NI BLANCO (blanco inf 1008..1022)" → 24px mínimo por cada lado.
+    #  bottom_from_frame_pct: -0.022 = 20px arriba blanco inf (pegado, NUNCA cruza)
     bottom_pct_frame = float(cfg.get("bottom_from_frame_pct", cfg.get("persona_bottom_pct", 0.00)))
-    y_baseline_prototipo = int((FRAME_Y2 - 8) - (FRAME_SAFE_H * bottom_pct_frame))
-    y = int(y_baseline_prototipo - fh)
-    y_min = FRAME_Y1 + 8          # 90 + 8 = 98 ✅ JUSTO DESDE QUE EMPIEZA EL PAISAJE, NUNCA TOCAR AZUL (y ≤ 90)
-    y_max = FRAME_Y2 - 8 - fh     # 1008 - 8 - fh = 1000 - fh ✅ pies siempre ≥ 8px del blanco inf
+    SAFE_PAD_Y = 24
+    # Baseline inferior: FRAME_Y2 (1008) - SAFE_PAD_Y(24) = 984. Nunca superior a esto.
+    y_baseline_segura = int((FRAME_Y2 - SAFE_PAD_Y) - (FRAME_SAFE_H * bottom_pct_frame))
+    y = int(y_baseline_segura - fh)
+    y_min = FRAME_Y1 + SAFE_PAD_Y          # 90 + 24 = 114 ✅ NUNCA MENOS (no tocar AZUL (y≤82), NUNCA blanco sup 82..90)
+    y_max = FRAME_Y2 - SAFE_PAD_Y - fh     # 1008 - 24 - fh = 984 - fh ✅ NUNCA MÁS (pies SIEMPRE ≥24px antes blanco inf 1008)
     y = max(y_min, min(y_max, y))
     canvas.alpha_composite(fitted, (x, y))
 

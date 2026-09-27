@@ -121,10 +121,10 @@
 *, *::before, *::after { box-sizing: inherit; }
 
 html {
-  height: 100%;
-  height: 100dvh;
-  width: 100%;
-  width: 100dvw;
+  height: 100svh;
+  height: 100svh;
+  width: 100svw;
+  width: 100svw;
   max-width: 100%;
   max-height: 100%;
   scroll-padding-top: env(safe-area-inset-top, 0px);
@@ -136,10 +136,10 @@ html {
 
 body {
   margin: 0;
-  height: 100%;
-  height: 100dvh;
-  width: 100%;
-  width: 100dvw;
+  height: 100svh;
+  height: 100svh;
+  width: 100svw;
+  width: 100svw;
   max-width: 100%;
   max-height: 100%;
   overflow: hidden;
@@ -159,13 +159,14 @@ body {
   font-size: 16px;
   line-height: 1.5;
   padding: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .app-container {
-  width: 100vw;
-  width: 100dvw;
-  height: 100vh;
-  height: 100dvh;
+  width: 100svw;
+  width: 100svw;
+  height: 100svh;
+  height: 100svh;
   position: relative;
   overflow: hidden;
   display: block;
@@ -175,17 +176,17 @@ body {
 .screen {
   position: relative;
   width: 100%;
-  height: 100%;
-  height: 100dvh;
-  min-height: 100dvh;
+  height: 100svh;
+  min-height: 100svh;
   min-width: 0;
   max-width: 100%;
-  max-height: 100%;
+  max-height: 100svh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   contain: layout;
   padding: var(--pad-safe-t) var(--pad-safe-r) 0 var(--pad-safe-l);
+  padding-bottom: 0 !important;
   background: linear-gradient(165deg, var(--azul2) -30%, var(--azul) 55%);
   box-sizing: border-box;
 }
@@ -288,14 +289,14 @@ body {
   z-index: var(--z-content);
   width: 100%;
   max-width: var(--content-max-w);
-  max-height: calc(100dvh - var(--header-h) - var(--legal-h) - var(--pad-safe-t) - var(--pad-safe-b));
+  max-height: calc(100svh - var(--header-h) - var(--legal-h) - var(--pad-safe-t) - var(--pad-safe-b));
   margin: 0 auto;
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: var(--screen-pad-y) var(--screen-pad-x) var(--screen-pad-y);
-  gap: clamp(6px, 1.2dvh, 20px);
+  padding: var(--screen-pad-y) var(--screen-pad-x) calc(var(--legal-h) + var(--pad-safe-b) + 14px) var(--screen-pad-x);
+  gap: clamp(6px, 1.2svh, 20px);
   contain: layout;
   -webkit-user-select: none;
   box-sizing: border-box;
@@ -559,10 +560,16 @@ img {
     --shut-size: 80px;
     --qr-size: 320px;
   }
-  html { font-size: 16px; }
-  body { font-size: 16px; }
+  html { font-size: 16px; height: 100svh; max-height: 100svh; }
+  body { font-size: 16px; height: 100svh; max-height: 100svh; }
+  .app-container, .screen { height: 100svh; max-height: 100svh; }
   .screen-header { padding: 0 24px; }
-  .screen-content { padding-left: 24px; padding-right: 24px; padding-top: 10px; }
+  .screen-content {
+    padding-left: 24px;
+    padding-right: 24px;
+    padding-top: 10px;
+    padding-bottom: calc(var(--legal-h) + var(--pad-safe-b) + 14px) !important;
+  }
   .screen-content > * { max-width: 100%; }
   .header-titulo, .seleccion-titulo { font-size: 1.4rem !important; }
   .stepper-seg { width: 28px; }
@@ -600,7 +607,13 @@ img {
   html, body { height: 100svh; max-height: 100svh; font-size: 16px; }
   .app-container, .screen { height: 100svh; max-height: 100svh; }
   .screen-header { padding: 0 40px; height: 56px; min-height: 56px; }
-  .screen-content { padding-left: 40px; padding-right: 40px; padding-top: 8px; gap: 8px; }
+  .screen-content {
+    padding-left: 40px;
+    padding-right: 40px;
+    padding-top: 8px;
+    gap: 8px;
+    padding-bottom: calc(var(--legal-h) + var(--pad-safe-b) + 14px) !important;
+  }
   .header-titulo, .seleccion-titulo { font-size: 1.3rem !important; }
   .stepper-seg { width: 32px; }
   .bt-img-pura.side { width: 74px; height: 220px; }
@@ -643,7 +656,13 @@ img {
   html, body { height: 100svh; max-height: 100svh; }
   .app-container, .screen { height: 100svh; max-height: 100svh; }
   .screen-header { padding: 0 30px; height: 56px; }
-  .screen-content { padding: 8px 30px 0 30px; gap: 8px; }
+  .screen-content {
+    padding-top: 8px;
+    padding-left: 30px;
+    padding-right: 30px;
+    gap: 8px;
+    padding-bottom: calc(var(--legal-h) + var(--pad-safe-b) + 14px) !important;
+  }
   .bt-img-pura.side { width: 66px; height: 200px; }
   .bt-img-pura.mid  { width: 72px; height: 240px; }
   .btn-primario, .btn-cta-red { padding: 14px 32px; }
@@ -676,7 +695,13 @@ img {
   html, body { height: 100svh; max-height: 100svh; }
   .app-container, .screen { height: 100svh; max-height: 100svh; }
   .screen-header { padding: 0 32px; height: 48px; min-height: 48px; }
-  .screen-content { padding: 4px 32px 0 32px; gap: 4px; padding-bottom: calc(var(--legal-h) + 16px); }
+  .screen-content {
+    padding-top: 4px;
+    padding-left: 32px;
+    padding-right: 32px;
+    gap: 4px;
+    padding-bottom: calc(var(--legal-h) + var(--pad-safe-b) + 14px) !important;
+  }
   .stepper-seg { width: 36px; }
   .bt-img-pura.side { width: 90px; height: 310px; }
   .bt-img-pura.mid  { width: 96px; height: 370px; }
@@ -712,7 +737,13 @@ img {
   html, body { height: 100svh; max-height: 100svh; }
   .app-container, .screen { height: 100svh; max-height: 100svh; }
   .screen-header { padding: 0 44px; height: 60px; }
-  .screen-content { padding: 10px 44px 0 44px; gap: 10px; }
+  .screen-content {
+    padding-top: 10px;
+    padding-left: 44px;
+    padding-right: 44px;
+    gap: 10px;
+    padding-bottom: calc(var(--legal-h) + var(--pad-safe-b) + 14px) !important;
+  }
   .bt-img-pura.side { width: 78px; height: 240px; }
   .bt-img-pura.mid  { width: 86px; height: 280px; }
   .btn-primario, .btn-cta-red { padding: 16px 44px; }

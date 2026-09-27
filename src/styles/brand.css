@@ -15,18 +15,24 @@
 
 .legal-footer,
 .legal-disclaimer.legal-footer.legal-stripe-black {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  width: 100%;
+  position: fixed !important;
+  bottom: 0px !important;
+  bottom: calc(0px + env(safe-area-inset-bottom, 0px)) !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  min-width: 100% !important;
   min-height: var(--legal-h, 44px);
-  height: var(--legal-h, 44px);
+  height: var(--legal-h, 44px) !important;
   background: #000000 !important;
-  padding: 0 24px;
-  margin: 0;
-  z-index: var(--z-legal, 500);
+  padding: 0 24px calc(env(safe-area-inset-bottom, 0px) * 0.35) 24px !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  z-index: var(--z-legal, 9999);
   flex: 0 0 auto;
+  transform: none !important;
+  box-sizing: border-box !important;
 }
 
 .legal-inner,
@@ -234,9 +240,12 @@
 @media (orientation: landscape) and (min-width: 1200px) and (max-width: 1399px) and (min-height: 600px) {
   /* LEGAL FOOTER (franja negra 44px → 36px compacto TCL) */
   .legal-footer, .legal-disclaimer.legal-footer.legal-stripe-black {
-    min-height: 36px;
-    height: 36px;
-    padding: 0 18px;
+    position: fixed !important;
+    bottom: 0px !important;
+    bottom: calc(0px + env(safe-area-inset-bottom, 0px)) !important;
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 0 18px calc(env(safe-area-inset-bottom, 0px) * 0.35) 18px !important;
   }
   .legal-text, .legal-inner.legal-inner-black .legal-text {
     font-size: 0.8125rem !important;  /* 13px exacto legal reglamentario */

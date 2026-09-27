@@ -1136,12 +1136,13 @@ def compose_full(
         # Fallback custom sin JPG original → sí pintar la legal nuestra.
         canvas = draw_legal_bar_minimal(canvas)
 
-    # ====== CAPA 3: OVERLAYS PROTOTIPO USUARIO (OBLIGATORIOS, SIEMPRE presentes con o sin persona)
-    # Pintar DESPUÉS de persona y legal para que queden al tope (nunca son tapados).
-    # 3.1) Slogan "¡VA CON TODO!" esq inf-izq dentro marco blanco.
-    canvas = draw_slogan_va_con_todo(canvas)
-    # 3.2) Pastilla logo "BLANCO DEL VALLE + FIESTA" esq sup-der dentro header azul.
-    canvas = draw_logo_pastilla(canvas)
+    # ====== CAPA 3: OVERLAYS — ELIMINADOS COMPLETAMENTE POR USUARIO.
+    #  Usuario: "elimina todo texto y recuadro que aparece en las fotos ya que salen".
+    #  ✅ Los parches de limpieza (sup-der dup pastillas / inf-izq texto vertical) SIGUEN activos
+    #     para BORRAR lo que los JPG originales traen de fábrica.
+    #  ✅ NO volvemos a pintar NADA encima (no slogan, no pastilla). Foto LIMPIA: escenario + persona.
+    # canvas = draw_slogan_va_con_todo(canvas)   # ❌ ELIMINADO
+    # canvas = draw_logo_pastilla(canvas)       # ❌ ELIMINADO
 
     return canvas
 

@@ -574,11 +574,11 @@ ESCENARIO_CONFIG = {
     # IDs NUEVOS prompt: Atardecer Vallecaucano = Cristo Rey, Feria de Cali = Plaza Varela, Salsa Neón = Museo Salsa
     #   x_offset_pct: + = MOVER A LA DERECHA, - = MOVER A LA IZQUIERDA.
     #   persona_target_fill_pct: (NUEVO, OPCIONAL) ancho % de SAFE_W que ocupa LA PERSONA, OVERRIDE genérico 58%.
-    #                            Basado en ESCANEADO prototipo 6 fotos del usuario (medido al px):
-    #                              - CRISTO REY  = 82% (MUY grande abajo, no tapa cristo arriba)
-    #                              - MUSEO SALSA  = 72% (medio grande, + desplazado a la IZQUIERDA para NO tapar mural)
-    #                              - PLAZA VARELA = 46% (MÁS PEQUEÑO, NO tapa las trompetas de fondo)
-    #   bottom_from_frame_pct: 0.00 = baseline SAFE_Y2 960. NEGATIVO (e.g. -0.02) = BAJA MÁS, pegado a legal (como prototipo).
+    #                            Basado en ESCANEADO PIXEL x PIXEL de 3 NUEVOS PROTOTIPOS enviados 26Sep (medido al píxel):
+    #                              - CRISTO REY (sunset/cristo-rey) = fill 0.54 (más PEQUEÑO, NUNCA tapa estatua arriba)
+    #                              - MUSEO SALSA (neon/calle-del-sabor) = fill 0.59, x_offset = -0.17 (17% IZQ, NO tapa mural naranja der)
+    #                              - PLAZA VARELA (feria/plaza-varela)   = fill 0.81 (GRANDE, CENTRADO, como foto prototipo Plaza Varela)
+    #   bottom_from_frame_pct: 0.00 = baseline FRAME_Y2 = 1008 (pegado abajo al blanco inf). NEGATIVO = SUBIR persona, MÁS espacio abajo (78-90px del blanco).
     "sunset": {
         "nombre": "Atardecer Vallecaucano",
         "botellaImg": "botella-fiesta-azul.png",
@@ -587,9 +587,9 @@ ESCENARIO_CONFIG = {
         "persona_scale": 0.72,
         "persona_bottom_pct": 0.00,
         "x_offset_pct": 0.0,
-        "persona_target_fill_pct": 0.82,   # 🎯 PROTOTIPO: persona GRANDE (82%) abajo, Cristo Rey está arriba centro
-        "scale_in_frame": 0.82,
-        "bottom_from_frame_pct": -0.02,    # 🎯 PROTOTIPO: muy pegada abajo (casi legal), no en SAFE_Y2
+        "persona_target_fill_pct": 0.54,
+        "scale_in_frame": 0.54,
+        "bottom_from_frame_pct": -0.085,
     },
     "feria": {
         "nombre": "Feria de Cali",
@@ -599,9 +599,9 @@ ESCENARIO_CONFIG = {
         "persona_scale": 0.72,
         "persona_bottom_pct": 0.00,
         "x_offset_pct": 0.0,
-        "persona_target_fill_pct": 0.46,   # 🎯 PROTOTIPO: persona PEQUEÑA (46%) — NO TAPA 3 trompetas gigantes
-        "scale_in_frame": 0.46,
-        "bottom_from_frame_pct": -0.015,
+        "persona_target_fill_pct": 0.81,
+        "scale_in_frame": 0.81,
+        "bottom_from_frame_pct": -0.085,
     },
     "neon": {
         "nombre": "Salsa Neón",
@@ -610,10 +610,10 @@ ESCENARIO_CONFIG = {
         "fallback_gradient": ((249, 115, 22), (180, 83, 9)),
         "persona_scale": 0.70,
         "persona_bottom_pct": 0.00,
-        "x_offset_pct": -0.06,              # 🎯 PROTOTIPO: 6% HACIA LA IZQUIERDA → NO TAPA mural "Museo de la Salsa" a la DERECHA
-        "persona_target_fill_pct": 0.72,    # 🎯 PROTOTIPO: persona medio-grande (72%)
-        "scale_in_frame": 0.72,
-        "bottom_from_frame_pct": -0.02,
+        "x_offset_pct": -0.17,
+        "persona_target_fill_pct": 0.59,
+        "scale_in_frame": 0.59,
+        "bottom_from_frame_pct": -0.096,
     },
     # IDs EXISTENTES (compatibilidad con frontend actual)
     "calle-del-sabor": {
@@ -623,10 +623,10 @@ ESCENARIO_CONFIG = {
         "fallback_gradient": ((249, 115, 22), (180, 83, 9)),
         "persona_scale": 0.70,
         "persona_bottom_pct": 0.00,
-        "x_offset_pct": -0.06,              # 🎯 PROTOTIPO: 6% IZQUIERDA = idéntico a neón
-        "persona_target_fill_pct": 0.72,
-        "scale_in_frame": 0.72,
-        "bottom_from_frame_pct": -0.02,
+        "x_offset_pct": -0.17,
+        "persona_target_fill_pct": 0.59,
+        "scale_in_frame": 0.59,
+        "bottom_from_frame_pct": -0.096,
     },
     "plaza-varela": {
         "nombre": "Plaza Varela",
@@ -636,9 +636,9 @@ ESCENARIO_CONFIG = {
         "persona_scale": 0.72,
         "persona_bottom_pct": 0.00,
         "x_offset_pct": 0.0,
-        "persona_target_fill_pct": 0.46,    # 🎯 PROTOTIPO: persona PEQUEÑA — trompetas se ven completas
-        "scale_in_frame": 0.46,
-        "bottom_from_frame_pct": -0.015,
+        "persona_target_fill_pct": 0.81,
+        "scale_in_frame": 0.81,
+        "bottom_from_frame_pct": -0.085,
     },
     "cristo-rey": {
         "nombre": "Cristo Rey",
@@ -648,9 +648,9 @@ ESCENARIO_CONFIG = {
         "persona_scale": 0.72,
         "persona_bottom_pct": 0.00,
         "x_offset_pct": 0.0,
-        "persona_target_fill_pct": 0.82,    # 🎯 PROTOTIPO: persona MUY grande abajo, estatua intacta arriba
-        "scale_in_frame": 0.82,
-        "bottom_from_frame_pct": -0.02,
+        "persona_target_fill_pct": 0.54,
+        "scale_in_frame": 0.54,
+        "bottom_from_frame_pct": -0.085,
     },
 }
 

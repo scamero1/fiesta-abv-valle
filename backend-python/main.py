@@ -1095,28 +1095,25 @@ def compose_full(
             fitted = fit_contain(persona_clean, t_w, t_h)
     fw, fh = fitted.size
 
-    # ====== Posición X DENTRO DE LA ZONA SEGURA (FRAME_SAFE) =====================
-    #  (izq/der 48px de corte sangre NO se puede tocar) — Relajado sólo en X para offset museo.
+    # ====== Posición X DENTRO DEL FRAME DEL PAISAJE — MÁRGEN 8px SEGURO NUNCA TOCAR BLANCO (x<56 o x>1864)
+    #  🎯 PAISAJE EMPIEZA EN X=56, TERMINA EN X=1864. 8px extra seguro por ambos lados.
+    #  Relajado X para offset museo-salsa (-0.06) y cualquier otro escenario.
     safe_center_x = FRAME_SAFE_X1 + (FRAME_SAFE_W // 2)
     x_offset_pct = float(cfg.get("x_offset_pct", 0.0))
     x = int(safe_center_x - (fw // 2) + (FRAME_SAFE_W * x_offset_pct))
-    x_min = FRAME_X1 + 10      # 🎯 PROTOTIPO: Relajado X a BLANCO IZQ + 10 (antes SAFE 104), offset museo izq no lo clampa.
-    x_max = FRAME_X2 - fw - 10 # 🎯 PROTOTIPO: Relajado X a BLANCO DER - 10.
+    x_min = FRAME_X1 + 8      # 56 + 8 = 64 ✅ NUNCA MENOR (no tocar blanco izq)
+    x_max = FRAME_X2 - fw - 8 # 1864 - fw - 8 = 1856 - fw ✅ NUNCA MAYOR (no tocar blanco dcho)
     x = max(x_min, min(x_max, x))
 
-    # ====== Posición Y: PEGADO A FRAME_Y2 REAL DEL PAISAJE (1008) + bottom_pct NEGATIVO ↓↓
-    #  🎯 PROTOTIPO USUARIO (escaneo píxel): baseline NO es FRAME_Y2-16=992, es MÁS PEGADO: FRAME_Y2 - 8 = 1000.
-    #  Persona queda MÁS ABAJO, pies casi tocando la franja blanca 8px del marco.
-    #  RELAJAR y_min (arriba): antes SAFE 138 → ahora FRAME_Y1 (90) + 20 = 110.
-    #    En prototipo real la cabeza empieza en y≈115, NUNCA 138 (había sangre/espacio arriba muerto).
+    # ====== Posición Y DENTRO DEL FRAME DEL PAISAJE — MÁRGEN 8px SEGURO NUNCA TOCAR AZUL (y<90) ni BLANCO (y>1008)
+    #  🎯 PAISAJE EMPIEZA EN Y=90 (después azul 0..82 + blanco sup 82..90), TERMINA EN Y=1008.
+    #  Usuario: "debe empezar desde donde empieza el paisaje" → y_min = FRAME_Y1 + 8 = 98 ✅
+    #  Baseline (pies): FRAME_Y2 - 8 = 1000 ✅
     bottom_pct_frame = float(cfg.get("bottom_from_frame_pct", cfg.get("persona_bottom_pct", 0.00)))
-    # Baseline NUEVO: FRAME_Y2 - 8 = 1008 - 8 = 1000.
-    #   bottom_pct 0.00 → baseline = 1000  (pegado abajo, como prototipo)
-    #   bottom_pct NEGATIVO → baseline aún MÁS baja (hasta 1006, 2px del blanco)
     y_baseline_prototipo = int((FRAME_Y2 - 8) - (FRAME_SAFE_H * bottom_pct_frame))
     y = int(y_baseline_prototipo - fh)
-    y_min = FRAME_Y1 + 20          # 🎯 PROTOTIPO RELAJADO: FRAME_Y1=90 + 20 = 110 (no SAFE_Y1=138, cabeza muere arriba)
-    y_max = FRAME_Y2 - 8 - fh      # 🎯 PROTOTIPO Bottom: 8px margen arriba del blanco inf (FRAME_Y2=1008)
+    y_min = FRAME_Y1 + 8          # 90 + 8 = 98 ✅ JUSTO DESDE QUE EMPIEZA EL PAISAJE, NUNCA TOCAR AZUL (y ≤ 90)
+    y_max = FRAME_Y2 - 8 - fh     # 1008 - 8 - fh = 1000 - fh ✅ pies siempre ≥ 8px del blanco inf
     y = max(y_min, min(y_max, y))
     canvas.alpha_composite(fitted, (x, y))
 

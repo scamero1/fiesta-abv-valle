@@ -953,29 +953,25 @@ def draw_slogan_va_con_todo(composed: Image.Image) -> Image.Image:
 
 def draw_logo_pastilla(composed: Image.Image) -> Image.Image:
     """
-    OVERLAY 2 OBLIGATORIO PROTOTIPO USUARIO: Pastilla redondeada BLANCA esquina
-    superior derecha DENTRO DEL HEADER AZUL (y=0..82), NUNCA dentro del paisaje.
-    RESTRICCIÓN NUCLEAR: PAD_Y + H_PAD ≤ 80px (MENOR QUE 82 = alto header azul).
-    - Tamaño pasado: 216x82 era DEMASIADO ALTO → salía por abajo a y=90, ENCIMA del paisaje.
-    - Tamaño NUEVO: 192x68 PAD_Y=5 → 5+68=73 < 82 ✅ 100% dentro header NUNCA toca paisaje.
+    OVERLAY 2 PROTOTIPO USUARIO: Pastilla BLANCA esquina superior DERECHA,
+    DENTRO DEL HEADER AZUL PARCEHADO (x1648..1908 y=4..148). NUNCA DENTRO DEL PAISAJE.
+    Tamaño compacto 180x66 (antes 192x68), ubicado y=12 → 12+66=78 < 148 (100% header azul).
     """
-    W_PAD = 192
-    H_PAD = 68
-    PAD_X = FRAME_X2 - W_PAD - 10   # 1864 - 192 - 10 = 1662
-    PAD_Y = 5                        # TOP margin. 5+68 = 73 < 82 (header azul).
+    W_PAD = 180
+    H_PAD = 66
+    # Right aligned: 1864 (FRAME_X2) - 180 - 20 = 1664 → perfecto centro del parche.
+    PAD_X = 1864 - W_PAD - 20
+    PAD_Y = 12  # TOP. 12 + 66 = 78 < 148 → 100% dentro del header azul parcheado.
 
-    # Crear capa para pastilla + sombra
     pad_layer = Image.new("RGBA", composed.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(pad_layer, "RGBA")
 
-    # Sombra sutil
     shadow_off = 3
     draw.rounded_rectangle(
         [PAD_X + shadow_off, PAD_Y + shadow_off, PAD_X + W_PAD + shadow_off, PAD_Y + H_PAD + shadow_off],
         radius=14,
-        fill=(0, 0, 0, 90),
+        fill=(0, 0, 0, 80),
     )
-    # Pastilla blanca
     draw.rounded_rectangle(
         [PAD_X, PAD_Y, PAD_X + W_PAD, PAD_Y + H_PAD],
         radius=14,
@@ -983,8 +979,6 @@ def draw_logo_pastilla(composed: Image.Image) -> Image.Image:
         outline=(220, 220, 220, 255),
         width=2,
     )
-
-    # Borde superior azul delgado (1px)
     draw.rounded_rectangle(
         [PAD_X, PAD_Y, PAD_X + W_PAD, PAD_Y + 5],
         radius=14,
@@ -995,15 +989,13 @@ def draw_logo_pastilla(composed: Image.Image) -> Image.Image:
         fill=AZUL_2728,
     )
 
-    # TEXTOS DENTRO pastilla
-    f1 = load_font(28, bold=True)
-    f2 = load_font(38, bold=True)
+    f1 = load_font(26, bold=True)
+    f2 = load_font(34, bold=True)
 
     cx = PAD_X + (W_PAD // 2)
     cy1 = PAD_Y + 21
     draw.text((cx, cy1), "BLANCO DEL VALLE", font=f1, fill=AZUL_2728, anchor="mm")
-
-    cy2 = PAD_Y + H_PAD - 20
+    cy2 = PAD_Y + H_PAD - 18
     draw.text((cx, cy2), "FIESTA", font=f2, fill=ROJO_185, anchor="mm")
 
     composed.alpha_composite(pad_layer, (0, 0))
@@ -1044,6 +1036,26 @@ def compose_full(
 
     canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (0, 0, 0, 0))
     canvas.alpha_composite(fondo, (0, 0))
+
+    # ====== 🧹 LIMPIAR OVERLAYS DUPLICADOS QUE VIENEN DE FÁBRICA DENTRO DE LOS JPG ORIGINALES.
+    #  ERRORES REPORTADOS x 3 fotos user:
+    #   (1) ESQ SUP-DER: 2 pastillas UNA ENCIMA DE OTRA (la negra "BLANCO DEL VALLE FIESTA" del JPG original +
+    #       nuestra blanca que caía debajo por tamaño) → ENCIMA DEL PAISAJE (trompetas/murales/Cristo).
+    #   (2) ESQ INF-IZQ: texto diminuto VERTICAL BLANCO / TODO! rojo que viene pintado en los 3 JPG.
+    #  SOLUCIÓN: parcheamos con colores del propio fondo ANTES de pintar persona ni overlays nuevos.
+    draw_limp = ImageDraw.Draw(canvas, "RGBA")
+    # PARCHE 1: SUP-DER (1648..1908 x 4..148) → fill AZUL_2728 header (100% opaco). Tapa TODO lo duplicado.
+    draw_limp.rectangle([1648, 4, 1908, 148], fill=AZUL_2728)
+    # PARCHE 2: INF-IZQ (54..96 x 770..928) → sampleamos color vecino 20px más ARRIBA del texto vertical
+    #   para que coincida con el color del paisaje (gris carretera / azul museo / verde oscuro Cristo).
+    px_sample_x, px_sample_y = 74, 754  # 20px por arriba del inicio del texto vertical
+    try:
+        r, g, b, a = canvas.getpixel((px_sample_x, px_sample_y))
+        color_parche_izq = (r, g, b, 255)
+    except Exception:
+        color_parche_izq = (10, 18, 38, 255)  # fallback azul-negro oscuro
+    draw_limp.rectangle([54, 770, 96, 928], fill=color_parche_izq)
+    del draw_limp
 
     # ====== CAPA 1: PERSONA — PIPELINE ANTI-CROMA + IA AUTO-AJUSTE TAMAÑO (scale_in_frame YA NO ES NECESARIO).
     #    Orden estricto:

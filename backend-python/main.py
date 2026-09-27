@@ -954,9 +954,9 @@ def draw_logo_pastilla(composed: Image.Image) -> Image.Image:
     - Right aligned: X=FRAME_X2 (1864) - width - 16 → 1864-168-16=1680
     - Y = 8 px (margen top dentro header azul 0-82)
     """
-    W_PAD = 176
-    H_PAD = 68
-    PAD_X = FRAME_X2 - W_PAD - 16   # 1864 - 176 - 16 = 1672 (dentro header azul, right align)
+    W_PAD = 200
+    H_PAD = 76
+    PAD_X = FRAME_X2 - W_PAD - 12   # 1864 - 200 - 12 = 1652 (dentro header azul, right align, más grande pero no mucho)
     PAD_Y = 8
 
     # Crear capa para pastilla + sombra
@@ -991,16 +991,16 @@ def draw_logo_pastilla(composed: Image.Image) -> Image.Image:
     )
 
     # TEXTOS DENTRO pastilla
-    f1 = load_font(26, bold=True)
-    f2 = load_font(36, bold=True)
+    f1 = load_font(30, bold=True)
+    f2 = load_font(42, bold=True)
 
     # L1: BLANCO DEL VALLE (azul)
     cx = PAD_X + (W_PAD // 2)
-    cy1 = PAD_Y + 22
+    cy1 = PAD_Y + 24
     draw.text((cx, cy1), "BLANCO DEL VALLE", font=f1, fill=AZUL_2728, anchor="mm")
 
     # L2: FIESTA (rojo)
-    cy2 = PAD_Y + H_PAD - 20
+    cy2 = PAD_Y + H_PAD - 22
     draw.text((cx, cy2), "FIESTA", font=f2, fill=ROJO_185, anchor="mm")
 
     composed.alpha_composite(pad_layer, (0, 0))

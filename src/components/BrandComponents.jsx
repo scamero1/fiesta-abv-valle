@@ -72,7 +72,7 @@ export function StepperPaso({ pasoActual = 1, mostrarNumeros = false, mostrarLey
   const p = Math.max(1, Math.min(total, Number(pasoActual) || 1))
 
   return (
-    <div className="stepper-wrapper" aria-label={`Paso ${p} de ${total}`}>
+    <div className="stepper-wrapper StepperPaso" aria-label={`Paso ${p} de ${total}`}>
       <div className="stepper-bar" role="progressbar" aria-valuemin={1} aria-valuemax={total} aria-valuenow={p}>
         {Array.from({ length: total }).map((_, i) => {
           const stepNum = i + 1

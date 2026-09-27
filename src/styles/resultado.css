@@ -91,7 +91,8 @@
 .foto-final-frame {
   aspect-ratio: 16/9;
   border-radius: 16px;
-  border: 3px solid var(--oro);
+  border: none !important;
+  outline: none !important;
   position: relative;
   overflow: hidden;
   width: 100%;
@@ -99,7 +100,7 @@
   max-height: 100%;
   height: auto;
   background: #0a0e1f;
-  box-shadow: 0 22px 46px -14px rgba(0,0,0,0.65);
+  box-shadow: 0 24px 54px -22px rgba(0,0,0,0.72);
   contain: layout paint;
   margin: 0 auto;
 }
@@ -276,7 +277,8 @@
     min-height: 488px;
     width: min(100%, 1020px);
     border-radius: 22px;
-    border-width: 4px;
+    border: none !important;
+    outline: none !important;
   }
   .qr-leyenda-titulo {
     font-size: 1.15rem !important;

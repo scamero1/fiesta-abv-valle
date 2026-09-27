@@ -511,8 +511,8 @@ p.sub,
    FADES / ENTRANCES — SOLO OPACITY/TRANSFORM ≤0.3s
    ============================================================ */
 @keyframes in {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 .anim-in { animation: in .3s var(--ease) both; }
 
@@ -523,8 +523,8 @@ button {
   white-space: nowrap;
 }
 button:focus-visible {
-  outline: 3px solid var(--oro);
-  outline-offset: 3px;
+  outline: 1px solid rgba(255,255,255,0.35) !important;
+  outline-offset: 1px;
 }
 
 img {

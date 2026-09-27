@@ -7,7 +7,7 @@
 .preview-content{padding-top:clamp(6px,1.2dvh,16px);padding-bottom:calc(var(--legal-h) + var(--pad-safe-b) + 32px)!important;gap:clamp(10px,1.8dvh,22px);align-items:stretch;justify-content:flex-start;width:100%;flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
 .preview-main{display:flex;flex-direction:row;align-items:stretch;justify-content:space-between;gap:20px;padding:0 26px;width:100%;flex:1 1 auto;min-height:0;box-sizing:border-box}
 .preview-foto-wrap{flex:1.45 1 0%;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;width:100%}
-.preview-foto,.foto-final-frame{aspect-ratio:16/9;border-radius:22px;border:4px solid var(--oro);overflow:hidden;box-shadow:0 20px 52px -18px rgba(0,0,0,.75);background:#0a122a;width:min(100%,1020px);min-width:0;max-height:100%;display:block;contain:layout paint;flex:0 0 auto}
+.preview-foto,.foto-final-frame{aspect-ratio:16/9;border-radius:22px;border:none !important;outline:none !important;overflow:hidden;box-shadow:0 22px 52px -22px rgba(0,0,0,.78);background:#0a122a;width:min(100%,1020px);min-width:0;max-height:100%;display:block;contain:layout paint;flex:0 0 auto}
 .preview-foto-img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;user-select:none}
 .preview-acciones{flex:1 1 0%;min-width:0;min-height:0;display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:18px;width:100%}
 .preview-pregunta{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:6px;padding:6px 4px 10px}
@@ -23,7 +23,7 @@
 .preview-titulo{font-size:1.85rem!important}
 .preview-content{padding-bottom:calc(var(--legal-h) + var(--pad-safe-b) + 40px)!important}
 .preview-main{gap:18px;padding:0 24px}
-.preview-foto,.foto-final-frame{min-width:860px;min-height:480px;border-radius:22px;border-width:4px}
+.preview-foto,.foto-final-frame{min-width:860px;min-height:480px;border-radius:22px;border:none !important;outline:none !important}
 .preview-pregunta-titulo{font-size:1.45rem!important}
 .preview-pregunta-sub{font-size:.95rem!important}
 .btn-preview-confirmar,.btn-preview-cambiar{min-height:58px!important;max-height:58px!important;font-size:1.25rem!important}}
@@ -32,4 +32,4 @@
 .preview-foto,.foto-final-frame{width:100%;min-width:0}
 .preview-acciones{flex:1 1 auto}}
 .anim-in{animation:in .25s var(--ease) both}
-@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes in{from{opacity:0}to{opacity:1}}

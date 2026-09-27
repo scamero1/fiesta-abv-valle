@@ -277,10 +277,11 @@ img[class*="preview"] {
   max-width: 100%;
   aspect-ratio: 16/9;
   border-radius: 18px;
-  border: 3px solid var(--oro);
+  border: none !important;                  /* ✅ NUNCA MÁS RECUADROS (oro/azul) EN MARCOS FOTO */
+  outline: none !important;
+  box-shadow: 0 22px 52px -22px rgba(0,0,0,0.72); /* sombra solo exterior, sin marco interior */
   overflow: hidden;
   background: radial-gradient(ellipse at 50% 40%, #2a3a5e, #0b1226);
-  box-shadow: 0 18px 40px -14px rgba(0,0,0,0.6);
   contain: layout paint;
   flex: 0 0 auto;
   touch-action: none;

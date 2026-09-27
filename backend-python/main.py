@@ -282,7 +282,7 @@ def stats_fotos_db():
 
 CANVAS_W = 1920
 CANVAS_H = 1080  # Relación 16:9 HORIZONTAL (Full HD) — para fotos anchas de evento
-JPEG_QUALITY = 95
+JPEG_QUALITY = 98
 
 # ============ RECTÁNGULO BLANCO INTERNO (MARCO) COMÚN A LOS 3 JPG DE FONDO ========
 # Medido exactamente desde los JPG originales Cristo Rey / Museo Salsa / Plaza Varela:
@@ -946,7 +946,7 @@ def draw_slogan_va_con_todo(composed: Image.Image) -> Image.Image:
     draw.text((base_x, base_y + 58), line2, font=font_rojo, fill=ROJO_185, anchor="lt")
 
     # ROTAR -1.2 grados (como CSS)
-    slogan_rot = slogan_layer.rotate(-1.2, resample=Image.BICUBIC, center=(base_x + 100, base_y + 80))
+    slogan_rot = slogan_layer.rotate(-1.2, resample=Image.LANCZOS, center=(base_x + 100, base_y + 80))
     composed.alpha_composite(slogan_rot, (0, 0))
     return composed
 
@@ -1156,7 +1156,20 @@ def save_public_image(img_rgba: Image.Image, as_jpg: bool = True) -> tuple[str, 
     if as_jpg:
         flat = Image.new("RGB", img_rgba.size, (255, 255, 255))
         flat.paste(img_rgba, mask=img_rgba.split()[-1])
-        flat.save(out_path, format="JPEG", quality=JPEG_QUALITY, optimize=True, progressive=True)
+        # MÁXIMA CALIDAD JPG (usuario: las fotos deben salir a buena calidad)
+        # - subsampling=0 → 4:4:4 SIN chroma subsampling (colores rojos/azules más vivos, no borrosos)
+        # - optimize=False → Pillow no re-cuantiza/rebaja calidad para comprimir
+        # - progressive=True → carga gradual
+        # - dpi=300 → metadata buena
+        flat.save(
+            out_path,
+            format="JPEG",
+            quality=JPEG_QUALITY,
+            subsampling=0,
+            optimize=False,
+            progressive=True,
+            dpi=(300, 300),
+        )
     else:
         img_rgba.save(out_path, format="PNG", optimize=False)
     bytes_total = os.path.getsize(out_path) if os.path.exists(out_path) else 0
@@ -1322,7 +1335,7 @@ async def procesar_foto_unificado(
         buf = io.BytesIO()
         flat = Image.new("RGB", final_rgba.size, (255, 255, 255))
         flat.paste(final_rgba, mask=final_rgba.split()[-1])
-        flat.save(buf, format="JPEG", quality=85, optimize=True)
+        flat.save(buf, format="JPEG", quality=JPEG_QUALITY, subsampling=0, optimize=False, progressive=True, dpi=(300, 300))
         preview_b64 = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
     except Exception:
         preview_b64 = None

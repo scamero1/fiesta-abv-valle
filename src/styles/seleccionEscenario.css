@@ -60,122 +60,110 @@
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
-  gap: 24px;
+  gap: 18px;
   width: 100%;
   position: relative;
+  align-items: stretch;
   contain: layout;
 }
 
+/* ============================================================
+   LAYOUT NUEVO BASE (SIEMPRE APLICA, NO DEPENDE DE MQ):
+   SE OCULTA preview izquierda. 3 TARJETAS HORIZONTAL (row).
+   Cada tarjeta = flex-col (imagen 16/9 GRANDE arriba, texto abajo).
+   MOTIVO: TCL tiene DPR 1.325 → CSS W=966 H=604, MQ con minW 1200
+           nunca matchea, layout viejo permanecía sin cambios.
+   ============================================================ */
 .pv {
-  flex: 1.35 1 0%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-width: 0;
-  min-height: 0;
-  position: relative;
-  overflow: visible;
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  flex: 0 0 0% !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  overflow: hidden !important;
 }
-
-.fr {
-  aspect-ratio: 16/9;
-  border-radius: 16px;
-  border: 3px solid var(--oro);
-  position: relative;
-  overflow: hidden;
-  width: 100%;
-  background: radial-gradient(ellipse at 50% 40%, #2a3a5e, #0b1226);
-  transition: background .3s;
-  box-shadow: 0 18px 40px -14px rgba(0,0,0,0.6);
-  contain: layout paint;
-  flex: 0 0 auto;
-  margin: 0 auto;
-  max-width: 100%;
-  max-height: 100%;
-  height: auto;
-}
-
-.fr-bg,
+.fr,
 .fr-fg,
-.fr-fg-full {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.fr-bg {
-  z-index: 1;
-  opacity: 1;
-  object-fit: cover;
-}
-
-.fr-fg {
-  z-index: 2;
-  object-fit: contain;
-  inset: auto 5% 8% 5%;
-  width: 90%;
-  height: auto;
-  max-height: 86%;
-  bottom: 10%;
-  filter: drop-shadow(0 10px 22px rgba(0,0,0,0.55));
-}
-
-.fr-fg-full {
-  z-index: 2;
-  object-fit: cover;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
+.fr-fg-full,
 .fr-botella {
-  position: absolute;
-  right: 4%;
-  bottom: 12%;
-  z-index: 4;
-  max-height: 58%;
-  height: auto;
-  width: auto;
-  max-width: 28%;
-  object-fit: contain;
-  filter: drop-shadow(0 12px 22px rgba(0,0,0,0.45));
+  display: none !important;
+  visibility: hidden !important;
 }
-
 .opts {
-  flex: 1 1 0%;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  justify-content: center;
-  min-width: 0;
-  min-height: 0;
+  flex: 1 1 100% !important;
+  display: flex !important;
+  flex-direction: row !important;   /* 3 tarjetas HORIZONTAL */
+  align-items: stretch !important;
+  justify-content: space-between !important;
+  gap: 18px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
 }
-
 .op {
-  display: flex;
-  gap: 14px;
-  align-items: center;
-  text-align: left;
-  background: rgba(255,255,255,0.10);
-  border: 3px solid rgba(255,255,255,0.40);
-  border-radius: 16px;
-  padding: 12px;
-  min-height: 92px;
-  height: auto;
-  width: 100%;
-  transition: border-color .15s var(--ease), background .15s var(--ease), transform .15s var(--ease);
-  animation: in .3s var(--ease) both;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  user-select: none;
-  -webkit-user-select: none;
-  font-family: var(--font-ui);
-  color: var(--tx);
-  box-sizing: border-box;
-  outline: none;
+  flex: 1 1 0% !important;   /* cada tarjeta 33% ancho */
+  min-width: 0 !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 10px !important;
+  gap: 10px !important;
+  border-radius: 22px !important;
+  border-width: 3px !important;
+  overflow: hidden !important;
+  /* Cada tarjeta FLEX-COL: imagen arriba, texto abajo */
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  flex-wrap: nowrap !important;
+}
+.op.selected {
+  transform: translateY(-3px) scale(1.01) !important;
+}
+/* Imagen miniatura AHORA: 100% ancho, 16/9, GRANDE arriba */
+.op .sw {
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 16/9 !important;
+  max-height: 240px !important;
+  flex: 0 0 auto !important;
+  object-fit: cover !important;
+  border-radius: 14px !important;
+  box-shadow: 0 10px 22px -8px rgba(0,0,0,0.6) !important;
+  margin: 0 !important;
+}
+.op-info {
+  gap: 3px !important;
+  overflow: hidden !important;
+  min-width: 0 !important;
+  padding: 2px 4px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+  height: auto !important;
+}
+.op b {
+  font-size: 1.35rem !important;
+  line-height: 1.15 !important;
+  margin: 0 0 2px 0 !important;
+}
+.op small {
+  font-size: 0.92rem !important;
+  line-height: 1.3 !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: normal !important;
+  max-height: 2.6em;
 }
 
 .op:hover {

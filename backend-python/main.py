@@ -841,15 +841,15 @@ def get_alpha_content_bbox(img: Image.Image, alpha_min: int = 10) -> Optional[Tu
 
 def autoscale_person_to_safe(
     person_img: Image.Image,
-    target_fill_pct: float = 0.93,
+    target_fill_pct: float = 0.58,
     min_final_scale: float = 0.25,
     max_final_scale: float = 1.2,
 ) -> Tuple[Image.Image, float]:
     """🧠 IA Auto-Escala:
        Paso 1: Detectar BBox REAL de la persona (quitar espacio transparente muerto).
        Paso 2: Recortar al BBox + padding 8px para no cortar bordes suaves.
-       Paso 3: Calcular escala IDEAL para que persona ocupe target_fill_pct (93%)
-               del ancho O alto del SAFE_FRAME (lo que sea más restrictivo).
+       Paso 3: Calcular escala IDEAL para que persona ocupe target_fill_pct (58%)
+               del ancho del SAFE_FRAME = PLANO MEDIO como prototipo usuario.
        Paso 4: Escalar la imagen recortada y devolverla.
        RETORNA: (img_escalada_por_IA, escala_aplicada)
        """
@@ -908,6 +908,105 @@ def draw_legal_bar_minimal(composed: Image.Image) -> Image.Image:
     return composed
 
 
+def draw_slogan_va_con_todo(composed: Image.Image) -> Image.Image:
+    """
+    OVERLAY 1 OBLIGATORIO PROTOTIPO USUARIO: Slogan "¡VA CON TODO!" esquina
+    inferior izquierda DENTRO del marco blanco (interior), NO tocando SAFE persona.
+    - 2 líneas: "¡VA CON" (blanco bold 60px) / "TODO!" (rojo marca bold 92px)
+    - Rotación -1.2 grados (como brand.css componente SloganVaConTodo)
+    - Coord X: FRAME_X1 (borde izq marco blanco) + 16px = 72 → luego ajustamos
+    - Coord Y: FRAME_Y2 (borde inf marco blanco y=1008) - altura_texto(160) - 8 → 840
+    """
+    slogan_layer = Image.new("RGBA", composed.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(slogan_layer, "RGBA")
+
+    # COORDENADAS DENTRO MARCO BLANCO (no tocar SAFE 48px) — alineado izq.
+    # Prototipo: empieza casi al borde blanco interior, dentro del paisaje.
+    base_x = FRAME_SAFE_X1   # 104 → margen suficiente para no tocar corte sangre 48px
+    base_y = FRAME_SAFE_Y2 - 120  # 960 - 120 = 840 → pega a baseline inf SAFE
+
+    font_blanco = load_font(64, bold=True)
+    font_rojo = load_font(104, bold=True)
+
+    # LÍNEA 1: ¡VA CON  (blanco bold)
+    line1 = "¡VA CON"
+    # LÍNEA 2: TODO!     (rojo marca grande bold)
+    line2 = "TODO!"
+
+    draw.text((base_x, base_y), line1, font=font_blanco, fill=BLANCO, anchor="lt")
+    draw.text((base_x, base_y + 58), line2, font=font_rojo, fill=ROJO_185, anchor="lt")
+
+    # ROTAR -1.2 grados (como CSS)
+    slogan_rot = slogan_layer.rotate(-1.2, resample=Image.BICUBIC, center=(base_x + 100, base_y + 80))
+    composed.alpha_composite(slogan_rot, (0, 0))
+    return composed
+
+
+def draw_logo_pastilla(composed: Image.Image) -> Image.Image:
+    """
+    OVERLAY 2 OBLIGATORIO PROTOTIPO USUARIO: Pastilla redondeada BLANCA esquina
+    superior derecha DENTRO DEL HEADER AZUL (y=0..82), NO tocando título escenario.
+    - Fondo: BLANCO, radio de esquina 14px, sombra drop sutil
+    - Texto 2 líneas:
+        "BLANCO DEL VALLE" (AZUL_2728 bold 28px)
+        "FIESTA"            (ROJO_185 bold 40px)
+    - Tamaño pastilla: 168×66 px
+    - Right aligned: X=FRAME_X2 (1864) - width - 16 → 1864-168-16=1680
+    - Y = 8 px (margen top dentro header azul 0-82)
+    """
+    W_PAD = 176
+    H_PAD = 68
+    PAD_X = FRAME_X2 - W_PAD - 16   # 1864 - 176 - 16 = 1672 (dentro header azul, right align)
+    PAD_Y = 8
+
+    # Crear capa para pastilla + sombra
+    pad_layer = Image.new("RGBA", composed.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(pad_layer, "RGBA")
+
+    # Sombra sutil 6px hacia abajo-derecha
+    shadow_off = 4
+    draw.rounded_rectangle(
+        [PAD_X + shadow_off, PAD_Y + shadow_off, PAD_X + W_PAD + shadow_off, PAD_Y + H_PAD + shadow_off],
+        radius=16,
+        fill=(0, 0, 0, 110),
+    )
+    # Pastilla blanca
+    draw.rounded_rectangle(
+        [PAD_X, PAD_Y, PAD_X + W_PAD, PAD_Y + H_PAD],
+        radius=16,
+        fill=BLANCO,
+        outline=(220, 220, 220, 255),
+        width=2,
+    )
+
+    # Borde superior azul delgado (1px) para marca
+    draw.rounded_rectangle(
+        [PAD_X, PAD_Y, PAD_X + W_PAD, PAD_Y + 6],
+        radius=16,
+        fill=AZUL_2728,
+    )
+    draw.rectangle(
+        [PAD_X, PAD_Y + 3, PAD_X + W_PAD, PAD_Y + 6],
+        fill=AZUL_2728,
+    )
+
+    # TEXTOS DENTRO pastilla
+    f1 = load_font(26, bold=True)
+    f2 = load_font(36, bold=True)
+
+    # L1: BLANCO DEL VALLE (azul)
+    cx = PAD_X + (W_PAD // 2)
+    cy1 = PAD_Y + 22
+    draw.text((cx, cy1), "BLANCO DEL VALLE", font=f1, fill=AZUL_2728, anchor="mm")
+
+    # L2: FIESTA (rojo)
+    cy2 = PAD_Y + H_PAD - 20
+    draw.text((cx, cy2), "FIESTA", font=f2, fill=ROJO_185, anchor="mm")
+
+    composed.alpha_composite(pad_layer, (0, 0))
+    return composed
+
+
 def compose_full(
     persona_rgba: Image.Image,
     escenario_id: str,
@@ -960,12 +1059,12 @@ def compose_full(
     # ====================================================================
     # 🧠 IA AUTO-AJUSTE: PRIMERO intentamos escalar la persona automáticamente
     #                    detectando el tamaño REAL (quitar espacio transparente muerto).
-    #                    Ocupará el 93% del ancho/alto SAFE — lo más grande posible sin tocar blanco.
+    #                    Ocupará el 58% del ancho SAFE — PLANO MEDIO = como prototipo usuario (no tapa paisaje).
     # ====================================================================
     try:
         persona_auto_scaled, ia_scale_applied = autoscale_person_to_safe(
             persona_clean,
-            target_fill_pct=0.93,
+            target_fill_pct=0.58,
             min_final_scale=0.25,
             max_final_scale=1.15,
         )
@@ -1015,6 +1114,13 @@ def compose_full(
     if fondo_pil is None:
         # Fallback custom sin JPG original → sí pintar la legal nuestra.
         canvas = draw_legal_bar_minimal(canvas)
+
+    # ====== CAPA 3: OVERLAYS PROTOTIPO USUARIO (OBLIGATORIOS, SIEMPRE presentes con o sin persona)
+    # Pintar DESPUÉS de persona y legal para que queden al tope (nunca son tapados).
+    # 3.1) Slogan "¡VA CON TODO!" esq inf-izq dentro marco blanco.
+    canvas = draw_slogan_va_con_todo(canvas)
+    # 3.2) Pastilla logo "BLANCO DEL VALLE + FIESTA" esq sup-der dentro header azul.
+    canvas = draw_logo_pastilla(canvas)
 
     return canvas
 

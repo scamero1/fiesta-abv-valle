@@ -38,7 +38,7 @@ export default function Resultado() {
   })()
   const qrValue = `${qrBase}/foto/${fotoId}`
 
-  const qrSizePx = 250
+  const qrSizePx = 200
 
   const handleDescargar = () => {
     const a = document.createElement('a')

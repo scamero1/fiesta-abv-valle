@@ -191,27 +191,50 @@
   font-size: clamp(1rem, 2.6dvw, 1.5rem) !important;
   color: var(--tx) !important;
   text-align: center;
-  line-height: 1.1;
+  line-height: 1.15;
   margin: 0;
-  padding: 0;
+  padding: 0 6px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   word-break: normal !important;
   writing-mode: horizontal-tb !important;
+  white-space: normal;           /* ✅ NUNCA MÁS CORTE EL TÍTULO — SI ES LARGO, HACE WRAP CENTRADO, NUNCA NOWRAP RECORTADO. */
+  flex-wrap: nowrap;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+
+.res-botones-grid {
+  width: 100% !important;
+  max-width: 100% !important;
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  align-items: center !important;
+  justify-items: center !important;
+  align-content: center !important;
+  justify-content: center !important;
+  gap: 10px 12px !important;
+  margin: 4px 0 0 !important;
+  padding: 0 !important;
+}
+.res-botones-grid .btn-primario,
+.res-botones-grid .btn-secundario,
+.res-botones-grid .btn-resultado-cta,
+.btn-resultado-cta {
+  width: 100% !important;
+  min-width: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  padding: 10px 12px !important;
+  line-height: 1.1;
+  word-break: keep-all;
   white-space: nowrap;
-}
-
-.res-botones {
-  margin-top: 4px;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-
-.res-botones-2 {
-  flex-wrap: wrap;
-}
-
-.res-botones .btn-primario,
-.res-botones .btn-secundario {
-  min-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Toast exito */
@@ -235,17 +258,18 @@
   animation: in .25s var(--ease) both;
 }
 
-/* Landscape TCL 800h crítico — foto + qr stack no se desborden + operario btns grandes */
-@media (orientation: landscape) and (min-height: 620px) and (max-height: 900px) and (min-width: 1200px) and (max-width: 1399px) {
+/* Landscape TCL 800h CRÍTICO DPR 1.325 (CSS 966×604)
+   ✅ MIN-W=800 MIN-H=500: ahora SÍ CUMPLE EL MQ. (AN ERA MIN-W 1200px se ignoraba 100% ERROR GRAVE CORREGIDO! */
+@media (orientation: landscape) and (min-height: 500px) and (max-height: 900px) and (min-width: 800px) and (max-width: 1399px) {
   .resultado-header { padding: 0 28px; height: 44px; min-height: 44px; display: grid !important; grid-template-columns: 1fr auto 1fr !important; align-items: center !important; justify-items: center !important; }
   .resultado-header .header-left { grid-column: 1/2 !important; justify-self: start !important; width: 100% !important; display: flex !important; align-items: center !important; max-width: none !important; min-width: 0 !important; }
   .resultado-header .header-middle { grid-column: 2/3 !important; justify-self: center !important; width: auto !important; display: flex !important; align-items: center !important; max-width: none !important; min-width: 0 !important; padding: 0 !important; }
   .resultado-header .header-right { grid-column: 3/4 !important; justify-self: end !important; width: 100% !important; display: flex !important; align-items: center !important; justify-content: flex-end !important; max-width: none !important; min-width: 0 !important; overflow: visible !important; max-height: 100%; }
-  .resultado-titulo { font-size: 1.85rem !important; font-weight: 900 !important; white-space: nowrap; }
+  .resultado-titulo { font-size: 1.85rem !important; font-weight: 900 !important; white-space: nowrap !important; }
   .resultado-content { padding-top: 0; gap: 0; padding-bottom: calc(var(--legal-h) + var(--pad-safe-b) + 40px) !important; }
   .res { gap: 18px; padding: 0 24px; }
   .res .l { flex: 1.4 1 0%; }
-  .res .r { flex: 1 1 0%; gap: 10px; }
+  .res .r { flex: 1 1 0%; gap: 10px; display:flex; flex-direction:column; align-items: center; justify-content: center; padding: 4px 6px; width: 100%; }
   .res .fr, .foto-final-frame {
     aspect-ratio: 16/9;
     min-width: 880px;
@@ -254,39 +278,78 @@
     border-radius: 22px;
     border-width: 4px;
   }
-  .qr-leyenda-titulo { font-size: 1.15rem !important; line-height: 1.2; }
-  /* ✅ QR TCL TABLET: 200x200 padding 24 → MÁS PEQUEÑO + QUIET ZONE 24px BLANCO COMPLETO. */
+  .qr-leyenda-titulo {
+    font-size: 1.15rem !important;
+    line-height: 1.15 !important;
+    white-space: normal !important;
+    padding: 0 8px !important;
+    margin: 0 auto !important;
+    text-align: center !important;
+    width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  /* ✅ QR TCL TABLET CENTRADO GEOMÉTRICO DENTRO SU CONTENEDOR BLANCO */
   .qr {
-    width: 180px !important;
-    height: 180px !important;
-    max-width: 180px !important;
-    max-height: 180px !important;
+    width: 196px !important;
+    height: 196px !important;
+    max-width: 196px !important;
+    max-height: 196px !important;
     padding: 20px !important;
     border-radius: 14px;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 auto !important;
     overflow: visible !important;
     contain: none !important;
+    box-sizing: border-box;
   }
-  /* ✅ GRID 2×2 BOTONES: (Terminar | Repetir) arriba + (Descargar | Compartir) abajo.
-     NUNCA MÁS 4to botón cortado por legal. */
+  .qr-code-canvas,
+  .qr-code {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    margin: 0 auto !important;
+    object-fit: contain !important;
+  }
+  /* ✅ GRID 2×2 BOTONES CENTRADOS TCL */
   .res-botones,
   .res-botones-2,
   .res-botones-grid {
-    margin: 0 !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    align-items: center !important;
+    justify-items: stretch !important;
+    justify-content: center !important;
     gap: 10px 12px !important;
+    padding: 0 !important;
   }
   .btn-resultado-cta,
   .res-botones .btn-primario,
   .res-botones .btn-secundario,
   .res-botones .btn-cta-red,
-  .res-botones-2 button {
+  .res-botones-2 button,
+  .res-botones-grid button {
     min-width: 0 !important;
     min-height: 54px !important;
     max-height: 54px !important;
-    font-size: 1.1rem !important;
-    padding: 8px 16px !important;
-    line-height: 1.1;
-    white-space: nowrap;
     width: 100% !important;
+    font-size: 1.05rem !important;
+    padding: 8px 12px !important;
+    line-height: 1.1;
+    white-space: nowrap !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    border-radius: 14px !important;
   }
 }
 @media (orientation: portrait) {

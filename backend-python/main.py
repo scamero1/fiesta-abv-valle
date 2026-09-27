@@ -572,10 +572,13 @@ def remove_bg_b64(body: BodyB64):
 
 ESCENARIO_CONFIG = {
     # IDs NUEVOS prompt: Atardecer Vallecaucano = Cristo Rey, Feria de Cali = Plaza Varela, Salsa Neón = Museo Salsa
-    #   x_offset_pct: + = MOVER A LA DERECHA, - = MOVER A LA IZQUIERDA. REGLA USUARIO AHORA: CENTRAR PERSONA = 0.0.
-    #   scale_in_frame: cuánto del ancho FRAME_SAFE_W (1712px SEGURO) ocupa la persona.
-    #                   REDUCIDO A 0.54 = LA PERSONA MÁS PEQUEÑA (54% ancho zona segura) = NUNCA MÁS TOCARÁ BLANCO NI AZUL.
-    #   bottom_from_frame_pct: 0.00 = LA PERSONA EMPIEZA EXACTAMENTE DESDE EL LÍNEA INFERIOR ZONA SEGURA, HACIA ARRIBA.
+    #   x_offset_pct: + = MOVER A LA DERECHA, - = MOVER A LA IZQUIERDA.
+    #   persona_target_fill_pct: (NUEVO, OPCIONAL) ancho % de SAFE_W que ocupa LA PERSONA, OVERRIDE genérico 58%.
+    #                            Basado en ESCANEADO prototipo 6 fotos del usuario (medido al px):
+    #                              - CRISTO REY  = 82% (MUY grande abajo, no tapa cristo arriba)
+    #                              - MUSEO SALSA  = 72% (medio grande, + desplazado a la IZQUIERDA para NO tapar mural)
+    #                              - PLAZA VARELA = 46% (MÁS PEQUEÑO, NO tapa las trompetas de fondo)
+    #   bottom_from_frame_pct: 0.00 = baseline SAFE_Y2 960. NEGATIVO (e.g. -0.02) = BAJA MÁS, pegado a legal (como prototipo).
     "sunset": {
         "nombre": "Atardecer Vallecaucano",
         "botellaImg": "botella-fiesta-azul.png",
@@ -583,9 +586,10 @@ ESCENARIO_CONFIG = {
         "fallback_gradient": ((14, 165, 233), (7, 89, 133)),
         "persona_scale": 0.72,
         "persona_bottom_pct": 0.00,
-        "x_offset_pct": 0.0,   # REGLA USUARIO: CENTRAR a la persona horizontalmente (0 = centro zona segura)
-        "scale_in_frame": 0.54,   # 🔻 54% ancho zona segura — NUNCA tocará blanco ni azul
-        "bottom_from_frame_pct": 0.00,
+        "x_offset_pct": 0.0,
+        "persona_target_fill_pct": 0.82,   # 🎯 PROTOTIPO: persona GRANDE (82%) abajo, Cristo Rey está arriba centro
+        "scale_in_frame": 0.82,
+        "bottom_from_frame_pct": -0.02,    # 🎯 PROTOTIPO: muy pegada abajo (casi legal), no en SAFE_Y2
     },
     "feria": {
         "nombre": "Feria de Cali",
@@ -594,9 +598,10 @@ ESCENARIO_CONFIG = {
         "fallback_gradient": ((124, 58, 237), (76, 29, 149)),
         "persona_scale": 0.72,
         "persona_bottom_pct": 0.00,
-        "x_offset_pct": 0.0,   # CENTRADO
-        "scale_in_frame": 0.54,   # 🔻
-        "bottom_from_frame_pct": 0.00,
+        "x_offset_pct": 0.0,
+        "persona_target_fill_pct": 0.46,   # 🎯 PROTOTIPO: persona PEQUEÑA (46%) — NO TAPA 3 trompetas gigantes
+        "scale_in_frame": 0.46,
+        "bottom_from_frame_pct": -0.015,
     },
     "neon": {
         "nombre": "Salsa Neón",
@@ -605,9 +610,10 @@ ESCENARIO_CONFIG = {
         "fallback_gradient": ((249, 115, 22), (180, 83, 9)),
         "persona_scale": 0.70,
         "persona_bottom_pct": 0.00,
-        "x_offset_pct": 0.0,   # CENTRADO
-        "scale_in_frame": 0.54,   # 🔻
-        "bottom_from_frame_pct": 0.00,
+        "x_offset_pct": -0.06,              # 🎯 PROTOTIPO: 6% HACIA LA IZQUIERDA → NO TAPA mural "Museo de la Salsa" a la DERECHA
+        "persona_target_fill_pct": 0.72,    # 🎯 PROTOTIPO: persona medio-grande (72%)
+        "scale_in_frame": 0.72,
+        "bottom_from_frame_pct": -0.02,
     },
     # IDs EXISTENTES (compatibilidad con frontend actual)
     "calle-del-sabor": {
@@ -617,9 +623,10 @@ ESCENARIO_CONFIG = {
         "fallback_gradient": ((249, 115, 22), (180, 83, 9)),
         "persona_scale": 0.70,
         "persona_bottom_pct": 0.00,
-        "x_offset_pct": 0.0,   # CENTRADO
-        "scale_in_frame": 0.54,   # 🔻
-        "bottom_from_frame_pct": 0.00,
+        "x_offset_pct": -0.06,              # 🎯 PROTOTIPO: 6% IZQUIERDA = idéntico a neón
+        "persona_target_fill_pct": 0.72,
+        "scale_in_frame": 0.72,
+        "bottom_from_frame_pct": -0.02,
     },
     "plaza-varela": {
         "nombre": "Plaza Varela",
@@ -628,9 +635,10 @@ ESCENARIO_CONFIG = {
         "fallback_gradient": ((124, 58, 237), (76, 29, 149)),
         "persona_scale": 0.72,
         "persona_bottom_pct": 0.00,
-        "x_offset_pct": 0.0,   # CENTRADO
-        "scale_in_frame": 0.54,   # 🔻
-        "bottom_from_frame_pct": 0.00,
+        "x_offset_pct": 0.0,
+        "persona_target_fill_pct": 0.46,    # 🎯 PROTOTIPO: persona PEQUEÑA — trompetas se ven completas
+        "scale_in_frame": 0.46,
+        "bottom_from_frame_pct": -0.015,
     },
     "cristo-rey": {
         "nombre": "Cristo Rey",
@@ -639,9 +647,10 @@ ESCENARIO_CONFIG = {
         "fallback_gradient": ((14, 165, 233), (7, 89, 133)),
         "persona_scale": 0.72,
         "persona_bottom_pct": 0.00,
-        "x_offset_pct": 0.0,   # CENTRADO
-        "scale_in_frame": 0.54,   # 🔻
-        "bottom_from_frame_pct": 0.00,
+        "x_offset_pct": 0.0,
+        "persona_target_fill_pct": 0.82,    # 🎯 PROTOTIPO: persona MUY grande abajo, estatua intacta arriba
+        "scale_in_frame": 0.82,
+        "bottom_from_frame_pct": -0.02,
     },
 }
 
@@ -954,9 +963,9 @@ def draw_logo_pastilla(composed: Image.Image) -> Image.Image:
     - Right aligned: X=FRAME_X2 (1864) - width - 16 → 1864-168-16=1680
     - Y = 8 px (margen top dentro header azul 0-82)
     """
-    W_PAD = 200
-    H_PAD = 76
-    PAD_X = FRAME_X2 - W_PAD - 12   # 1864 - 200 - 12 = 1652 (dentro header azul, right align, más grande pero no mucho)
+    W_PAD = 216
+    H_PAD = 82
+    PAD_X = FRAME_X2 - W_PAD - 10   # 1864 - 216 - 10 = 1638 (dentro header azul, right align, un poco más grande pero NO demasiado)
     PAD_Y = 8
 
     # Crear capa para pastilla + sombra
@@ -991,16 +1000,16 @@ def draw_logo_pastilla(composed: Image.Image) -> Image.Image:
     )
 
     # TEXTOS DENTRO pastilla
-    f1 = load_font(30, bold=True)
-    f2 = load_font(42, bold=True)
+    f1 = load_font(32, bold=True)
+    f2 = load_font(46, bold=True)
 
     # L1: BLANCO DEL VALLE (azul)
     cx = PAD_X + (W_PAD // 2)
-    cy1 = PAD_Y + 24
+    cy1 = PAD_Y + 26
     draw.text((cx, cy1), "BLANCO DEL VALLE", font=f1, fill=AZUL_2728, anchor="mm")
 
     # L2: FIESTA (rojo)
-    cy2 = PAD_Y + H_PAD - 22
+    cy2 = PAD_Y + H_PAD - 24
     draw.text((cx, cy2), "FIESTA", font=f2, fill=ROJO_185, anchor="mm")
 
     composed.alpha_composite(pad_layer, (0, 0))
@@ -1059,14 +1068,18 @@ def compose_full(
     # ====================================================================
     # 🧠 IA AUTO-AJUSTE: PRIMERO intentamos escalar la persona automáticamente
     #                    detectando el tamaño REAL (quitar espacio transparente muerto).
-    #                    Ocupará el 58% del ancho SAFE — PLANO MEDIO = como prototipo usuario (no tapa paisaje).
+    #                    TAMAÑO POR ESCENARIO via cfg.persona_target_fill_pct (override por escenario):
+    #                      - cristo-rey = 82% MUY grande abajo; museo-salsa = 72% mediano; plaza-varela = 46% pequeño
+    #                    Fallback genérico = 58% (plano medio si no config).
     # ====================================================================
+    # 🎯 OVERRIDE PROTOTIPO POR ESCENARIO (NO genérico 58%):
+    target_fill_escenario = float(cfg.get("persona_target_fill_pct", 0.58))
     try:
         persona_auto_scaled, ia_scale_applied = autoscale_person_to_safe(
             persona_clean,
-            target_fill_pct=0.58,
+            target_fill_pct=target_fill_escenario,
             min_final_scale=0.25,
-            max_final_scale=1.15,
+            max_final_scale=1.3,
         )
         fitted = persona_auto_scaled
     except Exception:
@@ -1089,22 +1102,26 @@ def compose_full(
     fw, fh = fitted.size
 
     # ====== Posición X DENTRO DE LA ZONA SEGURA (FRAME_SAFE) =====================
-    #  CLAMP 100% GARANTIZADO NUNCA TOCARÁ BLANCO NI AZUL.
+    #  (izq/der 48px de corte sangre NO se puede tocar) — Relajado sólo en X para offset museo.
     safe_center_x = FRAME_SAFE_X1 + (FRAME_SAFE_W // 2)
     x_offset_pct = float(cfg.get("x_offset_pct", 0.0))
     x = int(safe_center_x - (fw // 2) + (FRAME_SAFE_W * x_offset_pct))
-    x_min = FRAME_SAFE_X1 + 4
-    x_max = FRAME_SAFE_X2 - fw - 4
+    x_min = FRAME_X1 + 10      # 🎯 PROTOTIPO: Relajado X a BLANCO IZQ + 10 (antes SAFE 104), offset museo izq no lo clampa.
+    x_max = FRAME_X2 - fw - 10 # 🎯 PROTOTIPO: Relajado X a BLANCO DER - 10.
     x = max(x_min, min(x_max, x))
 
-    # ====== Posición Y DENTRO DE LA ZONA SEGURA (FRAME_SAFE) =====================
-    #  bottom_pct_frame = 0.00 (DEFECTO AHORA): persona PEGADA DIRECTAMENTE A LA LÍNEA
-    #  INFERIOR DE LA ZONA SEGURA (y=960, antes del borde blanco/legal). NUNCA flotando.
+    # ====== Posición Y: PEGADO A FRAME_Y2 REAL DEL PAISAJE (1008) + bottom_pct NEGATIVO ↓↓
+    #  🎯 PROTOTIPO USUARIO: baseline NO es SAFE_Y2 (960), es FRAME_Y2 (1008) - 16 = 992.
+    #  Persona queda MÁS ABAJO, pegada casi a la franja legal. Clamp inferior: FRAME_Y2 - 16 - fh.
     bottom_pct_frame = float(cfg.get("bottom_from_frame_pct", cfg.get("persona_bottom_pct", 0.00)))
-    y_baseline_inside_safe = int(FRAME_SAFE_Y2 - 4 - (FRAME_SAFE_H * bottom_pct_frame))
-    y = int(y_baseline_inside_safe - fh)
-    y_min = FRAME_SAFE_Y1 + 4
-    y_max = FRAME_SAFE_Y2 - fh - 4
+    # Baseline real: línea inferior paisaje FRAME_Y2 (1008) menos 16px mínimo para no tocar blanco.
+    # bottom_pct 0.00 → baseline = FRAME_Y2 - 16 = 992  (pegado abajo, como prototipo)
+    # bottom_pct NEGATIVO → baseline aún MÁS baja (hasta FRAME_Y2 - 8 = 1000)
+    # bottom_pct POSITIVO → la persona sube (no usado en prototipo, pero se mantiene)
+    y_baseline_prototipo = int((FRAME_Y2 - 16) - (FRAME_SAFE_H * bottom_pct_frame))
+    y = int(y_baseline_prototipo - fh)
+    y_min = FRAME_SAFE_Y1 + 4          # Top: no tocar azul header
+    y_max = FRAME_Y2 - 16 - fh         # 🎯 PROTOTIPO Bottom: no tocar el BLANCO inf (FRAME_Y2=1008)
     y = max(y_min, min(y_max, y))
     canvas.alpha_composite(fitted, (x, y))
 

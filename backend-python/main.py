@@ -724,22 +724,167 @@ def feather_borders_alpha(person: Image.Image, feather_px: int = 2) -> Image.Ima
     return out
 
 
-def close_alpha_holes(person: Image.Image, radius_px: int = 3) -> Image.Image:
+def close_alpha_holes(person: Image.Image, radius_px: int = 6) -> Image.Image:
     """Cierra agujeros/transparencias DENTRO de la persona (camisa, cuello, botones).
-       Morphology: MaxFilter(expandir alfa) -> MinFilter(encoger alfa) = cerrar huecos <= radius_px.
-       NO TOCA los bordes EXTERIORES de la silueta, solo los interiores transparentes."""
+       FIX EFECTO CROMA: Cierra agujeros GRANDES (hasta ~45px) cuando la ropa tiene
+       color MUY similar al fondo (ej: camisa roja sobre fondo rojo) y U2Net deja agujeros
+       (la camisa desaparece, solo quedan manos/cara)."""
     if radius_px <= 0:
         return person
     r, g, b, a = person.split()
-    # Paso 1: Dilatación (max filter) → rellenar agujeritos
-    a_dilate = a.filter(ImageFilter.MaxFilter(radius_px * 2 + 1))
+    # Paso 0: THRESHOLD ALFA CRÍTICO CROMA. Todo píxel que U2Net pensó que era >15
+    # (fue casi un cuerpo) se sube a alfa 128+ para que el closing lo pegue al cuerpo.
+    try:
+        from PIL import ImageMath
+        a_thr = ImageMath.eval("convert(where(a > 15, max(a, 128), a), 'L')", a=a)
+    except Exception:
+        a_thr = a.point(lambda px: px if px <= 15 else max(px, 128))
+
+    # Paso 1: Dilatación (max filter) → rellenar agujeritos. Ahora radius=6 = filter 13.
+    a_dilate = a_thr.filter(ImageFilter.MaxFilter(radius_px * 2 + 1))
     # Paso 2: Erosión (min filter) → mantener tamaño original silueta exterior
     a_close = a_dilate.filter(ImageFilter.MinFilter(radius_px * 2 + 1))
-    # Paso 3: Fusionar con el original para no engordar bordes → elija MAX alpha final (si original tenía borde, lo mantiene)
-    from PIL import ImageChops
-    a_final = ImageChops.lighter(a_close, a)
+    # Paso 3: SEGUNDO PASS MORFOLÓGICO MÁS FUERTE (closing radius 4 = filter 9)
+    #   específicamente para huecos tipo manchas grandes (croma color-fondo).
+    a_dilate2 = a_close.filter(ImageFilter.MaxFilter(4 * 2 + 1))
+    a_close2 = a_dilate2.filter(ImageFilter.MinFilter(4 * 2 + 1))
+    # Paso 4: Fusionar con el original para no engordar bordes → elija MAX alpha final
+    try:
+        from PIL import ImageChops
+        a_final = ImageChops.lighter(a_close2, ImageChops.lighter(a_close, a))
+    except Exception:
+        a_final = a_close2
     out = Image.merge("RGBA", (r, g, b, a_final))
     return out
+
+
+# =============================================================================
+# 🧠 IA DE AUTO-AJUSTE INTELIGENTE DE TAMAÑO PERSONA
+# NUNCA MÁS scale_in_frame hardcodeado 0.54 / 0.68.
+# Detectamos el BOUNDING BOX REAL de la persona (solo píxeles con alfa>10),
+# quitamos el espacio transparente muerto alrededor, y escalamos AUTOMÁTICAMENTE
+# para que la persona ocupe el 93% del ancho o alto del SAFE_FRAME (lo que toque primero).
+# SIEMPRE DENTRO DE LA ZONA SEGURA 104/138/1816/960. NUNCA TOCARÁ BLANCO NI AZUL.
+# =============================================================================
+def get_alpha_content_bbox(img: Image.Image, alpha_min: int = 10) -> Optional[Tuple[int, int, int, int]]:
+    """Retorna (x1,y1,x2,y2) del rectángulo mínimo que CONTIENE EXACTAMENTE a la persona
+       segmentada (solo píxeles con alpha >= alpha_min). Devuelve None si la imagen está vacía.
+       - Elimina TODO el espacio transparente muerto que rembg/U2Net deja alrededor.
+       - x1,y1 = esquina superior IZQUIERDA DEL CUERPO REAL.
+       - x2,y2 = esquina inferior DERECHA DEL CUERPO REAL."""
+    try:
+        img = img.convert("RGBA")
+        alpha = img.split()[-1]
+        bbox = alpha.getbbox()  # Pillow native: devuelve (left,upper,right,lower) con alpha>0.
+        if bbox is None:
+            return None
+        # Aplicar umbral alpha_min adicional (getbbox() nativo solo filtra alpha == 0)
+        # usando un recorrido rápido por los bordes del bbox.
+        x1, y1, x2, y2 = bbox
+        if x1 >= x2 or y1 >= y2:
+            return None
+        # Refinar X1: avanzar hasta encontrar columna con >=1 píxel alpha_min
+        alpha_arr = alpha.load()
+        w, h = alpha.size
+        # Refinar X1
+        new_x1 = x1
+        found = False
+        for col in range(x1, min(x2 - 1, w - 1)):
+            for row in range(y1, min(y2, h - 1)):
+                if alpha_arr[col, row] >= alpha_min:
+                    new_x1 = col
+                    found = True
+                    break
+            if found:
+                break
+        # Refinar X2 (de derecha a izquierda)
+        new_x2 = x2
+        found = False
+        for col in range(x2 - 1, max(new_x1 + 1, 0), -1):
+            for row in range(y1, min(y2, h - 1)):
+                if alpha_arr[col, row] >= alpha_min:
+                    new_x2 = col + 1
+                    found = True
+                    break
+            if found:
+                break
+        # Refinar Y1 (de arriba a abajo)
+        new_y1 = y1
+        found = False
+        for row in range(y1, min(y2 - 1, h - 1)):
+            for col in range(new_x1, min(new_x2, w - 1)):
+                if alpha_arr[col, row] >= alpha_min:
+                    new_y1 = row
+                    found = True
+                    break
+            if found:
+                break
+        # Refinar Y2 (de abajo a arriba)
+        new_y2 = y2
+        found = False
+        for row in range(y2 - 1, max(new_y1 + 1, 0), -1):
+            for col in range(new_x1, min(new_x2, w - 1)):
+                if alpha_arr[col, row] >= alpha_min:
+                    new_y2 = row + 1
+                    found = True
+                    break
+            if found:
+                break
+        return (max(0, new_x1), max(0, new_y1), min(w, new_x2), min(h, new_y2))
+    except Exception:
+        # Fallback silencioso: usa getbbox() nativo si algo salió mal.
+        try:
+            return img.split()[-1].getbbox()
+        except Exception:
+            return None
+
+
+def autoscale_person_to_safe(
+    person_img: Image.Image,
+    target_fill_pct: float = 0.93,
+    min_final_scale: float = 0.25,
+    max_final_scale: float = 1.2,
+) -> Tuple[Image.Image, float]:
+    """🧠 IA Auto-Escala:
+       Paso 1: Detectar BBox REAL de la persona (quitar espacio transparente muerto).
+       Paso 2: Recortar al BBox + padding 8px para no cortar bordes suaves.
+       Paso 3: Calcular escala IDEAL para que persona ocupe target_fill_pct (93%)
+               del ancho O alto del SAFE_FRAME (lo que sea más restrictivo).
+       Paso 4: Escalar la imagen recortada y devolverla.
+       RETORNA: (img_escalada_por_IA, escala_aplicada)
+       """
+    w_orig, h_orig = person_img.size
+    # 1) Obtener bounding box exacto de la persona (sin espacio transparente)
+    bbox = get_alpha_content_bbox(person_img, alpha_min=10)
+    if bbox is None:
+        # Fallback extremo: no detectamos nada → retornar original sin escalar.
+        return person_img, 1.0
+    x1, y1, x2, y2 = bbox
+    content_w = max(1, x2 - x1)
+    content_h = max(1, y2 - y1)
+    # 2) CROP al contenido real + padding 8px (para preservar feather suave en el borde)
+    pad = 8
+    cx1 = max(0, x1 - pad)
+    cy1 = max(0, y1 - pad)
+    cx2 = min(w_orig, x2 + pad)
+    cy2 = min(h_orig, y2 + pad)
+    cropped = person_img.crop((cx1, cy1, cx2, cy2))
+    crop_w, crop_h = cropped.size
+    # 3) Calcular escala ideal basada en SAFE_FRAME (1712×822 px).
+    #    "Queremos que la persona ocupe 93% del ancho seguro, O 93% del alto seguro,
+    #     lo que sea MENOR (para que nunca se salga por ninguno de los 2 lados)".
+    target_w_safe = FRAME_SAFE_W * target_fill_pct   # 1712 * 0.93 = 1592 px
+    target_h_safe = FRAME_SAFE_H * target_fill_pct   # 822  * 0.93 = 764  px
+    scale_by_w = target_w_safe / max(1, crop_w)
+    scale_by_h = target_h_safe / max(1, crop_h)
+    ideal_scale = min(scale_by_w, scale_by_h)
+    #  3.b) Clamp de seguridad para evitar valores imposibles.
+    ideal_scale = max(min_final_scale, min(max_final_scale, ideal_scale))
+    # 4) Escalar final con LANCZOS (antialias buena calidad)
+    new_w = max(1, int(round(crop_w * ideal_scale)))
+    new_h = max(1, int(round(crop_h * ideal_scale)))
+    scaled = cropped.resize((new_w, new_h), Image.LANCZOS)
+    return scaled, ideal_scale
 
 
 def draw_legal_bar_minimal(composed: Image.Image) -> Image.Image:
@@ -798,48 +943,69 @@ def compose_full(
     canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (0, 0, 0, 0))
     canvas.alpha_composite(fondo, (0, 0))
 
-    # ====== CAPA 1: PERSONA — (1) CLOSE HOLES morphology interior (camisa agujeritos), (2) FEATHER mínima.
-    #          Calculamos posición DENTRO DEL MARCO BLANCO INTERNO (FRAME_X1/X2/Y1/Y2) medido exacto en cada JPG.
-    #          No se sale del marco, no se corta con los bordes azules exteriores.
+    # ====== CAPA 1: PERSONA — PIPELINE ANTI-CROMA + IA AUTO-AJUSTE TAMAÑO (scale_in_frame YA NO ES NECESARIO).
+    #    Orden estricto:
+    #    1. close_alpha_holes radius=6 + 2 pass morfológico → EFECTO CROMA FIX (camisa color igual al fondo no desaparece).
+    #    2. feather 3px → suaviza bordes del closing fuerte.
+    #    3. 🧠 IA autoscale_person_to_safe(target_fill=93%) → escala automática detectando BBox REAL.
+    #       Si la IA falla → fallback scale_in_frame del config.
+    #    4. Posición SIEMPRE DENTRO DE SAFE_FRAME (104≤x≤1816 / 138≤y≤960) CLAMP 100% BLOQUEADO
+    #       (blanco/azul IMPOSIBLE de tocar). Centrado horizontal. PEGADO a baseline inferior SAFE (y=960).
     persona_rgba = persona_rgba.convert("RGBA")
-    persona_no_holes = close_alpha_holes(persona_rgba, radius_px=3)
-    persona_clean = feather_borders_alpha(persona_no_holes, feather_px=2)
+    # FIX EFECTO CROMA: closing morfológico fuerte (radius=6) + 2do pass radius=4.
+    persona_no_holes = close_alpha_holes(persona_rgba, radius_px=6)
+    # Feather 3px para compensar el borde "navaja" del closing morfológico agresivo.
+    persona_clean = feather_borders_alpha(persona_no_holes, feather_px=3)
 
-    # Paso 1: Tamaño persona. Priorizamos scale_in_frame (% del ancho útil ZONA SEGURA FRAME_SAFE_W)
-    #           si está definido, fallback al antiguo persona_scale (% del canvas).
-    #           ✅ AHORA SIEMPRE DENTRO DE LA ZONA SEGURA (104≤x≤1816, 138≤y≤960) = NUNCA TOCARÁ BLANCO NI AZUL.
-    scale_in_frame = cfg.get("scale_in_frame", None)
-    if scale_in_frame and 0.2 < float(scale_in_frame) < 1.0:
-        sif = float(scale_in_frame)
-        target_max_w_frame = int(FRAME_SAFE_W * sif)
-        target_max_h_frame = int(FRAME_SAFE_H * (sif * 1.12))
-        fitted = fit_contain(persona_clean, target_max_w_frame, target_max_h_frame)
-    else:
-        scale_legacy = cfg.get("persona_scale", 0.72)
-        t_w = int(CANVAS_W * scale_legacy)
-        t_h = int(CANVAS_H * (scale_legacy * 1.12))
-        fitted = fit_contain(persona_clean, t_w, t_h)
+    # ====================================================================
+    # 🧠 IA AUTO-AJUSTE: PRIMERO intentamos escalar la persona automáticamente
+    #                    detectando el tamaño REAL (quitar espacio transparente muerto).
+    #                    Ocupará el 93% del ancho/alto SAFE — lo más grande posible sin tocar blanco.
+    # ====================================================================
+    try:
+        persona_auto_scaled, ia_scale_applied = autoscale_person_to_safe(
+            persona_clean,
+            target_fill_pct=0.93,
+            min_final_scale=0.25,
+            max_final_scale=1.15,
+        )
+        fitted = persona_auto_scaled
+    except Exception:
+        # FALLBACK ANTIGUO SOLO SI LA IA DE BBOX FALLA: usar scale_in_frame hardcodeado.
+        fitted = None
+
+    if fitted is None or fitted.size[0] <= 4 or fitted.size[1] <= 4:
+        # Fallback: método antiguo si la IA retornó algo inválido.
+        scale_in_frame = cfg.get("scale_in_frame", None)
+        if scale_in_frame and 0.2 < float(scale_in_frame) < 1.0:
+            sif = float(scale_in_frame)
+            target_max_w_frame = int(FRAME_SAFE_W * sif)
+            target_max_h_frame = int(FRAME_SAFE_H * (sif * 1.12))
+            fitted = fit_contain(persona_clean, target_max_w_frame, target_max_h_frame)
+        else:
+            scale_legacy = cfg.get("persona_scale", 0.72)
+            t_w = int(CANVAS_W * scale_legacy)
+            t_h = int(CANVAS_H * (scale_legacy * 1.12))
+            fitted = fit_contain(persona_clean, t_w, t_h)
     fw, fh = fitted.size
 
-    # Paso 2: Posición X DENTRO DE LA ZONA SEGURA (FRAME_SAFE)
-    #   x_offset_pct: + = mover a la DERECHA sobre el centro; - = mover a la IZQUIERDA.
-    #   Siempre dentro del rango [FRAME_SAFE_X1, FRAME_SAFE_X2 - fw] (100% garantizado no tocar blanco/azul).
+    # ====== Posición X DENTRO DE LA ZONA SEGURA (FRAME_SAFE) =====================
+    #  CLAMP 100% GARANTIZADO NUNCA TOCARÁ BLANCO NI AZUL.
     safe_center_x = FRAME_SAFE_X1 + (FRAME_SAFE_W // 2)
     x_offset_pct = float(cfg.get("x_offset_pct", 0.0))
     x = int(safe_center_x - (fw // 2) + (FRAME_SAFE_W * x_offset_pct))
-    x_min = FRAME_SAFE_X1 + 2
-    x_max = FRAME_SAFE_X2 - fw - 2
+    x_min = FRAME_SAFE_X1 + 4
+    x_max = FRAME_SAFE_X2 - fw - 4
     x = max(x_min, min(x_max, x))
 
-    # Paso 3: Posición Y DENTRO DE LA ZONA SEGURA (FRAME_SAFE)
-    #   bottom_from_frame_pct: 0.00 = PERSONA PEGADA DIRECTAMENTE A LA LÍNEA INFERIOR DE LA ZONA SEGURA (y=960).
-    #                          0.50 = a mitad de la zona segura.
-    #   NUNCA se sale por arriba ni por abajo del rango seguro.
-    bottom_pct_frame = float(cfg.get("bottom_from_frame_pct", cfg.get("persona_bottom_pct", 0.38)))
-    y_baseline_inside_safe = int(FRAME_SAFE_Y2 - 2 - (FRAME_SAFE_H * bottom_pct_frame))
+    # ====== Posición Y DENTRO DE LA ZONA SEGURA (FRAME_SAFE) =====================
+    #  bottom_pct_frame = 0.00 (DEFECTO AHORA): persona PEGADA DIRECTAMENTE A LA LÍNEA
+    #  INFERIOR DE LA ZONA SEGURA (y=960, antes del borde blanco/legal). NUNCA flotando.
+    bottom_pct_frame = float(cfg.get("bottom_from_frame_pct", cfg.get("persona_bottom_pct", 0.00)))
+    y_baseline_inside_safe = int(FRAME_SAFE_Y2 - 4 - (FRAME_SAFE_H * bottom_pct_frame))
     y = int(y_baseline_inside_safe - fh)
-    y_min = FRAME_SAFE_Y1 + 2
-    y_max = FRAME_SAFE_Y2 - fh - 2
+    y_min = FRAME_SAFE_Y1 + 4
+    y_max = FRAME_SAFE_Y2 - fh - 4
     y = max(y_min, min(y_max, y))
     canvas.alpha_composite(fitted, (x, y))
 

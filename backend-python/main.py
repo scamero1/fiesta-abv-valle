@@ -954,62 +954,56 @@ def draw_slogan_va_con_todo(composed: Image.Image) -> Image.Image:
 def draw_logo_pastilla(composed: Image.Image) -> Image.Image:
     """
     OVERLAY 2 OBLIGATORIO PROTOTIPO USUARIO: Pastilla redondeada BLANCA esquina
-    superior derecha DENTRO DEL HEADER AZUL (y=0..82), NO tocando título escenario.
-    - Fondo: BLANCO, radio de esquina 14px, sombra drop sutil
-    - Texto 2 líneas:
-        "BLANCO DEL VALLE" (AZUL_2728 bold 28px)
-        "FIESTA"            (ROJO_185 bold 40px)
-    - Tamaño pastilla: 168×66 px
-    - Right aligned: X=FRAME_X2 (1864) - width - 16 → 1864-168-16=1680
-    - Y = 8 px (margen top dentro header azul 0-82)
+    superior derecha DENTRO DEL HEADER AZUL (y=0..82), NUNCA dentro del paisaje.
+    RESTRICCIÓN NUCLEAR: PAD_Y + H_PAD ≤ 80px (MENOR QUE 82 = alto header azul).
+    - Tamaño pasado: 216x82 era DEMASIADO ALTO → salía por abajo a y=90, ENCIMA del paisaje.
+    - Tamaño NUEVO: 192x68 PAD_Y=5 → 5+68=73 < 82 ✅ 100% dentro header NUNCA toca paisaje.
     """
-    W_PAD = 216
-    H_PAD = 82
-    PAD_X = FRAME_X2 - W_PAD - 10   # 1864 - 216 - 10 = 1638 (dentro header azul, right align, un poco más grande pero NO demasiado)
-    PAD_Y = 8
+    W_PAD = 192
+    H_PAD = 68
+    PAD_X = FRAME_X2 - W_PAD - 10   # 1864 - 192 - 10 = 1662
+    PAD_Y = 5                        # TOP margin. 5+68 = 73 < 82 (header azul).
 
     # Crear capa para pastilla + sombra
     pad_layer = Image.new("RGBA", composed.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(pad_layer, "RGBA")
 
-    # Sombra sutil 6px hacia abajo-derecha
-    shadow_off = 4
+    # Sombra sutil
+    shadow_off = 3
     draw.rounded_rectangle(
         [PAD_X + shadow_off, PAD_Y + shadow_off, PAD_X + W_PAD + shadow_off, PAD_Y + H_PAD + shadow_off],
-        radius=16,
-        fill=(0, 0, 0, 110),
+        radius=14,
+        fill=(0, 0, 0, 90),
     )
     # Pastilla blanca
     draw.rounded_rectangle(
         [PAD_X, PAD_Y, PAD_X + W_PAD, PAD_Y + H_PAD],
-        radius=16,
+        radius=14,
         fill=BLANCO,
         outline=(220, 220, 220, 255),
         width=2,
     )
 
-    # Borde superior azul delgado (1px) para marca
+    # Borde superior azul delgado (1px)
     draw.rounded_rectangle(
-        [PAD_X, PAD_Y, PAD_X + W_PAD, PAD_Y + 6],
-        radius=16,
+        [PAD_X, PAD_Y, PAD_X + W_PAD, PAD_Y + 5],
+        radius=14,
         fill=AZUL_2728,
     )
     draw.rectangle(
-        [PAD_X, PAD_Y + 3, PAD_X + W_PAD, PAD_Y + 6],
+        [PAD_X, PAD_Y + 2, PAD_X + W_PAD, PAD_Y + 5],
         fill=AZUL_2728,
     )
 
     # TEXTOS DENTRO pastilla
-    f1 = load_font(32, bold=True)
-    f2 = load_font(46, bold=True)
+    f1 = load_font(28, bold=True)
+    f2 = load_font(38, bold=True)
 
-    # L1: BLANCO DEL VALLE (azul)
     cx = PAD_X + (W_PAD // 2)
-    cy1 = PAD_Y + 26
+    cy1 = PAD_Y + 21
     draw.text((cx, cy1), "BLANCO DEL VALLE", font=f1, fill=AZUL_2728, anchor="mm")
 
-    # L2: FIESTA (rojo)
-    cy2 = PAD_Y + H_PAD - 24
+    cy2 = PAD_Y + H_PAD - 20
     draw.text((cx, cy2), "FIESTA", font=f2, fill=ROJO_185, anchor="mm")
 
     composed.alpha_composite(pad_layer, (0, 0))
@@ -1111,17 +1105,18 @@ def compose_full(
     x = max(x_min, min(x_max, x))
 
     # ====== Posición Y: PEGADO A FRAME_Y2 REAL DEL PAISAJE (1008) + bottom_pct NEGATIVO ↓↓
-    #  🎯 PROTOTIPO USUARIO: baseline NO es SAFE_Y2 (960), es FRAME_Y2 (1008) - 16 = 992.
-    #  Persona queda MÁS ABAJO, pegada casi a la franja legal. Clamp inferior: FRAME_Y2 - 16 - fh.
+    #  🎯 PROTOTIPO USUARIO (escaneo píxel): baseline NO es FRAME_Y2-16=992, es MÁS PEGADO: FRAME_Y2 - 8 = 1000.
+    #  Persona queda MÁS ABAJO, pies casi tocando la franja blanca 8px del marco.
+    #  RELAJAR y_min (arriba): antes SAFE 138 → ahora FRAME_Y1 (90) + 20 = 110.
+    #    En prototipo real la cabeza empieza en y≈115, NUNCA 138 (había sangre/espacio arriba muerto).
     bottom_pct_frame = float(cfg.get("bottom_from_frame_pct", cfg.get("persona_bottom_pct", 0.00)))
-    # Baseline real: línea inferior paisaje FRAME_Y2 (1008) menos 16px mínimo para no tocar blanco.
-    # bottom_pct 0.00 → baseline = FRAME_Y2 - 16 = 992  (pegado abajo, como prototipo)
-    # bottom_pct NEGATIVO → baseline aún MÁS baja (hasta FRAME_Y2 - 8 = 1000)
-    # bottom_pct POSITIVO → la persona sube (no usado en prototipo, pero se mantiene)
-    y_baseline_prototipo = int((FRAME_Y2 - 16) - (FRAME_SAFE_H * bottom_pct_frame))
+    # Baseline NUEVO: FRAME_Y2 - 8 = 1008 - 8 = 1000.
+    #   bottom_pct 0.00 → baseline = 1000  (pegado abajo, como prototipo)
+    #   bottom_pct NEGATIVO → baseline aún MÁS baja (hasta 1006, 2px del blanco)
+    y_baseline_prototipo = int((FRAME_Y2 - 8) - (FRAME_SAFE_H * bottom_pct_frame))
     y = int(y_baseline_prototipo - fh)
-    y_min = FRAME_SAFE_Y1 + 4          # Top: no tocar azul header
-    y_max = FRAME_Y2 - 16 - fh         # 🎯 PROTOTIPO Bottom: no tocar el BLANCO inf (FRAME_Y2=1008)
+    y_min = FRAME_Y1 + 20          # 🎯 PROTOTIPO RELAJADO: FRAME_Y1=90 + 20 = 110 (no SAFE_Y1=138, cabeza muere arriba)
+    y_max = FRAME_Y2 - 8 - fh      # 🎯 PROTOTIPO Bottom: 8px margen arriba del blanco inf (FRAME_Y2=1008)
     y = max(y_min, min(y_max, y))
     canvas.alpha_composite(fitted, (x, y))
 

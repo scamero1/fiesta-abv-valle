@@ -2,7 +2,7 @@ export const ESCENARIOS = [
   {
     id: 'calle-del-sabor',
     nombre: 'Museo de la Salsa',
-    descripcion: 'El templo de la salsa caleña, donde la historia y el ritmo de la música más colombiana se vive en cada pared.',
+    descripcion: 'Cuna de la salsa caleña. Historia y ritmo en cada pared.',
     gradiente: 'linear-gradient(135deg, #f97316 0%, #ea580c 35%, #b45309 100%)',
     acento: '#fb923c',
     icono: '🎶',
@@ -15,7 +15,7 @@ export const ESCENARIOS = [
   {
     id: 'plaza-varela',
     nombre: 'Plaza Varela',
-    descripcion: 'La plaza histórica donde el latido de la salsa caleña se siente en cada paso, rodeada de vida y cultura.',
+    descripcion: 'El corazón de la salsa en Cali. Ritmo, cultura y vida callejera.',
     gradiente: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 35%, #4c1d95 100%)',
     acento: '#a78bfa',
     icono: '💃',
@@ -28,7 +28,7 @@ export const ESCENARIOS = [
   {
     id: 'cristo-rey',
     nombre: 'Cristo Rey',
-    descripcion: 'La vista panorámica más imponente de la Capital Mundial de la Salsa, desde lo más alto de la ciudad.',
+    descripcion: 'La mejor vista panorámica 360° de toda Cali, desde lo más alto.',
     gradiente: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 35%, #075985 100%)',
     acento: '#38bdf8',
     icono: '⛰️',

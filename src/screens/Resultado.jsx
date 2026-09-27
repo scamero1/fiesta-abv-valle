@@ -38,7 +38,7 @@ export default function Resultado() {
   })()
   const qrValue = `${qrBase}/foto/${fotoId}`
 
-  const qrSizePx = 200
+  const qrSizePx = 180
 
   const handleDescargar = () => {
     const a = document.createElement('a')
@@ -118,20 +118,26 @@ export default function Resultado() {
               />
             </div>
 
-            <div className="row res-botones">
-              <button className="btn-primario btn-cta-red cta" onClick={handleTerminar} autoFocus={true}>
+            <div
+              className="grid res-botones-grid"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '10px 12px',
+                marginTop: 4,
+                width: '100%',
+              }}
+            >
+              <button className="btn-primario btn-cta-red cta btn-resultado-cta" onClick={handleTerminar} autoFocus={true}>
                 TERMINAR
               </button>
-              <button className="btn-secundario btn-ghost gh" onClick={handleRepetir}>
+              <button className="btn-secundario btn-ghost gh btn-resultado-cta" onClick={handleRepetir}>
                 Repetir
               </button>
-            </div>
-
-            <div className="row res-botones-2" style={{ gap: 12, marginTop: 4 }}>
-              <button className="btn-secundario btn-ghost gh" onClick={handleDescargar} style={{ fontSize: 16, padding: '10px 20px' }}>
+              <button className="btn-secundario btn-ghost gh btn-resultado-cta" onClick={handleDescargar}>
                 💾 Descargar
               </button>
-              <button className="btn-secundario btn-ghost gh" onClick={handleCompartir} style={{ fontSize: 16, padding: '10px 20px' }}>
+              <button className="btn-secundario btn-ghost gh btn-resultado-cta" onClick={handleCompartir}>
                 🔁 Compartir
               </button>
             </div>

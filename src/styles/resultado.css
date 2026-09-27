@@ -241,44 +241,53 @@
   .resultado-header .header-left { grid-column: 1/2 !important; justify-self: start !important; width: 100% !important; display: flex !important; align-items: center !important; max-width: none !important; min-width: 0 !important; }
   .resultado-header .header-middle { grid-column: 2/3 !important; justify-self: center !important; width: auto !important; display: flex !important; align-items: center !important; max-width: none !important; min-width: 0 !important; padding: 0 !important; }
   .resultado-header .header-right { grid-column: 3/4 !important; justify-self: end !important; width: 100% !important; display: flex !important; align-items: center !important; justify-content: flex-end !important; max-width: none !important; min-width: 0 !important; overflow: visible !important; max-height: 100%; }
-  .resultado-titulo { font-size: 1.9rem !important; font-weight: 900 !important; white-space: nowrap; }
-  .resultado-content { padding-top: 0; gap: 0; padding-bottom: calc(var(--legal-h) + 24px); }
+  .resultado-titulo { font-size: 1.85rem !important; font-weight: 900 !important; white-space: nowrap; }
+  .resultado-content { padding-top: 0; gap: 0; padding-bottom: calc(var(--legal-h) + var(--pad-safe-b) + 40px) !important; }
   .res { gap: 18px; padding: 0 24px; }
-  .res .l { flex: 1.5 1 0%; }
-  .res .r { flex: 1 1 0%; gap: 12px; }
+  .res .l { flex: 1.4 1 0%; }
+  .res .r { flex: 1 1 0%; gap: 10px; }
   .res .fr, .foto-final-frame {
     aspect-ratio: 16/9;
-    min-width: 980px;
-    min-height: 552px;
-    width: min(100%, 1080px);
-    border-radius: 24px;
+    min-width: 880px;
+    min-height: 488px;
+    width: min(100%, 1020px);
+    border-radius: 22px;
     border-width: 4px;
   }
-  /* ✅ QR TCL TABLET: 200x200 padding 24 → MÁS PEQUEÑO + QUIET ZONE 24px BLANCO COMPLETO.
-     ✅ overflow:visible NUNCA MÁS CORTAR BORDES. Total 248x248 con padding, cabe perfecto + scanner lee OK.
-     ✅ contain:none NUNCA clipar hijos aunque padre tenga contain:layout. */
+  .qr-leyenda-titulo { font-size: 1.15rem !important; line-height: 1.2; }
+  /* ✅ QR TCL TABLET: 200x200 padding 24 → MÁS PEQUEÑO + QUIET ZONE 24px BLANCO COMPLETO. */
   .qr {
-    width: 200px !important;
-    height: 200px !important;
-    max-width: 200px !important;
-    max-height: 200px !important;
-    padding: 24px !important;
-    border-radius: 16px;
+    width: 180px !important;
+    height: 180px !important;
+    max-width: 180px !important;
+    max-height: 180px !important;
+    padding: 20px !important;
+    border-radius: 14px;
     overflow: visible !important;
     contain: none !important;
   }
-  .qr-leyenda-titulo { font-size: 1.4rem !important; line-height: 1.2; }
-  .resultado-content { padding-top: 0; gap: 0; padding-bottom: calc(var(--legal-h) + var(--pad-safe-b) + 32px) !important; }
-  .res-botones { margin-top: 6px; gap: 14px; }
+  /* ✅ GRID 2×2 BOTONES: (Terminar | Repetir) arriba + (Descargar | Compartir) abajo.
+     NUNCA MÁS 4to botón cortado por legal. */
+  .res-botones,
+  .res-botones-2,
+  .res-botones-grid {
+    margin: 0 !important;
+    gap: 10px 12px !important;
+  }
+  .btn-resultado-cta,
   .res-botones .btn-primario,
   .res-botones .btn-secundario,
-  .res-botones .btn-cta-red {
-    min-width: 240px !important;
-    min-height: 68px !important;
-    font-size: 1.4rem !important;
-    padding: 14px 44px !important;
+  .res-botones .btn-cta-red,
+  .res-botones-2 button {
+    min-width: 0 !important;
+    min-height: 54px !important;
+    max-height: 54px !important;
+    font-size: 1.1rem !important;
+    padding: 8px 16px !important;
+    line-height: 1.1;
+    white-space: nowrap;
+    width: 100% !important;
   }
-  .res-botones-2 button { padding: 12px 24px !important; font-size: 1.05rem !important; min-height: 52px !important; }
 }
 @media (orientation: portrait) {
   .res {

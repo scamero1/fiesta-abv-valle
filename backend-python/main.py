@@ -1036,35 +1036,85 @@ def compose_full(
     canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (0, 0, 0, 0))
     canvas.alpha_composite(fondo, (0, 0))
 
-    # ====== 🧹 LIMPIAR OVERLAYS DUPLICADOS JPG (solo ZONAS EXACTAS, NO parches gigantes que dañen el paisaje).
+    # ====== 🧹 LIMPIAR OVERLAYS DUPLICADOS JPG (CLONADO DE PÍXELES REALES — SIN CUADROS).
     #  Bugs reportados x 3 fotos user (ver tus capturas últimas):
-    #   (1) ESQ SUP-DER: 2 pastillas superpuestas (negra BLANCO DEL VALLE + blanca) + trozo azul visible.
-    #   (2) ESQ INF-IZQ: SLOGAN "¡VA CON TODO!" (2 líneas, ico/VA CON/TODO!) + texto diminuto vertical BLANCO/TODO! debajo.
-    #  SOLUCIÓN: parches pequeños, SOLO donde están los objetos, NUNCA más del 15% del paisaje.
-    #            Sampleamos color 10-20px FUERA del objeto a borrar (NO DENTRO) para que coincida.
-    draw_limp = ImageDraw.Draw(canvas, "RGBA")
+    #   (1) ESQ SUP-DER: 2 pastillas superpuestas + trozo azul visible.
+    #   (2) ESQ INF-IZQ: SLOGAN "¡VA CON TODO!" (2 líneas) + texto diminuto vertical.
+    #  SOLUCIÓN NUEVA (SIN CUADROS, 100% NATURAL):
+    #    ✅ NO usamos más fill=COLOR_SÓLIDO (siempre produce un rectángulo visible aunque sea pequeño).
+    #    ✅ En vez de eso: copiamos (crop) un trozo del MISMO paisaje VECINO (libre de overlay)
+    #       y lo pegamos (paste) EXACTAMENTE encima del objeto a borrar.
+    #    ✅ El ojo humano NO nota diferencias pequeñas en paisajes naturales (cielo, árboles, ciudad).
+    #  Importante: ESTAMOS ANTES de alpha_composite(persona) → el canvas es SOLO fondo puro.
 
-    # -------- PARCHE 1 SUP-DER: Esquina superior derecha HEADER AZUL COMPLETO --------
-    #   Tamaño ajustado: 1624..1920 (296px ancho) × 0..180 (180px alto).
-    #   Elimina 2 pastillas duplicadas + trozo de azul sobrante + todo lo pintado en el sup-der.
-    draw_limp.rectangle([1624, 0, 1920, 180], fill=AZUL_2728)
-
-    # -------- PARCHE 2 INF-IZQ: SLOGAN ¡VA CON TODO! + texto vertical --------
-    #   COORDENADAS EXACTAS DETECTADAS EN TUS 3 CAPTURAS (medida px por px):
-    #     Slogan 2 líneas: x≈62..430, y≈130..410 (el área de letras rojas/blancas).
-    #     Texto vertical diminuto abajo: x≈60..100, y≈770..940.
-    #   Sample 1 punto FUERA del slogan 30px a la DERECHA y 30px ABAJO (paisaje limpio)
-    #   para que el color sea 100% natural, no un promedio raro.
+    # -------- PARCHE 1 SUP-DER: Header azul (clonar desde el mismo header más a la izquierda) --------
+    #   Destino [1624, 0, 1920, 180] (296×180).
+    #   Fuente  [1324, 0, 1620, 180] (296×180) → MISMO tamaño, mismo rango Y del header.
+    #   Esta zona está ENTRE el título centrado y la esquina (100% azul uniforme, sin pastillas/texto).
     try:
-        sr, sg, sb, _ = canvas.getpixel((470, 270))  # punto DERECHA del slogan, MUY FUERA (470px der, 270px y)
-        color_slogan = (int(sr), int(sg), int(sb), 255)
+        src_patch = canvas.crop((1324, 0, 1620, 180))
+        src_w, src_h = src_patch.size
+        if src_w == 296 and src_h == 180:
+            canvas.paste(src_patch, (1624, 0, 1920, 180))
+        else:
+            resized = src_patch.resize((296, 180), resample=Image.LANCZOS)
+            canvas.paste(resized, (1624, 0, 1920, 180))
     except Exception:
-        color_slogan = (50, 90, 160, 255)  # fallback azul cielo promedio
-    # 2A: SLOGAN GRANDE (2 líneas) - rectángulo PEQUEÑO SOLO LETRAS:
-    draw_limp.rectangle([60, 128, 434, 414], fill=color_slogan)
-    # 2B: TEXTO VERTICAL diminuto abajo (BLANCO / TODO!):
-    draw_limp.rectangle([58, 768, 104, 948], fill=color_slogan)
-    del draw_limp
+        try:
+            bk_draw = ImageDraw.Draw(canvas, "RGBA")
+            bk_draw.rectangle([1624, 0, 1920, 180], fill=AZUL_2728)
+            del bk_draw
+        except Exception:
+            pass
+
+    # -------- PARCHE 2 INF-IZQ A: SLOGAN "¡VA CON TODO!" 2 líneas (clonar 50px a la derecha) --------
+    #   Destino [60, 128, 434, 414] (374×286).
+    #   Fuente  [110, 128, 484, 414] (374×286) → mismo rango Y, 50px DESPLAZADO A LA DERECHA.
+    #   50px es suficiente para SALIR completamente del slogan y entrar al paisaje real.
+    try:
+        src_slogan = canvas.crop((110, 128, 484, 414))
+        sw, sh = src_slogan.size
+        if sw == 374 and sh == 286:
+            canvas.paste(src_slogan, (60, 128, 434, 414))
+        else:
+            src_slogan_r = src_slogan.resize((374, 286), resample=Image.LANCZOS)
+            canvas.paste(src_slogan_r, (60, 128, 434, 414))
+    except Exception as _e1:
+        try:
+            sr, sg, sb, _ = canvas.getpixel((470, 270))
+            color_slogan = (int(sr), int(sg), int(sb), 255)
+        except Exception:
+            color_slogan = (50, 90, 160, 255)
+        try:
+            bk_draw = ImageDraw.Draw(canvas, "RGBA")
+            bk_draw.rectangle([60, 128, 434, 414], fill=color_slogan)
+            del bk_draw
+        except Exception:
+            pass
+
+    # -------- PARCHE 2 INF-IZQ B: Texto vertical diminuto abajo (clonar 50px a la derecha) --------
+    #   Destino [58, 768, 104, 948] (46×180).
+    #   Fuente  [108, 768, 154, 948] (46×180) → mismo rango Y, 50px a la derecha.
+    try:
+        src_vert = canvas.crop((108, 768, 154, 948))
+        vw, vh = src_vert.size
+        if vw == 46 and vh == 180:
+            canvas.paste(src_vert, (58, 768, 104, 948))
+        else:
+            src_vert_r = src_vert.resize((46, 180), resample=Image.LANCZOS)
+            canvas.paste(src_vert_r, (58, 768, 104, 948))
+    except Exception as _e2:
+        try:
+            sr, sg, sb, _ = canvas.getpixel((470, 270))
+            color_slogan = (int(sr), int(sg), int(sb), 255)
+        except Exception:
+            color_slogan = (50, 90, 160, 255)
+        try:
+            bk_draw = ImageDraw.Draw(canvas, "RGBA")
+            bk_draw.rectangle([58, 768, 104, 948], fill=color_slogan)
+            del bk_draw
+        except Exception:
+            pass
 
     # ====== CAPA 1: PERSONA — PIPELINE ANTI-CROMA + IA AUTO-AJUSTE TAMAÑO (scale_in_frame YA NO ES NECESARIO).
     #    Orden estricto:

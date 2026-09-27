@@ -71,27 +71,27 @@ video.webcam-feed,
 video.webcam,
 img.preview-img,
 img[class*="preview"] {
-  transform: scaleX(1) !important;
-  -webkit-transform: scaleX(1) !important;
-  -moz-transform: scaleX(1) !important;
-  -o-transform: scaleX(1) !important;
   -ms-transform: scaleX(1) !important;
-  transform-origin: center center !important;
+  -o-transform: scaleX(1) !important;
+  -moz-transform: scaleX(1) !important;
+  -webkit-transform: scaleX(1) !important;
+  transform: scaleX(1) !important;
   -webkit-transform-origin: center center !important;
+  transform-origin: center center !important;
   direction: ltr !important;
   writing-mode: horizontal-tb !important;
   unicode-bidi: bidi-override !important;
   image-orientation: from-image !important;
-  filter: FlipH(0) !important;
   -webkit-filter: none !important;
-  backface-visibility: hidden !important;
+  filter: none !important;
   -webkit-backface-visibility: hidden !important;
+  backface-visibility: hidden !important;
   perspective: none !important;
 }
 /* 🔧 Contenedor viewport marco: NO herede flip a children ni tenga flip él mismo. */
 .vp, .viewport-marco, .camwrap, .camara-body {
-  transform: none !important;
   -webkit-transform: none !important;
+  transform: none !important;
   direction: ltr !important;
   writing-mode: horizontal-tb !important;
 }
@@ -121,6 +121,7 @@ img[class*="preview"] {
   box-shadow: 0 8px 18px -8px rgba(0, 0, 0, 0.8) !important;
   cursor: pointer !important;
   -webkit-tap-highlight-color: transparent !important;
+  tap-highlight-color: transparent !important;
   touch-action: manipulation !important;
   white-space: nowrap !important;
   min-height: 0 !important;
@@ -177,6 +178,7 @@ img[class*="preview"] {
   backdrop-filter: none !important;
   filter: none !important;
   -webkit-tap-highlight-color: transparent !important;
+  tap-highlight-color: transparent !important;
   touch-action: manipulation !important;
 }
 
@@ -487,8 +489,7 @@ img.preview-img {
   margin: 0;
 }
 
-.ctl-capture { /* antes de tomar foto: obturador central */ }
-.ctl-preview { /* después: repetir + usar foto botones */ }
+
 
 /* Obturador prototipo 84px, borde blanco 6px + anillo rojo 4px box-shadow */
 .shut,
@@ -508,6 +509,7 @@ img.preview-img {
   outline: none;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  tap-highlight-color: transparent;
 }
 
 .shut:active,
@@ -728,24 +730,24 @@ img.preview-img {
   video.webcam,
   img.preview-img,
   img[class*="preview"] {
-    transform: scaleX(1) !important;
-    -webkit-transform: scaleX(1) !important;
     -moz-transform: scaleX(1) !important;
-    transform-origin: center center !important;
+    -webkit-transform: scaleX(1) !important;
+    transform: scaleX(1) !important;
     -webkit-transform-origin: center center !important;
+    transform-origin: center center !important;
     direction: ltr !important;
     writing-mode: horizontal-tb !important;
     unicode-bidi: bidi-override !important;
-    filter: FlipH(0) none !important;
     -webkit-filter: none !important;
-    backface-visibility: hidden !important;
+    filter: none !important;
     -webkit-backface-visibility: hidden !important;
+    backface-visibility: hidden !important;
     perspective: none !important;
     object-fit: cover !important;
   }
   .vp, .viewport-marco, .camwrap, .camara-body {
-    transform: none !important;
     -webkit-transform: none !important;
+    transform: none !important;
     direction: ltr !important;
     writing-mode: horizontal-tb !important;
   }

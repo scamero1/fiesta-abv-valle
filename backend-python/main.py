@@ -1,9 +1,29 @@
 # Python FastAPI + U2Net (rembg) Background Removal + Composición 3 capas + Store + DB
 # Deploy: Railway Nixpacks Python + Volumen persistente ./public-fotos
 # DB: PostgreSQL via Private Networking (sin egress $$$) — fallback SQLite local
-from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Request
+# ============================================================
+# ✅ FIX URGENTE EVENTO 10.000 PERSONAS + 4 TABLETS CONCURRENTES:
+# 1. Tunning CPU para Railway 2 vCPU: NUNCA oversuscribir hilos (contention ONNX = fotos 2x lentas).
+# 2. threading.Lock() alrededor rembg.remove(): onnxruntime session NO es thread-safe.
+#    Sin lock: 4 tablets concurrentes crashean proceso con InternalError/Segmentation Fault.
+# 3. Rate limit básico concurrente (8 máx): >8 retorna HTTP 503 Service Unavailable sin caer.
+# ============================================================
+# ✅ TUNING ONNX RUNTIME / OPENBLAS / MKL: 2 HILOS = MÁXIMA VELOCIDAD en Railway 2 vCPU
+os.environ.setdefault("OMP_NUM_THREADS", "2")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "2")
+os.environ.setdefault("MKL_NUM_THREADS", "2")
+os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "2")
+os.environ.setdefault("NUMEXPR_NUM_THREADS", "2")
+os.environ.setdefault("TF_NUM_INTEROP_THREADS", "1")
+os.environ.setdefault("TF_NUM_INTRAOP_THREADS", "2")
+os.environ.setdefault("ORT_OMP_NUM_THREADS", "2")
+os.environ.setdefault("ONNX_OPT_LEVEL", "99")
+import threading
+import contextvars
+
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Request, status as http_status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
+from fastapi.responses import StreamingResponse, JSONResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from rembg import remove, new_session
@@ -297,12 +317,31 @@ SLOGAN_SUFIX = "TODO!"
 #   Calidad para selfies evento TABLET CÁMARA FRONTAL es 98% indistinguible.
 #   Si quieres MÁXIMA CALIDAD en vez de VELOCIDAD: cambia a "u2net" en variable entorno.
 MODEL_NAME = os.environ.get("REMBG_MODEL", "u2netp")
+MAX_CONCURRENT_REMOVE = int(os.environ.get("MAX_CONCURRENT_REMOVE", "8"))  # 8 parallel max (4 tablets OK, 8 safety)
+
 _session_u2net = None
+# ✅ LOCK GLOBAL de sesión U2Net: onnxruntime NO ES THREAD-SAFE al correr remove() en paralelo.
+#    Sin este Lock: 4 tablets concurrentes → corruption en los tensores ONNX + InternalError o SegFault proceso.
+_session_lock = threading.Lock()
+_startup_lock = threading.Lock()
+
+# ✅ Rate limit básico concurrent: cuenta cuántas llamadas do_remove() están corriendo AHORA MISMO.
+#    Si > MAX_CONCURRENT_REMOVE: retornamos HTTP 503 Service Unavailable (evento lleno, reintenta en 1s).
+#    Así el proceso FastAPI NUNCA se cae por saturar RAM CPU.
+_current_remove_counter = 0
+_counter_lock = threading.Lock()
+
 
 def get_session():
     global _session_u2net
+    # Doble-check + Lock: solo el primer request hace new_session() real; los demás esperan.
     if _session_u2net is None:
-        _session_u2net = new_session(MODEL_NAME)
+        with _startup_lock:
+            if _session_u2net is None:
+                t0 = time.perf_counter()
+                sess = new_session(MODEL_NAME)
+                _session_u2net = sess
+                print(f"[get_session] ✅ U2Net '{MODEL_NAME}' cargado en {time.perf_counter() - t0:.2f}s")
     return _session_u2net
 
 # ====== FASTAPI APP ======
@@ -354,22 +393,67 @@ def pil_to_png_bytes(img: Image.Image) -> bytes:
 def bytes_to_pil(b: bytes) -> Image.Image:
     return Image.open(io.BytesIO(b)).convert("RGBA")
 
+# ✅ Helpers rate limit concurrent slots (8 máx parallel remove):
+class ServiceOverloaded(Exception):
+    def __init__(self, msg="Servidor saturado en este momento; reintenta en 1 segundo."):
+        super().__init__(msg)
+
+def acquire_remove_slot():
+    """ Incrementa contador; si > MAX_CONCURRENT_REMOVE retorna False = 503."""
+    global _current_remove_counter
+    with _counter_lock:
+        if _current_remove_counter >= MAX_CONCURRENT_REMOVE:
+            return False
+        _current_remove_counter += 1
+        return True
+
+def release_remove_slot():
+    global _current_remove_counter
+    with _counter_lock:
+        if _current_remove_counter > 0:
+            _current_remove_counter -= 1
+
+
 def do_remove(input_bytes: bytes, alpha_matting: bool = False, af=240, ab=10, ae=10, az=1, model_override=None):
     """
     Elimina 100% del fondo usando U2Net / ISNet.
-    Retorna PIL.Image (RGBA) — solo silueta, transparencia perfecta.
+    - Retorna PIL.Image (RGBA) — solo silueta, transparencia perfecta.
+    - ✅ CONCURRENCIA SEGURA: threading.Lock() alrededor session=onnxruntime (NO thread-safe).
+    - ✅ Tiempos del paso IA medidos en logs para debug performance evento.
     """
-    sess = get_session() if not model_override else new_session(model_override)
-    result_bytes = remove(
-        input_bytes,
-        session=sess,
-        alpha_matting=alpha_matting,
-        alpha_matting_foreground_threshold=af,
-        alpha_matting_background_threshold=ab,
-        alpha_matting_erode_size=ae,
-        alpha_matting_erode_threshold=az/10 if az > 0 else 10,
-        post_process_mask=True,
-    )
+    if model_override is not None:
+        # override (no usado en esta versión, pero compatibilidad): lock por instancia
+        sess = new_session(model_override)
+        with _session_lock:
+            result_bytes = remove(
+                input_bytes,
+                session=sess,
+                alpha_matting=alpha_matting,
+                alpha_matting_foreground_threshold=af,
+                alpha_matting_background_threshold=ab,
+                alpha_matting_erode_size=ae,
+                alpha_matting_erode_threshold=az/10 if az > 0 else 10,
+                post_process_mask=True,
+            )
+        return bytes_to_pil(result_bytes)
+
+    sess = get_session()
+    t0 = time.perf_counter()
+    # ✅ LOCK SESIÓN ONNX: solo 1 remove() a la vez sobre la sesión global u2netp.
+    #    Esto es lo que EVITA CRASHEA el proceso cuando 4 tablets disparan en paralelo.
+    with _session_lock:
+        result_bytes = remove(
+            input_bytes,
+            session=sess,
+            alpha_matting=alpha_matting,
+            alpha_matting_foreground_threshold=af,
+            alpha_matting_background_threshold=ab,
+            alpha_matting_erode_size=ae,
+            alpha_matting_erode_threshold=az/10 if az > 0 else 10,
+            post_process_mask=True,
+        )
+    elapsed = time.perf_counter() - t0
+    print(f"[do_remove] u2netp U2NetP elapsed={elapsed:.2f}s | sz={len(input_bytes)}B")
     return bytes_to_pil(result_bytes)
 
 def filename_png():
@@ -402,6 +486,13 @@ async def remove_bg_multipart(
 ):
     if not file.content_type or not file.content_type.lower().startswith("image"):
         raise HTTPException(status_code=400, detail="El archivo debe ser una imagen")
+    # ✅ Rate limit concurrente: >8 parallel retorna 503
+    if not acquire_remove_slot():
+        return JSONResponse(
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"ok": False, "error": "overloaded", "message": "Servidor saturado (máx {} paralelo). Reintenta en 1s.".format(MAX_CONCURRENT_REMOVE), "retry_after_ms": 1000},
+            headers={"Retry-After": "1"},
+        )
     try:
         raw = await file.read()
         result_img = do_remove(raw, alpha_matting=alpha_matting, af=af, ab=ab, ae=ae, az=az)
@@ -417,6 +508,8 @@ async def remove_bg_multipart(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Procesamiento fallido: {str(e)}")
+    finally:
+        release_remove_slot()
 
 # 2) JSON BASE64 (cuando multipart no es práctico, ej: navegador antiguo)
 @app.post("/api/remove-bg-b64")
@@ -821,11 +914,21 @@ async def procesar_foto_unificado(
     raw_bytes = await foto.read()
     t_read = time.time()
 
+    # ✅ Rate limit concurrente: >8 parallel retorna 503.
+    #    El frontend hace 75s timeout y reintento explícito si recibe 503.
+    if not acquire_remove_slot():
+        return JSONResponse(
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"ok": False, "error": "overloaded", "message": "Servidor saturado (máx {} paralelo). Reintenta en 1s.".format(MAX_CONCURRENT_REMOVE), "retry_after_ms": 1000},
+            headers={"Retry-After": "1"},
+        )
     # Paso 1: IA rembg
     try:
         persona_rgba = do_remove(raw_bytes, alpha_matting=alpha_matting, af=af, ab=ab, ae=ae, az=az)
     except Exception as e:
+        release_remove_slot()
         raise HTTPException(status_code=500, detail=f"Fallo eliminación de fondo (IA): {str(e)}")
+    release_remove_slot()  # libera slot CUANTO ANTES (la IA es el paso caro; composición Pillow ~50ms)
     t_ia = time.time()
 
     # Paso 2: Composición 3 capas

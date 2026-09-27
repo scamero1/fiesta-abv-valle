@@ -324,8 +324,10 @@ export async function processFullPipelineServerSide(fotoBase64, escenario) {
   const base = (API_CONFIG.PROCESS_FULL_ENDPOINT || '').replace(/\/+$/, '')
   const url = base + '/api/procesar-foto'
 
-  // Log CONSOLA SOLO para debug en tableta TCL (aparece en Chrome DevTools → Console)
-  // NO se muestra al usuario final. Sirve para confirmar qué dominio se está usando.
+  // ✅ MAX_RETRIES 4 + Retry-After para evento 10k / 4 tablets.
+  //    Si backend retorna HTTP 503 Service Unavailable (overloaded): reintenta automáticamente.
+  const MAX_RETRIES = 4
+
   console.info('[processFullPipeline] → Endpoint calculado:', {
     base_raw: API_CONFIG.PROCESS_FULL_ENDPOINT,
     base_limpio: base,
@@ -334,15 +336,15 @@ export async function processFullPipelineServerSide(fotoBase64, escenario) {
     escenario_nombre: escenario?.nombre,
   })
 
-  const fd = new FormData()
-  fd.append('foto', dataUrlToBlob(fotoBase64), `foto-${Date.now()}.jpg`)
-  fd.append('escenario', String(escenario?.id || '').toLowerCase())
-  fd.append('alpha_matting', 'true')
-  fd.append('af', '240')
-  fd.append('ab', '10')
-  fd.append('ae', '10')
-  fd.append('az', '1')
-  fd.append('formato', 'jpg')
+  const fdBase = new FormData()
+  fdBase.append('foto', dataUrlToBlob(fotoBase64), `foto-${Date.now()}.jpg`)
+  fdBase.append('escenario', String(escenario?.id || '').toLowerCase())
+  fdBase.append('alpha_matting', 'true')
+  fdBase.append('af', '240')
+  fdBase.append('ab', '10')
+  fdBase.append('ae', '10')
+  fdBase.append('az', '1')
+  fdBase.append('formato', 'jpg')
 
   const headers = {}
   if (API_CONFIG.BACKGROUND_REMOVAL_API_KEY) {
@@ -350,67 +352,97 @@ export async function processFullPipelineServerSide(fotoBase64, escenario) {
     headers['X-Api-Key'] = API_CONFIG.BACKGROUND_REMOVAL_API_KEY
   }
 
-  let res
-  try {
-    res = await fetch(url, { method: 'POST', headers, body: fd })
-  } catch (networkError) {
-    console.error('[processFullPipeline] X NETWORK ERROR fetch:', networkError?.message || networkError)
-    throw new Error(
-      '🌐 NO SE PUDO CONECTAR CON EL SERVIDOR DE IA.\n\n' +
-      `Dominio que intentó: ${base || '(VACÍO — falta configurar VITE_BACKEND_URL)'}\n\n` +
-      `Detalle de red: ${networkError?.message || String(networkError)}\n\n` +
-      'Verifica:\n' +
-      '  1. El servicio backend está deployado en Railway.\n' +
-      '  2. VITE_BACKEND_URL apunta al backend NO al frontend.\n' +
-      '  3. VITE_BACKEND_URL empieza con https:// y NO lleva / al final.\n' +
-      '  4. Redes privada / pública en Railway permiten tráfico HTTPS.'
-    )
-  }
+  let lastError = null
+  for (let intento = 1; intento <= MAX_RETRIES; intento++) {
+    let res
+    try {
+      res = await fetch(url, { method: 'POST', headers, body: fdBase })
+    } catch (networkError) {
+      lastError = networkError
+      if (intento < MAX_RETRIES) {
+        const wait = 800 * intento
+        console.warn(`[processFullPipeline] retry=${intento} network → wait=${wait}ms`)
+        await new Promise(r => setTimeout(r, wait))
+        continue
+      }
+      console.error('[processFullPipeline] X NETWORK ERROR fetch (agotados reintentos):', networkError?.message || networkError)
+      throw new Error(
+        '🌐 NO SE PUDO CONECTAR CON EL SERVIDOR DE IA.\n\n' +
+        `Dominio que intentó: ${base || '(VACÍO — falta configurar VITE_BACKEND_URL)'}\n\n` +
+        `Detalle de red: ${networkError?.message || String(networkError)}\n\n` +
+        'Verifica:\n' +
+        '  1. El servicio backend está deployado en Railway.\n' +
+        '  2. VITE_BACKEND_URL apunta al backend NO al frontend.\n' +
+        '  3. VITE_BACKEND_URL empieza con https:// y NO lleva / al final.\n' +
+        '  4. Redes privada / pública en Railway permiten tráfico HTTPS.'
+      )
+    }
 
-  console.info('[processFullPipeline] ← HTTP Status del backend:', res.status, res.statusText)
-  let payload = null
-  try {
-    payload = await res.json()
-  } catch (e) {
-    const txt = await res.text()
-    console.error('[processFullPipeline] ← Respuesta NO JSON del backend:', txt.substring(0, 300))
-    throw new Error(
-      `⚠️ Backend respondió con error.\n\n` +
-      `Código HTTP: ${res.status} ${res.statusText}\n\n` +
-      `Respuesta corta: ${txt.substring(0, 220)}`
-    )
+    console.info('[processFullPipeline] ← HTTP Status del backend (intento ' + intento + '):', res.status, res.statusText)
+
+    // ✅ HTTP 503 overloaded: reintento según Retry-After header (1s por defecto)
+    if (res.status === 503) {
+      let waitMs = 1000
+      try {
+        const json = await res.json().catch(() => null)
+        waitMs = Math.min(4000, Math.max(500, ((json || {}).retry_after_ms) || ((res.headers.get('Retry-After') || '1') | 0) * 1000))
+      } catch {}
+      if (intento < MAX_RETRIES) {
+        console.warn(`[processFullPipeline] retry=${intento} 503 overloaded → wait=${waitMs}ms`)
+        await new Promise(r => setTimeout(r, waitMs))
+        continue
+      }
+    }
+
+    let payload = null
+    try {
+      payload = await res.json()
+    } catch (e) {
+      const txt = await res.text()
+      console.error('[processFullPipeline] ← Respuesta NO JSON del backend:', txt.substring(0, 300))
+      throw new Error(
+        `⚠️ Backend respondió con error.\n\n` +
+        `Código HTTP: ${res.status} ${res.statusText}\n\n` +
+        `Respuesta corta: ${txt.substring(0, 220)}`
+      )
+    }
+    if (!res.ok) {
+      if (res.status === 503 && intento < MAX_RETRIES) continue
+      console.error('[processFullPipeline] ← Backend HTTP NOT OK, payload:', payload)
+      throw new Error(
+        `⚠️ NO SE PUDO PROCESAR LA FOTO EN EL SERVIDOR.\n\n` +
+        `Código HTTP: ${res.status}\n` +
+        `Detalle del servidor: ${payload?.detail || payload?.error || JSON.stringify(payload).substring(0, 200)}\n\n` +
+        `Endpoint usado: ${url}`
+      )
+    }
+    if (!payload?.ok || !payload?.url) {
+      console.error('[processFullPipeline] ← Backend respondió OK pero faltaba .ok o .url en payload:', payload)
+      throw new Error('El servidor respondió OK pero no devolvió la URL de la foto. Vuelve a intentarlo.')
+    }
+    const composed = payload.preview && typeof payload.preview === 'string'
+      ? payload.preview
+      : payload.url
+    console.info('[processFullPipeline] ✅ Éxito en intento ' + intento + '. fotoId=' + (payload.id || 'sin-id') + ' | URL pública=' + payload.url)
+    return {
+      noBg: null,
+      composed,
+      composedServerUrl: payload.url,
+      serverPreview: payload.preview || null,
+      id: payload.id,
+      filename: payload.filename,
+      escenario_nombre: payload.escenario_nombre,
+      modelo_ia: payload.modelo_ia,
+      timings_ms: payload.timings_ms || null,
+      type: 'server-public',
+      url: payload.url,
+      localBlob: generateLocalDownloadUrl(composed),
+    }
   }
-  if (!res.ok) {
-    console.error('[processFullPipeline] ← Backend HTTP NOT OK, payload:', payload)
-    throw new Error(
-      `⚠️ NO SE PUDO PROCESAR LA FOTO EN EL SERVIDOR.\n\n` +
-      `Código HTTP: ${res.status}\n` +
-      `Detalle del servidor: ${payload?.detail || payload?.error || JSON.stringify(payload).substring(0, 200)}\n\n` +
-      `Endpoint usado: ${url}`
-    )
-  }
-  if (!payload?.ok || !payload?.url) {
-    console.error('[processFullPipeline] ← Backend respondió OK pero faltaba .ok o .url en payload:', payload)
-    throw new Error('El servidor respondió OK pero no devolvió la URL de la foto. Vuelve a intentarlo.')
-  }
-  const composed = payload.preview && typeof payload.preview === 'string'
-    ? payload.preview
-    : payload.url
-  console.info('[processFullPipeline] ✅ Éxito. fotoId=' + (payload.id || 'sin-id') + ' | URL pública=' + payload.url)
-  return {
-    noBg: null,
-    composed,
-    composedServerUrl: payload.url,
-    serverPreview: payload.preview || null,
-    id: payload.id,
-    filename: payload.filename,
-    escenario_nombre: payload.escenario_nombre,
-    modelo_ia: payload.modelo_ia,
-    timings_ms: payload.timings_ms || null,
-    type: 'server-public',
-    url: payload.url,
-    localBlob: generateLocalDownloadUrl(composed),
-  }
+  // Llegar aquí significa que agotamos retries y falló en todos (503 persistentemente o error).
+  throw new Error(
+    `⚠️ Servidor saturado o no respondió luego de ${MAX_RETRIES} intentos. Por favor reintenta en 2 segundos.\n\nEndpoint: ${url}`
+  )
 }
 
 export async function processFullPipeline(fotoBase64, escenario) {

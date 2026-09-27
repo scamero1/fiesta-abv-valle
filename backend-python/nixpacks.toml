@@ -17,4 +17,5 @@ cmds = [
 cmds = []
 
 [start]
-cmd = "export PATH=/opt/venv/bin:$PATH && which uvicorn && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --timeout-keep-alive 900 --timeout-graceful-shutdown 300"
+# ✅ START evento 10K: Workers 2 + concurrency 16 (Procfile copia exacta)
+cmd = "export PATH=/opt/venv/bin:$PATH && export OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MKL_NUM_THREADS=2 ORT_OMP_NUM_THREADS=2 NUMEXPR_NUM_THREADS=2 && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2 --limit-concurrency 16 --backlog 2048 --timeout-keep-alive 180 --timeout-graceful-shutdown 180"

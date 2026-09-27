@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext.jsx'
 import { ESCENARIOS } from '../data/escenarios.js'
 import { processFullPipeline } from '../services/imageProcessor.js'
-import { LegalDisclaimer, StepperPaso } from '../components/BrandComponents.jsx'
+import { StepperPaso } from '../components/BrandComponents.jsx'
 import '../styles/seleccionEscenario.css'
 
 const ERROR_MSG_SIMPLE = 'No pudimos crear tu foto: Revisa que la tableta tenga conexión a la red del evento.'
@@ -215,8 +215,6 @@ export default function SeleccionEscenario() {
           </div>
         </div>
       )}
-
-      <LegalDisclaimer variant="footer-sticky" />
     </div>
   )
 }

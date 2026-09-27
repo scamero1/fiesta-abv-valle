@@ -45,7 +45,7 @@
 
 .resultado-content {
   padding-top: clamp(4px, 1dvh, 14px);
-  padding-bottom: calc(var(--legal-h) + var(--pad-safe-b) + 12px);
+  padding-bottom: calc(var(--legal-h) + var(--pad-safe-b) + 14px) !important;
   gap: clamp(6px, 1.4dvh, 18px);
   align-items: stretch;
   justify-content: flex-start;

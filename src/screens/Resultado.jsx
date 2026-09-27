@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { QRCodeCanvas } from 'qrcode.react'
 import { useApp } from '../context/AppContext.jsx'
 import { shareImageDirect } from '../services/imageProcessor.js'
-import { LegalDisclaimer, StepperPaso } from '../components/BrandComponents.jsx'
+import { StepperPaso } from '../components/BrandComponents.jsx'
 import '../styles/resultado.css'
 
 export default function Resultado() {
@@ -144,8 +144,6 @@ export default function Resultado() {
           </div>
         </div>
       </div>
-
-      <LegalDisclaimer variant="footer-sticky" />
     </div>
   )
 }

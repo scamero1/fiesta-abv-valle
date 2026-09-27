@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { LegalDisclaimer, StepperPaso } from '../components/BrandComponents.jsx'
+import { StepperPaso } from '../components/BrandComponents.jsx'
 import '../styles/instrucciones.css'
 
 const PASOS = [
@@ -77,8 +77,6 @@ export default function Instrucciones() {
           </button>
         </div>
       </div>
-
-      <LegalDisclaimer variant="footer-sticky" />
     </div>
   )
 }

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Webcam from 'react-webcam'
 import { useApp } from '../context/AppContext.jsx'
-import { LegalDisclaimer, StepperPaso } from '../components/BrandComponents.jsx'
+import { StepperPaso } from '../components/BrandComponents.jsx'
 import '../styles/camara.css'
 
 const TARGET_RATIO = 16 / 9
@@ -345,8 +345,6 @@ export default function Camara() {
             Todos los botones están AHORA DENTRO DEL VIEWPORT. */}
         <div className={`ctl ${preview ? 'ctl-preview' : 'ctl-capture'}`} style={{ display: 'none', height: 0, minHeight: 0, flex: 0 }} aria-hidden="true"></div>
       </div>
-
-      <LegalDisclaimer variant="footer-sticky" />
     </div>
   )
 }

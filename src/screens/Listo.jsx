@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext.jsx'
-import { LegalDisclaimer } from '../components/BrandComponents.jsx'
 import '../styles/listo.css'
 
 export default function Listo() {
@@ -70,7 +69,6 @@ export default function Listo() {
           </button>
         </div>
       </div>
-      <LegalDisclaimer variant="footer-sticky" />
     </div>
   )
 }

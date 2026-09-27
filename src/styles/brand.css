@@ -13,11 +13,15 @@
   flex: 0 0 auto;
 }
 
-.legal-footer,
-.legal-disclaimer.legal-footer.legal-stripe-black {
+/* ======================================================================
+   NUCLEAR LEGAL FOOTER FIX: Especificidad MÁXIMA (selector 4 niveles) +
+   todos !important + bottom hardcodeado a 0 sin calc fallback.
+   ====================================================================== */
+html body .app-container .legal-footer,
+html body .legal-footer,
+html body .legal-disclaimer.legal-footer.legal-stripe-black {
   position: fixed !important;
-  bottom: 0px !important;
-  bottom: calc(0px + env(safe-area-inset-bottom, 0px)) !important;
+  bottom: 0 !important;
   left: 0 !important;
   right: 0 !important;
   width: 100% !important;
@@ -25,14 +29,23 @@
   min-height: var(--legal-h, 44px);
   height: var(--legal-h, 44px) !important;
   background: #000000 !important;
-  padding: 0 24px calc(env(safe-area-inset-bottom, 0px) * 0.35) 24px !important;
+  padding: 0 24px 0 24px !important;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) * 0.25) !important;
   margin: 0 !important;
+  margin-bottom: 0 !important;
   border: 0 !important;
   border-radius: 0 !important;
-  z-index: var(--z-legal, 9999);
+  z-index: 9999 !important;
   flex: 0 0 auto;
-  transform: none !important;
+  transform: translateY(0) !important;
   box-sizing: border-box !important;
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: none !important;
+}
+html body .legal-disclaimer.legal-footer.legal-stripe-black {
+  position: fixed !important;
 }
 
 .legal-inner,
@@ -238,14 +251,18 @@
 /* Landscape TCL 800h — Componentes GLOBALES (Slogan / Legal / Stepper / Logos / Botones CTA)
    TOKENS HARD Landscape TCL 1280×800 10.1" PWA standalone */
 @media (orientation: landscape) and (min-width: 1200px) and (max-width: 1399px) and (min-height: 600px) {
-  /* LEGAL FOOTER (franja negra 44px → 36px compacto TCL) */
-  .legal-footer, .legal-disclaimer.legal-footer.legal-stripe-black {
+  /* LEGAL FOOTER (franja negra 44px → 36px compacto TCL */
+  html body .legal-footer, html body .legal-disclaimer.legal-footer.legal-stripe-black {
     position: fixed !important;
-    bottom: 0px !important;
-    bottom: calc(0px + env(safe-area-inset-bottom, 0px)) !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
     min-height: 36px !important;
     height: 36px !important;
-    padding: 0 18px calc(env(safe-area-inset-bottom, 0px) * 0.35) 18px !important;
+    padding: 0 18px 0px 18px !important;
+    margin-bottom: 0 !important;
+    z-index: 9999 !important;
   }
   .legal-text, .legal-inner.legal-inner-black .legal-text {
     font-size: 0.8125rem !important;  /* 13px exacto legal reglamentario */

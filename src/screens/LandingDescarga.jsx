@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { LegalDisclaimer, SloganVaConTodo } from '../components/BrandComponents.jsx'
+import { SloganVaConTodo } from '../components/BrandComponents.jsx'
 import '../styles/landing.css'
 
 export default function LandingDescarga() {
@@ -174,8 +174,6 @@ export default function LandingDescarga() {
           </div>
         </div>
       </div>
-
-      <LegalDisclaimer variant="footer-sticky" />
     </div>
   )
 }

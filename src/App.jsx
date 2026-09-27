@@ -22,6 +22,10 @@ export default function App() {
         <Route path="/foto/:id" element={<LandingDescarga />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      {/* ✅ LEGAL ÚNICO GLOBAL MONTADO SIEMPRE FUERA DE CUALQUIER SCREEN —
+           NUNCA se desmonta por navegación, position: fixed funciona CORRECTAMENTE
+           pegado al borde físico 100svh del app-container. */}
+      <LegalDisclaimer variant="footer-sticky" />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext.jsx'
-import { LegalDisclaimer, SloganVaConTodo } from '../components/BrandComponents.jsx'
+import { SloganVaConTodo } from '../components/BrandComponents.jsx'
 import '../styles/bienvenida.css'
 
 const BOTELLAS = [
@@ -85,8 +85,6 @@ export default function Bienvenida() {
           </div>
         </div>
       </div>
-
-      <LegalDisclaimer variant="footer-sticky" />
     </div>
   )
 }

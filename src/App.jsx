@@ -4,6 +4,7 @@ import Bienvenida from './screens/Bienvenida.jsx'
 import Instrucciones from './screens/Instrucciones.jsx'
 import Camara from './screens/Camara.jsx'
 import SeleccionEscenario from './screens/SeleccionEscenario.jsx'
+import ConfirmarVistaPrevia from './screens/ConfirmarVistaPrevia.jsx'
 import Resultado from './screens/Resultado.jsx'
 import Listo from './screens/Listo.jsx'
 import LandingDescarga from './screens/LandingDescarga.jsx'
@@ -17,6 +18,7 @@ export default function App() {
         <Route path="/instrucciones" element={<Instrucciones />} />
         <Route path="/camara" element={<Camara />} />
         <Route path="/escenario" element={<SeleccionEscenario />} />
+        <Route path="/preview" element={<ConfirmarVistaPrevia />} />
         <Route path="/resultado" element={<Resultado />} />
         <Route path="/listo" element={<Listo />} />
         <Route path="/foto/:id" element={<LandingDescarga />} />

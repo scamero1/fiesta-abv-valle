@@ -1,0 +1,35 @@
+.preview-header{height:var(--header-h);min-height:var(--header-h);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;justify-items:center;padding:0 var(--screen-pad-x);width:100%;flex:0 0 auto}
+.preview-header .header-left{grid-column:1/2;justify-self:start;width:100%;display:flex;align-items:center}
+.preview-header .header-middle{grid-column:2/3;justify-self:center;width:auto;padding:0;display:flex;align-items:center}
+.preview-header .header-right{grid-column:3/4;justify-self:end;width:100%;max-width:none;min-width:0;display:flex;align-items:center;justify-content:flex-end}
+.preview-titulo-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;gap:0;min-width:0}
+.preview-titulo{margin:0!important;font-size:clamp(1.5rem,2.4dvw,2.2rem);font-weight:900;line-height:1.1;letter-spacing:-.01em;color:var(--tx);word-break:normal!important;white-space:nowrap;min-width:min-content}
+.preview-content{padding-top:clamp(6px,1.2dvh,16px);padding-bottom:calc(var(--legal-h) + var(--pad-safe-b) + 32px)!important;gap:clamp(10px,1.8dvh,22px);align-items:stretch;justify-content:flex-start;width:100%;flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.preview-main{display:flex;flex-direction:row;align-items:stretch;justify-content:space-between;gap:20px;padding:0 26px;width:100%;flex:1 1 auto;min-height:0;box-sizing:border-box}
+.preview-foto-wrap{flex:1.45 1 0%;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;width:100%}
+.preview-foto,.foto-final-frame{aspect-ratio:16/9;border-radius:22px;border:4px solid var(--oro);overflow:hidden;box-shadow:0 20px 52px -18px rgba(0,0,0,.75);background:#0a122a;width:min(100%,1020px);min-width:0;max-height:100%;display:block;contain:layout paint;flex:0 0 auto}
+.preview-foto-img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;user-select:none}
+.preview-acciones{flex:1 1 0%;min-width:0;min-height:0;display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:18px;width:100%}
+.preview-pregunta{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:6px;padding:6px 4px 10px}
+.preview-pregunta-titulo{margin:0;font-size:clamp(1.2rem,2dvw,1.6rem);font-weight:800;line-height:1.15;color:var(--tx)}
+.preview-pregunta-sub{margin:0;font-size:clamp(.9rem,1.4dvw,1.05rem);font-weight:500;line-height:1.35;color:#dbe6ff;opacity:.92}
+.preview-botones{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:14px;width:100%;min-width:0}
+.btn-preview-confirmar,.btn-preview-cambiar{width:100%!important;min-height:clamp(60px,8dvh,72px);max-height:clamp(60px,8dvh,72px);font-size:clamp(1.1rem,1.8dvw,1.45rem)!important;font-weight:900!important;padding:12px 28px!important;border-radius:18px!important;line-height:1.15;white-space:nowrap;min-width:0;text-align:center}
+.btn-preview-confirmar{background:linear-gradient(180deg,#E4002B 0%,#b9151f 100%);color:#fff!important;border:3px solid rgba(255,255,255,.38)!important;box-shadow:0 14px 30px -10px rgba(228,0,43,.55),inset 0 -4px 0 rgba(0,0,0,.18);transition:transform .15s var(--ease),box-shadow .15s var(--ease)}
+.btn-preview-confirmar:active{transform:translateY(2px);box-shadow:0 8px 20px -8px rgba(228,0,43,.55),inset 0 -2px 0 rgba(0,0,0,.18)}
+.btn-preview-cambiar{background:rgba(255,255,255,.08)!important;color:var(--tx)!important;border:3px solid rgba(255,255,255,.42)!important;box-shadow:0 10px 24px -14px rgba(0,0,0,.6)}
+.btn-preview-cambiar:active{transform:translateY(2px)}
+@media (orientation:landscape) and (min-height:500px) and (max-height:900px) and (min-width:800px) and (max-width:1399px){.preview-header{padding:0 28px;height:44px;min-height:44px}
+.preview-titulo{font-size:1.85rem!important}
+.preview-content{padding-bottom:calc(var(--legal-h) + var(--pad-safe-b) + 40px)!important}
+.preview-main{gap:18px;padding:0 24px}
+.preview-foto,.foto-final-frame{min-width:860px;min-height:480px;border-radius:22px;border-width:4px}
+.preview-pregunta-titulo{font-size:1.45rem!important}
+.preview-pregunta-sub{font-size:.95rem!important}
+.btn-preview-confirmar,.btn-preview-cambiar{min-height:58px!important;max-height:58px!important;font-size:1.25rem!important}}
+@media (orientation:portrait){.preview-main{flex-direction:column;justify-content:flex-start;gap:16px}
+.preview-foto-wrap{flex:0 0 auto;width:100%}
+.preview-foto,.foto-final-frame{width:100%;min-width:0}
+.preview-acciones{flex:1 1 auto}}
+.anim-in{animation:in .25s var(--ease) both}
+@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}

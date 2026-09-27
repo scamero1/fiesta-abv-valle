@@ -86,7 +86,9 @@ export default function SeleccionEscenario() {
       })
 
       limpiarTimeout()
-      setTimeout(() => navigate('/resultado'), 380)
+      // ✅ FLOW NUEVO: PRIMERO Vista Previa CONFIRMACIÓN (NO directamente resultado).
+      //    Si usuario confirma → genera QR. Si no → vuelve a menú selección (NO cámara, NO repite IA).
+      setTimeout(() => navigate('/preview'), 200)
     } catch (error) {
       if (cancelado) return
       limpiarTimeout()

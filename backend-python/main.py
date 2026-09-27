@@ -8,6 +8,16 @@
 #    Sin lock: 4 tablets concurrentes crashean proceso con InternalError/Segmentation Fault.
 # 3. Rate limit básico concurrente (8 máx): >8 retorna HTTP 503 Service Unavailable sin caer.
 # ============================================================
+import os
+import sys
+import io
+import uuid
+import time
+import json
+import shutil
+import tempfile
+from pathlib import Path
+from typing import Optional, Tuple, Dict, Any
 # ✅ TUNING ONNX RUNTIME / OPENBLAS / MKL: 2 HILOS = MÁXIMA VELOCIDAD en Railway 2 vCPU
 os.environ.setdefault("OMP_NUM_THREADS", "2")
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "2")

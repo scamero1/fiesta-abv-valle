@@ -1221,22 +1221,189 @@ def draw_logo_pastilla(composed: Image.Image) -> Image.Image:
     return composed
 
 
+# ==============================================================================
+# HELPERS NUEVOS CALIDAD DE RECORTE y COMPOSICION (L6 nueva especificacion)
+# SIN dependencia scipy (solo Pillow + NumPy). Union-Find connected_components propio.
+# ==============================================================================
+def _alpha_erode(alpha_pil: Image.Image, radius_px: int = 1) -> Image.Image:
+    """Erosiona el alfa 1-2 px (quitar halo / borde claro residual)."""
+    if radius_px <= 0:
+        return alpha_pil.copy()
+    from PIL import ImageFilter
+    return alpha_pil.filter(ImageFilter.MinFilter(size=2 * radius_px + 1))
+
+
+def _alpha_dilate(alpha_pil: Image.Image, radius_px: int = 1) -> Image.Image:
+    if radius_px <= 0:
+        return alpha_pil.copy()
+    from PIL import ImageFilter
+    return alpha_pil.filter(ImageFilter.MaxFilter(size=2 * radius_px + 1))
+
+
+def _binary_dilate_np(mask_bool: np.ndarray, iterations: int = 2) -> np.ndarray:
+    """Dilatación binaria SIN scipy: usa Pillow MaxFilter sobre imagen L binaria."""
+    if iterations <= 0 or not mask_bool.any():
+        return mask_bool.copy()
+    arr = (mask_bool.astype(np.uint8) * 255)
+    img = Image.fromarray(arr, mode="L")
+    from PIL import ImageFilter
+    k = 2 * iterations + 1
+    img = img.filter(ImageFilter.MaxFilter(size=k))
+    return np.asarray(img, dtype=np.uint8) > 127
+
+
+def _decontaminate_border(rgba_pil: Image.Image, erosion_r: int = 2) -> Image.Image:
+    """Descontamina el color del borde: en alfa parcial, reemplaza RGB por el
+    color interior cercano (evita halo claro/blanco/gris de fondo residual).
+    SIN scipy."""
+    arr = np.asarray(rgba_pil, dtype=np.uint8)
+    h, w = arr.shape[:2]
+    rgb = arr[..., :3].astype(np.int16)
+    a = arr[..., 3].astype(np.float32) / 255.0
+
+    # Interior: píxeles con alfa ~1 (core puro de la persona, sin borde).
+    a_core_bool = (a >= 0.92)
+    # Dilatamos el core: binary_dilate con erosion_r+2 iteraciones (sin scipy)
+    core_dil = _binary_dilate_np(a_core_bool, iterations=erosion_r + 2)
+    # Borde: píxeles con alfa parcial (0.06 < alfa < 0.92) dentro de core_dil.
+    border_mask = ((a > 0.06) & (a < 0.92)) & core_dil
+    if not border_mask.any():
+        return rgba_pil.copy()
+
+    # Color promedio interior core
+    if not a_core_bool.any():
+        return rgba_pil.copy()
+    avg_r = float(np.mean(rgb[a_core_bool, 0]))
+    avg_g = float(np.mean(rgb[a_core_bool, 1]))
+    avg_b = float(np.mean(rgb[a_core_bool, 2]))
+
+    rgb_new = rgb.copy()
+    bm = border_mask
+    weight = (1.0 - a[bm])[:, None]
+    weight = np.clip(weight, 0.0, 0.95)
+    interior = np.array([avg_r, avg_g, avg_b], dtype=np.float32)
+    rgb_new[bm] = (
+        rgb[bm].astype(np.float32) * (1.0 - weight)
+        + interior * weight
+    ).astype(np.int16)
+
+    out = np.zeros_like(arr)
+    out[..., :3] = np.clip(rgb_new, 0, 255).astype(np.uint8)
+    out[..., 3] = arr[..., 3]
+    return Image.fromarray(out, mode="RGBA")
+
+
+def _feather_on_landscape_only(
+    persona_rgba_local: Image.Image,
+    mascara_ventana_local: Image.Image,
+    feather_px: float = 1.8,
+) -> Image.Image:
+    """Aplica feather suave SOLO en el contorno sobre el paisaje.
+    ENTRADAS MISMO TAMAÑO (coords LOCALES del bbox persona, NO canvas global):
+      - persona_rgba_local: RGBA de la persona resize + crop bbox (fw x fh).
+      - mascara_ventana_local: canal L de la MÁSCARA VENTANA recortada en la misma
+        región (fw x fh). 255 = interior paisaje, 0 = marco azul/blanco.
+    Donde mascara_ventana_local=0 (marco) el recorte sigue DURO.
+    SIN scipy.
+    """
+    if feather_px <= 0:
+        return persona_rgba_local.copy()
+    fw_local, fh_local = persona_rgba_local.size
+    mw, mh = mascara_ventana_local.size
+    if (fw_local, fh_local) != (mw, mh):
+        return persona_rgba_local.copy()
+    from PIL import ImageFilter
+    radius = max(1, int(round(feather_px)))
+    alpha_orig = persona_rgba_local.split()[-1]
+    alpha_soft = alpha_orig.filter(ImageFilter.GaussianBlur(radius=radius))
+    # Frontera suave persona (alfa parcial, contorno real del cutout)
+    arr_a_orig = np.asarray(alpha_orig)
+    contour = (arr_a_orig > 5) & (arr_a_orig < 250)
+    # Solo aplicar feather DENTRO del paisaje (mascara ventana > 0)
+    arr_masc_local = np.asarray(mascara_ventana_local)
+    contour_landscape = contour & (arr_masc_local > 0)
+    if not contour_landscape.any():
+        return persona_rgba_local.copy()
+    # Dilatacion (sin scipy): 2 iteraciones -> 5x5 MaxFilter
+    contour_landscape = _binary_dilate_np(contour_landscape, iterations=2)
+    arr_a_soft = np.asarray(alpha_soft).astype(np.uint8)
+    arr_a_new = arr_a_orig.copy()
+    arr_a_new[contour_landscape] = arr_a_soft[contour_landscape]
+    out = persona_rgba_local.copy()
+    out.putalpha(Image.fromarray(arr_a_new, mode="L"))
+    return out
+
+
+def _detect_n_personas_from_components(
+    alpha_crop: np.ndarray,
+    min_area_ratio: float = 0.08,
+) -> str:
+    """Cuenta componentes conexas 8-vecindad con área >= min_area_ratio * max_area.
+    Usa UNION-FIND connected_components propio (no scipy).
+    Retorna '1' / '2' / '3+'."""
+    a = (alpha_crop >= 15).astype(np.uint8)
+    if a.sum() < 64:
+        return "2"
+    try:
+        labels, n_labels = connected_components(a)
+    except Exception:
+        return "2"
+    # labels es np.ndarray shape=alpha_crop.shape, background = 0 probable
+    if n_labels <= 1:
+        return "1"
+    flat_labels = labels.ravel().astype(np.int64)
+    counts = np.bincount(flat_labels)
+    # Ignorar label 0 si es fondo
+    if len(counts) > 0 and counts[0] == flat_labels.size and n_labels == 1:
+        return "1"
+    # Obtener areas (solo labels 1..n_labels)
+    start_i = 1 if counts.size > 1 else 0
+    areas = counts[start_i:start_i + n_labels] if start_i + n_labels <= counts.size else counts
+    areas = areas[areas > 0]
+    if areas.size == 0:
+        return "2"
+    max_area = float(areas.max())
+    threshold = max_area * min_area_ratio
+    count_main = int(np.sum(areas >= threshold))
+    if count_main <= 0:
+        return "2"
+    if count_main == 1:
+        return "1"
+    if count_main == 2:
+        return "2"
+    return "3+"
+
+
+def _get_cfg_for_n(v2_block: dict, key_cfg: str, n: str) -> tuple[list, float]:
+    """Obtiene rango y default del sub-bloque cfg por nro personas."""
+    sub = v2_block.get(key_cfg, {})
+    cfg = sub.get(n) or sub.get("2") or sub.get("1") or {}
+    rango = list(cfg.get("rango", [0.30, 0.50]))
+    default = float(cfg.get("default", (rango[0] + rango[1]) / 2.0))
+    if cfg.get("modelo_medido_override") is not None:
+        default = float(cfg["modelo_medido_override"])
+    return rango, default
+
+
 def compose_full(
     persona_rgba: Image.Image,
     escenario_id: str,
     alpha_matting: bool = True,
 ) -> Image.Image:
     """
-    PROMPT MAESTRO - Composicion NUEVA (reglas 1 a 8):
-      0) FONDO SAGRADO: solo se copia 1:1 del cache ya resized a 1920x1080 LANCZOS.
-      1) PERSONA: pipeline anti-croma -> componentes conexas -> crop bbox real
-                 -> escala por ALTURA (fraccion alto ventana paisaje)
-                 -> anclaje 5px POR DEBAJO de y_base (borde inf paisaje)
-                 -> posicion horizontal por escenario (centro X pct canvas)
-                 -> RECORTE DURO alfa * mascara_ventana (sin feather ni halo)
-      2) COMPOSICION: canvas = fondo.copy().paste(persona, (x,y), alfa_masked)
-      3) REGLA4: validacion numerica diferencia 0 fuera de persona.
+    NUEVA ESPECIFICACION L1-L7 (2026-09-28):
+      0) FONDO SAGRADO: solo se copia 1:1 del cache 1920x1080 (1 resize LANCZOS).
+      1) ESCALA POR ANCHO del bbox alfa: 1pers 0.27-0.31, 2pers 0.38-0.46, 3+ 0.50-0.55 del canvas_w. Max 0.55.
+      2) POS VERTICAL POR TOPE CABEZA (rango pct canvas_h por escenario + n_personas). y_top = tope_cabeza_target.
+      3) COBERTURA INF OBLIGATORIA: bottom = y_top + alto_escalado >= y_base + 4px.
+           Si no: baja persona hasta bottom = y_base+4; si cabeza < rango_inf - 0.10, sube escala minimo hasta 0.55 ancho.
+      4) MARGEN SUPERIOR: tope alfa >= ventana_top + 12px y fuera keep-outs (slogan/logo). Si no -> reduce escala.
+      5) POS HORIZONTAL: centro bbox en rango pct canvas_w por escenario. Restricciones estatua CR / mural MS.
+      6) CALIDAD RECORTE: erosion 1-2px alfa, descontaminar borde, feather 1.5-2px SOLO sobre paisaje (DURO contra marco). Eliminar islas pequeñas >= 8% area.
+      7) SIN offsets fijos. Sin clonar/repintar fondo. Marco/título/logo/slogan/legal 100% intactos.
+    VALIDACION: Regla4 diff=0 fuera de alfa persona.
     """
+    CANVAS_W, CANVAS_H = 1920, 1080
     # ------------------------------------------------------------------
     # PASO 1: RESOLVER escenario_id -> key JSON + fondo cacheado
     # ------------------------------------------------------------------
@@ -1252,53 +1419,23 @@ def compose_full(
         esc = ESCENARIOS_JSON[key]
         fondo = FONDOS_CACHE[key].copy()
         mascara_ventana_full = MASCARAS_VENTANA[key]
-        # Coords desde JSON:
-        y_base_px = int(esc["y_base_px"])                     # 987 (borde inf paisaje, LIMITE MARCO)
-        # BASELINE NUEVO ESPECIFICO x ESCENARIO: SUELO REAL del paisaje donde PISAN las personas:
-        #   CR: 870 (ladrillo rojo mirador) / MS:905 (vereda) / PV:910 (calzada)
-        #   Si no existe el campo -> fallback: 25px ARRIBA de y_base_px = 962
-        baseline_personas_px = int(esc.get("baseline_personas_px", y_base_px - 25))
-        y_top_px = int(esc["ventana_paisaje_px"]["y_top_paisaje"])  # 89
-        alto_ventana_paisaje = y_base_px - y_top_px            # ~898
+        y_base_px = int(esc["y_base_px"])                     # 987
+        y_top_px_ventana = int(esc["ventana_paisaje_px"]["y_top_paisaje"])  # 89
+        alto_ventana_paisaje = y_base_px - y_top_px_ventana   # ~898
         ancho_inf_ventana = int(esc["ventana_paisaje_px"].get("ancho_ventana_inf_px", 1816))
-        # keep-outs en px:
         kslog = esc.get("keep_out_slogan_px", {}).get("bbox", [134, 140, 499, 432])
         klogo = esc.get("keep_out_logo_px", {}).get("bbox", [1536, 21, 1891, 237])
-        # Valores recomendados:
-        vr = esc.get("valores_recomendados", {})
-        escala_altura_min, escala_altura_max = vr.get("escala_altura_ventana", [0.58, 0.65])
-        escala_altura_default = round((escala_altura_min + escala_altura_max) / 2, 3)
-        cx_pct_min, cx_pct_max = vr.get("centro_horizontal_pct_canvas", [0.48, 0.52])
-        cx_pct_default = round((cx_pct_min + cx_pct_max) / 2, 3)
-        # NUEVA ESTRATEGIA: CABEZA PX como FUENTE PRIMARIA DE VERDAD:
-        cabeza_pct_min, cabeza_pct_max = vr.get("cabeza_pct_canvas", [0.16, 0.21])
-        cabeza_pct_default = round((cabeza_pct_min + cabeza_pct_max) / 2, 3)
-        cabeza_target_default_px = int(CANVAS_H * cabeza_pct_default)
+        v2 = esc.get("valores_recomendados_v2", {})
+        ANCHO_MAX_GLOBAL_PCT = float(v2.get("ancho_max_global_pct_canvas", 0.55))
+        MARGEN_SUP_MIN_PX = int(v2.get("margen_superior_min_px", 12))
+        MARGEN_LAT_MIN_PX = int(v2.get("margen_lateral_min_px", 12))
+        RESTR_ESP = v2.get("restricciones_especiales", {}) or {}
+        KEEP_ESTATUA_PCT = RESTR_ESP.get("keep_out_estatua_cabeza_brazos_pct")
+        BORDE_DER_MAX_PCT = RESTR_ESP.get("borde_der_grupo_max_pct")
         using_cache = True
-        _which_source = f"[OK JSON key={key}] bl={baseline_personas_px} cabeza={cabeza_pct_default:.3f}({cabeza_target_default_px}px)"
+        _which_source = f"[OK v2 JSON key={key}] y_base={y_base_px} vent_top={y_top_px_ventana}"
     else:
-        # FALLBACK INTELIGENTE POR KEY (nunca usar valores fijos genericos)
-        FALLBACK_CFG = {
-            "cristorey":   {"escala": 0.39, "cx": 0.50, "cabeza_pct": 0.155, "baseline_px": 870},
-            "museosalsa":  {"escala": 0.52, "cx": 0.30, "cabeza_pct": 0.165, "baseline_px": 905},
-            "plazavarela": {"escala": 0.71, "cx": 0.40, "cabeza_pct": 0.165, "baseline_px": 910},
-        }
-        fallback_key = key if key in FALLBACK_CFG else None
-        if fallback_key is None:
-            for k in FALLBACK_CFG:
-                if k in (escenario_id or ""):
-                    fallback_key = k
-                    break
-            if fallback_key is None:
-                fallback_key = "museosalsa"
-        fb = FALLBACK_CFG[fallback_key]
-        escala_altura_default = fb["escala"]
-        cx_pct_default = fb["cx"]
-        cabeza_pct_default = fb["cabeza_pct"]
-        cabeza_target_default_px = int(CANVAS_H * cabeza_pct_default)
-        baseline_personas_px = fb["baseline_px"]
-
-        # Fondo y mascara:
+        # Fallback minimalista (no debería suceder nunca con JSON actual)
         fondo_pil = load_asset(cfg_old["backgroundImg"]) if cfg_old.get("backgroundImg") else None
         using_cache = False
         if fondo_pil is not None:
@@ -1311,221 +1448,306 @@ def compose_full(
             fondo = gradient_cover(CANVAS_W, CANVAS_H, cfg_old["fallback_gradient"][0], cfg_old["fallback_gradient"][1]).convert("RGBA")
         mascara_ventana_full = Image.new("L", (CANVAS_W, CANVAS_H), 255)
         y_base_px = 987
-        y_top_px = 89
-        alto_ventana_paisaje = y_base_px - y_top_px
+        y_top_px_ventana = 89
+        alto_ventana_paisaje = y_base_px - y_top_px_ventana
         ancho_inf_ventana = 1816
         kslog = [134, 140, 499, 432]
         klogo = [1536, 21, 1891, 237]
-        _which_source = f"[FALLBACK key={fallback_key}] bl={baseline_personas_px} cabeza={cabeza_pct_default:.3f}({cabeza_target_default_px}px)"
+        ANCHO_MAX_GLOBAL_PCT = 0.55
+        MARGEN_SUP_MIN_PX = 12
+        MARGEN_LAT_MIN_PX = 12
+        KEEP_ESTATUA_PCT = None
+        BORDE_DER_MAX_PCT = None
+        # fallback cfg v2 por key
+        FALLBACK_V2 = {
+            "cristorey":   {"a_1":[0.27,0.31,0.29],"a_2":[0.38,0.46,0.41],"a_3+":[0.50,0.55,0.525],"t_1":[0.40,0.45,0.425],"t_2":[0.40,0.45,0.425],"t_3+":[0.40,0.45,0.425],"cx_1":[0.50,0.55,0.525],"cx_2":[0.50,0.55,0.525],"cx_3+":[0.50,0.55,0.525]},
+            "museosalsa":  {"a_1":[0.27,0.31,0.29],"a_2":[0.38,0.48,0.47],"a_3+":[0.50,0.55,0.525],"t_1":[0.38,0.44,0.410],"t_2":[0.38,0.44,0.410],"t_3+":[0.38,0.44,0.410],"cx_1":[0.30,0.38,0.340],"cx_2":[0.30,0.38,0.340],"cx_3+":[0.30,0.38,0.340]},
+            "plazavarela": {"a_1":[0.27,0.31,0.29],"a_2":[0.38,0.46,0.42],"a_3+":[0.50,0.55,0.525],"t_1":[0.20,0.28,0.240],"t_2":[0.34,0.42,0.380],"t_3+":[0.34,0.42,0.380],"cx_1":[0.42,0.47,0.445],"cx_2":[0.42,0.47,0.445],"cx_3+":[0.42,0.47,0.445]},
+        }
+        fbk = key if key in FALLBACK_V2 else "museosalsa"
+        _fb = FALLBACK_V2[fbk]
+        v2 = {"ancho_objetivo_pct_canvas_por_personas": {},
+              "tope_cabeza_pct_canvas_por_personas": {},
+              "centro_x_pct_canvas_por_personas": {}}
+        for n, suf in (("1","1"),("2","2"),("3+","3+")):
+            lo,hi,med = _fb[f"a_{suf}"]
+            v2["ancho_objetivo_pct_canvas_por_personas"][n] = {"rango":[lo,hi],"default":med,"modelo_medido_override":None}
+            lo,hi,med = _fb[f"t_{suf}"]
+            v2["tope_cabeza_pct_canvas_por_personas"][n] = {"rango":[lo,hi],"default":med}
+            lo,hi,med = _fb[f"cx_{suf}"]
+            v2["centro_x_pct_canvas_por_personas"][n] = {"rango":[lo,hi],"default":med}
+        _which_source = f"[FALLBACK v2 key={fbk}]"
+
     print(f"[compose_full] esc_id={escenario_id!r} -> {_which_source}")
 
     # ------------------------------------------------------------------
     # PASO 2: Pipeline persona (anti-croma, componentes, crop)
     # ------------------------------------------------------------------
     persona_rgba = persona_rgba.convert("RGBA")
-    # Pipeline actual (mantener): closing radius=6 + 2do pass + feather 3px
     persona_no_holes = close_alpha_holes(persona_rgba, radius_px=6)
-    # OJO: Feather SÓLO en el CONTORNO de la persona (NO contra marco,
-    # el recorte DURO con mascara_ventana elimina feather en el borde del marco).
-    persona_clean = feather_borders_alpha(persona_no_holes, feather_px=3)
 
-    # Filtrado de componentes conexas (eliminar manchas)
+    # ==================================================================
+    # NUEVO PASO 6 INICIO (pre-calidad): erosión 1-2px + eliminar islas
+    # ==================================================================
+    alpha_pil = persona_no_holes.split()[-1]
+    # erosion 1.5px aproximado (MinFilter 3x3 = 1px, luego un extra en componente suave)
+    alpha_eroded_1 = _alpha_erode(alpha_pil, radius_px=1)
+    persona_eroded = persona_no_holes.copy()
+    persona_eroded.putalpha(alpha_eroded_1)
+
+    # Umbral alfa > 15 + eliminar islas pequeñas (componentes conexas < 25% area mayor)
     try:
-        alpha_clean = np.asarray(persona_clean.split()[-1], dtype=np.uint8)
-        alpha_filt = filter_person_components(alpha_clean, min_area_ratio=0.25)
-        persona_filt = persona_clean.copy()
-        persona_filt.putalpha(Image.fromarray(alpha_filt, mode="L"))
+        alpha_clean_arr = np.asarray(persona_eroded.split()[-1], dtype=np.uint8)
+        alpha_filt_arr = filter_person_components(alpha_clean_arr, min_area_ratio=0.25)
+        persona_filt = persona_eroded.copy()
+        persona_filt.putalpha(Image.fromarray(alpha_filt_arr, mode="L"))
     except Exception:
-        persona_filt = persona_clean
+        persona_filt = persona_eroded
 
-    # Crop al BBOX REAL del alfa > 15 (PASO 2.1)
+    # Crop al BBOX REAL del alfa >= 15
     bbox = get_alpha_content_bbox(persona_filt, alpha_min=15)
     if bbox is None:
         bbox = (0, 0, persona_filt.size[0], persona_filt.size[1])
-    pad = 8
+    pad = 6
     iw, ih = persona_filt.size
     cr = persona_filt.crop((
         max(0, bbox[0] - pad), max(0, bbox[1] - pad),
         min(iw, bbox[2] + pad), min(ih, bbox[3] + pad),
     ))
     crop_w, crop_h = cr.size
+    alpha_crop_arr = np.asarray(cr.split()[-1], dtype=np.uint8)
 
-    # ==============================================================================
-    #  NUEVA ESTRATEGIA PASO 2.3  (SOLUCION DEFINITIVA a Cristo Rey persona grande)
-    # ==============================================================================
-    # ESCALA = min ( escala x CABEZA EN PIXELES , escala x ALTURA VENTANA )
-    #   Causa raiz anterior: fotos CINTURA (crop_h ~ 40% del cuerpo completo) al
-    #   multiplicar por escala x altura ventana daba personas GIGANTES.
-    #   Solucion: ESCALA POR CABEZA = cabeza_target_pixels / cabeza_original_pixels
-    #   Garantiza que sin importar tipo foto (cintura/cuerpo/grupo) las cabezas
-    #   son 14-18% del canvas (151-194 px) => Cristo Rey cabeza perfecta.
-    # ==============================================================================
-    ANCHO_MAX_PCT_VENTANA = 0.55
-    MARGEN_LATERAL_PX = 20
-    MARGEN_SUPERIOR_PX = 20
+    # Detectar N personas para elegir rangos
+    n_pers = _detect_n_personas_from_components(alpha_crop_arr, min_area_ratio=0.08)
+    print(f"[compose_full] n_personas detectado={n_pers!r} crop_w={crop_w} crop_h={crop_h}")
 
-    # PASO 2.3.1 CABEZA ORIGINAL en el crop (18% alto del crop BBOX REAL de alfa).
-    #   robusto para CUALQUIER foto:
-    #     - cuerpo entero: ~15% crop_h es cabeza.
-    #     - cintura hacia arriba: ~22% crop_h es cabeza.
-    #     - grupo de 3: 18% mayor altura.
-    head_orig_px = max(50, int(crop_h * 0.18))
-    # PASO 2.3.2 CABEZA TARGET leida DE JSON x ESCENARIO (cristorey=0.155 * 1080 = 167 px)
-    head_target_px = cabeza_target_default_px
-    # PASO 2.3.3 ESCALA CABEZA y ESCALA VENTANA:
-    scale_cabeza = head_target_px / max(1, head_orig_px)
-    target_h_ventana = int(round(alto_ventana_paisaje * escala_altura_default))
-    scale_ventana = target_h_ventana / max(1, crop_h)
-    # ESCALA FINAL = la MÁS PEQUEÑA (ambas protegen; cabeza es la que gana en fotos cortas)
-    scale = min(scale_cabeza, scale_ventana)
+    # Rangos por N personas (L1, L2, L5):
+    ancho_rng, ancho_default = _get_cfg_for_n(v2, "ancho_objetivo_pct_canvas_por_personas", n_pers)
+    tope_rng, tope_default   = _get_cfg_for_n(v2, "tope_cabeza_pct_canvas_por_personas", n_pers)
+    cx_rng, cx_default       = _get_cfg_for_n(v2, "centro_x_pct_canvas_por_personas", n_pers)
 
-    # Dimensiones target
-    target_h = max(1, int(round(crop_h * scale)))
+    # ================================================================
+    # NUEVA LÓGICA 1-5 DE POSICIONAMIENTO Y ESCALA
+    # ================================================================
+    # L1 ESCALA INICIAL POR ANCHO del bbox (no por altura).
+    ancho_target_px = int(round(CANVAS_W * ancho_default))
+    ancho_target_px = min(ancho_target_px, int(round(CANVAS_W * ANCHO_MAX_GLOBAL_PCT)))
+    scale = ancho_target_px / max(1, crop_w)
     target_w = max(1, int(round(crop_w * scale)))
+    target_h = max(1, int(round(crop_h * scale)))
 
-    # PASO 2.4: Limite ancho max (55% ancho inf ventana)
-    ancho_max = int(ancho_inf_ventana * ANCHO_MAX_PCT_VENTANA)
-    if target_w > ancho_max:
-        red = ancho_max / max(1, target_w)
-        target_w = int(target_w * red)
-        target_h = int(target_h * red)
-        scale = scale * red
-
-    # PASO 2.4.b Clamp CABEZA MIN/MAX por seguridad (rango JSON del escenario)
-    head_px_est_post = int(head_orig_px * scale)
-    head_clamp_min_px = int(CANVAS_H * cabeza_pct_min)
-    head_clamp_max_px = int(CANVAS_H * cabeza_pct_max)
-    if head_px_est_post < head_clamp_min_px:
-        mul = head_clamp_min_px / max(1, head_px_est_post)
-        target_h = int(min(target_h * mul, CANVAS_H * 0.95))
-        target_w = int(round(crop_w * (target_h / max(1, crop_h))))
-        scale = target_h / max(1, crop_h)
-    elif head_px_est_post > head_clamp_max_px:
-        mul = head_clamp_max_px / max(1, head_px_est_post)
-        target_h = int(target_h * mul)
-        target_w = int(round(crop_w * (target_h / max(1, crop_h))))
-        scale = target_h / max(1, crop_h)
-
+    # Resize inicial por ancho (L1)
     fitted = cr.resize((target_w, target_h), Image.LANCZOS)
     fw, fh = fitted.size
 
-    # ------------------------------------------------------------------
-    # PASO 2.5: ANCLAJE por BASELINE ESPECIFICO DEL ESCENARIO (NO y_base_px=987)
-    # ------------------------------------------------------------------
-    # Baselines MEDIDOS VISUALMENTE en el SUELO del paisaje:
-    #   CR=870 (ladrillo rojo mirador detras de balaustrada riel negro)
-    #   MS=905 (suelo tierra/vereda de el mural)
-    #   PV=910 (calzada gris monumento trompetas)
-    # Anclaje: PIXEL INFERIOR REAL de la persona (max Y alfa >= 15) se coloca
-    #          en baseline - 2 (2px arriba del suelo del paisaje)
-    # Esto resuelve el bug user: "sigue saliendo desde la linea blanca para
-    # arriba; necesito que empiece DESDE EL PAISAJE para arriba".
-    try:
-        alfa_fit = np.asarray(fitted.split()[-1])
-        ys_fit = np.where(alfa_fit >= 15)[0]
-        if len(ys_fit) == 0:
-            max_y_in_fitted = fh - 1
-        else:
-            max_y_in_fitted = int(ys_fit.max())
-    except Exception:
-        max_y_in_fitted = fh - 1
+    # Helper: calcular tope (min Y del alfa >= 15) y bottom dentro del fitted.
+    def _calc_tope_bottom(fit_img):
+        a = np.asarray(fit_img.split()[-1])
+        ys = np.where(a >= 15)[0]
+        if len(ys) == 0:
+            return 0, fit_img.size[1] - 1
+        return int(ys.min()), int(ys.max())
 
-    y_deseado_borde_inf = baseline_personas_px - 2
-    y = y_deseado_borde_inf - max_y_in_fitted
-    base_persona_y = y + fh
+    tope_in_fitted, bottom_in_fitted = _calc_tope_bottom(fitted)
+    # L2 POSICION VERTICAL INICIAL: y = tope_default * CANVAS_H - tope_in_fitted
+    y = int(round(tope_default * CANVAS_H)) - tope_in_fitted
+    # L5 POSICION H INICIAL: centro_x = cx_default * CANVAS_W
+    x = int(round(cx_default * CANVAS_W)) - (fw // 2)
 
-    # X: centro horizontal por escenario
-    centro_x_canvas = int(CANVAS_W * cx_pct_default)
-    x = centro_x_canvas - (fw // 2)
+    # Keep-out estatua CR (zona x 0.47-0.53, y 0.14-0.30 NO debe cubrir persona)
+    keep_estatua_bbox_px = None
+    if KEEP_ESTATUA_PCT and len(KEEP_ESTATUA_PCT) == 4:
+        keep_estatua_bbox_px = [
+            int(KEEP_ESTATUA_PCT[0] * CANVAS_W), int(KEEP_ESTATUA_PCT[1] * CANVAS_H),
+            int(KEEP_ESTATUA_PCT[2] * CANVAS_W), int(KEEP_ESTATUA_PCT[3] * CANVAS_H),
+        ]
 
-    # Helper reposicionar anclaje DESPUES de cualquier resize posterior (keep-outs/clamp)
-    def _reposicionar_anclaje():
-        nonlocal max_y_in_fitted, y, base_persona_y, fw, fh
-        try:
-            alfa_fit2 = np.asarray(fitted.split()[-1])
-            ys_fit2 = np.where(alfa_fit2 >= 15)[0]
-            if len(ys_fit2) == 0:
-                max_y_in_fitted = fh - 1
-            else:
-                max_y_in_fitted = int(ys_fit2.max())
-        except Exception:
-            max_y_in_fitted = fh - 1
-        y = y_deseado_borde_inf - max_y_in_fitted
-        base_persona_y = y + fh
+    # Helper: bbox de persona en canvas coords
+    def _pers_bbox(xx, yy, ww, hh):
+        return [xx, yy, xx + ww, yy + hh]
 
-    # Margenes
-    vent_izq_min = 52
-    vent_der_max = 1868
-    x_min = vent_izq_min + MARGEN_LATERAL_PX
-    x_max = vent_der_max - MARGEN_LATERAL_PX - fw
-    x = max(x_min, min(x_max, x))
-
-    y_min = y_top_px + MARGEN_SUPERIOR_PX
-    if y < y_min:
-        necesito_fh_max = base_persona_y - y_min
-        if necesito_fh_max > 4 and fh > necesito_fh_max:
-            red = necesito_fh_max / max(1, fh)
-            new_fw = max(1, int(fw * red))
-            new_fh = max(1, int(fh * red))
-            fitted = fitted.resize((new_fw, new_fh), Image.LANCZOS)
-            fw, fh = new_fw, new_fh
-            _reposicionar_anclaje()
-            x = centro_x_canvas - (fw // 2)
-            x_min = vent_izq_min + MARGEN_LATERAL_PX
-            x_max = vent_der_max - MARGEN_LATERAL_PX - fw
-            x = max(x_min, min(x_max, x))
-
-    # ------------------------------------------------------------------
-    # PASO 2.7: Keep-outs slogan / pastilla. Si invade -> desplazar, reducir.
-    # ------------------------------------------------------------------
-    def bbox_intersects(a, b):
+    def _intersect(a, b):
         return not (a[2] <= b[0] or a[0] >= b[2] or a[3] <= b[1] or a[1] >= b[3])
-    pers_bbox = [x, y, x + fw, y + fh]
-    for tries in range(6):
-        invadi = False
-        for kb in (kslog, klogo):
-            if kb and bbox_intersects(pers_bbox, kb):
-                invadi = True
-                break
-        if not invadi:
-            break
-        # 1) intentar desplazar a la derecha o izquierda
-        if pers_bbox[0] < kslog[2] and pers_bbox[2] > kslog[0]:
-            # Mover a la DERECHA del slogan
-            nx = kslog[2] + 8
-            centro_x_canvas = nx + fw // 2
-            x = nx
-            x_min = vent_izq_min + MARGEN_LATERAL_PX
-            x_max = vent_der_max - MARGEN_LATERAL_PX - fw
-            x = max(x_min, min(x_max, x))
-        if pers_bbox[2] > klogo[0] and pers_bbox[0] < klogo[2]:
-            # Mover a la IZQUIERDA de la pastilla
-            nx = klogo[0] - fw - 8
-            centro_x_canvas = nx + fw // 2
-            x = nx
-            x_min = vent_izq_min + MARGEN_LATERAL_PX
-            x_max = vent_der_max - MARGEN_LATERAL_PX - fw
-            x = max(x_min, min(x_max, x))
-        pers_bbox = [x, y, x + fw, y + fh]
-        if bbox_intersects(pers_bbox, kslog) or bbox_intersects(pers_bbox, klogo):
-            # 2) último recurso: reducir 10% la escala
-            red = 0.90
-            new_fw = max(2, int(fw * red))
-            new_fh = max(2, int(fh * red))
-            fitted = fitted.resize((new_fw, new_fh), Image.LANCZOS)
-            fw, fh = new_fw, new_fh
-            _reposicionar_anclaje()
-            x = centro_x_canvas - (fw // 2)
-            x_min = vent_izq_min + MARGEN_LATERAL_PX
-            x_max = vent_der_max - MARGEN_LATERAL_PX - fw
-            x = max(x_min, min(x_max, x))
-            pers_bbox = [x, y, x + fw, y + fh]
 
-    # ------------------------------------------------------------------
-    # PASO 2.8: RECORTE DURO. alfa_final = alfa_persona * mascara_ventana.
-    # Sin feather: 0 o 255 donde toca el marco (evita halos contra azul/blanco).
-    # ------------------------------------------------------------------
-    # 1) Extraer sub-imagen de la mascara_ventana en coords x,y,fw,fh
+    max_iter = 10
+    for _ in range(max_iter):
+        changed = False
+        tope_in_fitted, bottom_in_fitted = _calc_tope_bottom(fitted)
+        fw, fh = fitted.size
+        bbox_canvas = _pers_bbox(x, y, fw, fh)
+        bottom_canvas = y + bottom_in_fitted
+        tope_canvas_real = y + tope_in_fitted
+
+        # L3 COBERTURA INF OBLIGATORIA: bottom_canvas >= y_base_px + 4
+        if bottom_canvas < y_base_px + 4:
+            # Bajar la persona para que bottom_canvas = y_base + 4
+            dy = (y_base_px + 4) - bottom_canvas
+            # Pero la cabeza (tope_canvas_real) no debe bajar de tope_rng[0] - 0.10 * CANVAS_H
+            tope_max_allowed = int(round((tope_rng[0] - 0.10) * CANVAS_H))
+            # La cabeza nueva después de mover: tope_canvas_real + dy
+            if tope_canvas_real + dy <= tope_max_allowed:
+                # OK mover
+                y += dy
+                changed = True
+            else:
+                # Mover hasta el tope_max_allowed y luego SUBIR escala hasta 0.55 ancho.
+                dy_move = tope_max_allowed - tope_canvas_real
+                y += max(0, dy_move)
+                # Calcular cuánta escala hace falta para que bottom_canvas llegue a y_base+4.
+                # nuevo_bottom_target = y_base_px + 4 - y (inferior del fitted en canvas)
+                target_bottom_local = (y_base_px + 4) - y
+                if target_bottom_local > bottom_in_fitted:
+                    need_scale = target_bottom_local / max(1, bottom_in_fitted)
+                    new_scale = scale * need_scale
+                    # Verificar que ancho no supere ANCHO_MAX_GLOBAL_PCT.
+                    new_cw = int(round(crop_w * new_scale))
+                    max_cw = int(round(CANVAS_W * ANCHO_MAX_GLOBAL_PCT))
+                    if new_cw <= max_cw:
+                        scale = new_scale
+                    else:
+                        scale = max_cw / max(1, crop_w)
+                    target_w = max(1, int(round(crop_w * scale)))
+                    target_h = max(1, int(round(crop_h * scale)))
+                    fitted = cr.resize((target_w, target_h), Image.LANCZOS)
+                    fw, fh = fitted.size
+                    # re-posicionar X por el centro por default
+                    x = int(round(cx_default * CANVAS_W)) - (fw // 2)
+                    changed = True
+
+        # Actualizar valores post cambio
+        tope_in_fitted, bottom_in_fitted = _calc_tope_bottom(fitted)
+        tope_canvas_real = y + tope_in_fitted
+
+        # L4 MARGEN SUPERIOR: tope_canvas_real >= ventana_top + MARGEN_SUP_MIN_PX
+        #                    Y tope_canvas_real >= 12px debajo de kslog[1] (slogan top) y no invadir kslog/klogo
+        min_y_tope = max(y_top_px_ventana + MARGEN_SUP_MIN_PX, kslog[1] + MARGEN_SUP_MIN_PX)
+        if tope_canvas_real < min_y_tope:
+            # Opcion 1: bajar la persona (aumentar y), siempre que L3 siga OK
+            dy_min = min_y_tope - tope_canvas_real
+            # Verificar que después de bajar, bottom_canvas siga >= y_base+4 (o si no, re-aplicar L3 luego)
+            # Pero si baja mucho, puede romper L3: preferimos REDUCE escala.
+            target_bottom_local = (y_base_px + 4) - y
+            if bottom_in_fitted + dy_min <= target_bottom_local:
+                y += dy_min
+            else:
+                # reducir escala para que tope quede en min_y_tope y bottom siga >= y_base+4.
+                # La cabeza (tope_in_fitted) tiene que quedar en min_y_tope - y => local min_tope_local.
+                # => new_scale tal que new_tope_in_fitted ≈ (min_y_tope - y). Y además new_bottom_in_fitted >= target_bottom_local.
+                # Escala por el factor que reduce altura:
+                espacio_disponible_hasta_base = (y_base_px + 4) - min_y_tope  # altura total disponible
+                # Necesitamos fh * (bottom_in_fitted - tope_in_fitted)/old_fh <= espacio_disponible... más fácil: factor = espacio / (old_bottom - old_tope)
+                alt_util_orig = bottom_in_fitted - tope_in_fitted
+                if alt_util_orig > 4:
+                    factor = espacio_disponible_hasta_base / max(1, alt_util_orig)
+                    factor = min(1.0, factor)  # solo reducir
+                    new_scale = scale * factor
+                    new_cw = max(1, int(round(crop_w * new_scale)))
+                    new_ch = max(1, int(round(crop_h * new_scale)))
+                    # verificar ancho mínimo rango
+                    min_cw_rango = int(round(CANVAS_W * ancho_rng[0]))
+                    if new_cw < min_cw_rango:
+                        # mantener mínimo (aceptar margen superior invadido mejor que achicar demasiado)
+                        pass
+                    else:
+                        scale = new_scale
+                        fitted = cr.resize((new_cw, new_ch), Image.LANCZOS)
+                        fw, fh = fitted.size
+            changed = True
+
+        # Releer después de L4
+        tope_in_fitted, bottom_in_fitted = _calc_tope_bottom(fitted)
+        fw, fh = fitted.size
+        tope_canvas_real = y + tope_in_fitted
+        bottom_canvas = y + bottom_in_fitted
+
+        # Bucle keep-outs slogan / pastilla (si invade, achicar escala ligeramente)
+        for __ in range(4):
+            bbox_canvas = _pers_bbox(x, y, fw, fh)
+            hit = False
+            for kb in (kslog, klogo):
+                if kb and _intersect(bbox_canvas, kb):
+                    hit = True
+                    break
+            if keep_estatua_bbox_px and _intersect(bbox_canvas, keep_estatua_bbox_px):
+                hit = True
+            if not hit:
+                break
+            factor = 0.93
+            scale *= factor
+            target_w = max(1, int(round(crop_w * scale)))
+            target_h = max(1, int(round(crop_h * scale)))
+            fitted = cr.resize((target_w, target_h), Image.LANCZOS)
+            fw, fh = fitted.size
+            tope_in_fitted, bottom_in_fitted = _calc_tope_bottom(fitted)
+            # recentrar X y recalcular Y para mantener tope_default
+            y = int(round(tope_default * CANVAS_H)) - tope_in_fitted
+            x = int(round(cx_default * CANVAS_W)) - (fw // 2)
+            changed = True
+
+        # L5 POS HORIZONTAL: clamp a cx_rango y restricciones especiales
+        cx_actual = (x + fw / 2.0) / CANVAS_W
+        cx_min_px = int(round(cx_rng[0] * CANVAS_W)) - fw // 2
+        cx_max_px = int(round(cx_rng[1] * CANVAS_W)) - fw // 2
+        vent_izq_min = 52
+        vent_der_max = 1868
+        x_min_abs = max(cx_min_px, vent_izq_min + MARGEN_LAT_MIN_PX)
+        x_max_abs = min(cx_max_px, vent_der_max - MARGEN_LAT_MIN_PX - fw)
+        if BORDE_DER_MAX_PCT is not None:
+            # Borde derecho del grupo <= BORDE_DER_MAX_PCT para MS mural
+            borde_der_max_px = int(round(BORDE_DER_MAX_PCT * CANVAS_W)) - fw
+            x_max_abs = min(x_max_abs, borde_der_max_px)
+        if x < x_min_abs:
+            x = x_min_abs
+            changed = True
+        if x > x_max_abs:
+            x = x_max_abs
+            changed = True
+
+        # Verificar nuevamente L3 después de achicar escala
+        tope_in_fitted, bottom_in_fitted = _calc_tope_bottom(fitted)
+        bottom_canvas = y + bottom_in_fitted
+        if bottom_canvas < y_base_px + 4:
+            # Subir un poco la escala para cumplir L3
+            target_bottom_local = (y_base_px + 4) - y
+            if target_bottom_local > bottom_in_fitted and target_bottom_local > 20:
+                need = target_bottom_local / max(1, bottom_in_fitted)
+                new_scale = scale * need
+                new_cw = int(round(crop_w * new_scale))
+                max_cw = int(round(CANVAS_W * ANCHO_MAX_GLOBAL_PCT))
+                min_cw_rango = int(round(CANVAS_W * ancho_rng[0]))
+                if new_cw <= max_cw and new_cw >= int(0.9 * min_cw_rango):
+                    scale = new_scale
+                    target_w = max(1, new_cw)
+                    target_h = max(1, int(round(crop_h * scale)))
+                    fitted = cr.resize((target_w, target_h), Image.LANCZOS)
+                    fw, fh = fitted.size
+                    changed = True
+
+        if not changed:
+            break
+
+    # Último ajuste L3: si aún bottom_canvas < y_base+4 (por mínimos), bajar persona aunque supere un poco el tope.
+    tope_in_fitted, bottom_in_fitted = _calc_tope_bottom(fitted)
+    bottom_canvas = y + bottom_in_fitted
+    if bottom_canvas < y_base_px + 4:
+        dy = (y_base_px + 4) - bottom_canvas
+        y += dy
+        tope_in_fitted, bottom_in_fitted = _calc_tope_bottom(fitted)
+
+    fw, fh = fitted.size
+    print(f"[compose_full] result escala={scale:.3f} target_ancho={fw/CANVAS_W:.3f}(rng {ancho_rng[0]:.2f}-{ancho_rng[1]:.2f}) "
+          f"tope_real={(y+tope_in_fitted)/CANVAS_H:.3f}(rng {tope_rng[0]:.2f}-{tope_rng[1]:.2f}) "
+          f"cx={(x+fw/2)/CANVAS_W:.3f}(rng {cx_rng[0]:.2f}-{cx_rng[1]:.2f}) "
+          f"bottom={(y+bottom_in_fitted)} y_base+4={y_base_px+4}")
+
+    # ==================================================================
+    # PASO 2.8 FINAL: RECORTE DURO (alfa persona * mascara_ventana)
+    #   + PASO 6 CALIDAD: descontaminar borde + feather SOLO paisaje
+    # ==================================================================
+    # 6a) Descontaminar color del borde (sacar halo claro)
+    fitted_clean = _decontaminate_border(fitted, erosion_r=2)
+
+    # 6b) Recorte DURO contra mascara_ventana (sin feather contra marco)
     x1_c = max(0, x)
     y1_c = max(0, y)
     x2_c = min(CANVAS_W, x + fw)
@@ -1535,16 +1757,22 @@ def compose_full(
     alfa_recorte = Image.new("L", (fw, fh), 0)
     if sub_w > 0 and sub_h > 0:
         crop_mask_area = mascara_ventana_full.crop((x1_c, y1_c, x2_c, y2_c))
-        # Coordenadas locales dentro de fitted (donde empieza el overlap)
         lx = x1_c - x
         ly = y1_c - y
         alfa_recorte.paste(crop_mask_area, (lx, ly))
-    # Multiplicar: alfa persona * alfa recorte = RECORTE DURO
-    alfa_pers = fitted.split()[-1]
+    alfa_pers = fitted_clean.split()[-1]
     import PIL.ImageChops as _IC
-    alfa_final_mask = _IC.multiply(alfa_pers, alfa_recorte)
-    persona_final = fitted.copy()
-    persona_final.putalpha(alfa_final_mask)
+    alfa_final_hard = _IC.multiply(alfa_pers, alfa_recorte)
+    persona_hard_cut = fitted_clean.copy()
+    persona_hard_cut.putalpha(alfa_final_hard)
+
+    # 6c) Feather SOLO en contorno sobre PAISAJE (NO contra el marco).
+    # Pasamos alfa_recorte (mismo tamaño fw x fh) = máscara de ventana LOCAL.
+    persona_final = _feather_on_landscape_only(persona_hard_cut, alfa_recorte, feather_px=1.8)
+    # Volver a asegurar recorte duro: multiply alfa_recorte nuevamente por si feather expandió alfa al marco.
+    alfa_recheck = persona_final.split()[-1]
+    alfa_recheck = _IC.multiply(alfa_recheck, alfa_recorte)
+    persona_final.putalpha(alfa_recheck)
 
     # ------------------------------------------------------------------
     # PASO 3: COMPOSICION SIMPLE (canvas = fondo.copy(), paste con alfa)
@@ -1552,18 +1780,16 @@ def compose_full(
     canvas = fondo.copy()
     canvas.paste(persona_final, (x, y), persona_final)
 
-    # Si NO usamos cache (fallback viejo sin JPG), pintar barra legal nuestra.
     if not using_cache:
         fondo_pil_exist = (key is None and load_asset(cfg_old.get("backgroundImg", "")) is None)
         if fondo_pil_exist or (not using_cache and cfg_old.get("backgroundImg") and load_asset(cfg_old["backgroundImg"]) is None):
             canvas = draw_legal_bar_minimal(canvas)
 
     # ------------------------------------------------------------------
-    # REGLA 4: Validacion numerica diferencia fuera de la persona = 0
+    # REGLA 4: Validación numérica diferencia = 0 fuera de persona
     # ------------------------------------------------------------------
     try:
         import warnings
-        import numpy as np
         _arr_canvas = np.asarray(canvas.convert("RGB"), dtype=np.int16)
         _arr_fondo = np.asarray(fondo.convert("RGB"), dtype=np.int16)
         _mask_persona = np.zeros((CANVAS_H, CANVAS_W), dtype=bool)
@@ -1594,6 +1820,26 @@ def compose_full(
             RuntimeWarning,
             stacklevel=2,
         )
+
+    # Exportar info de este compose para tests numéricos
+    _last_compose_info = {
+        "escala": round(float(scale), 4),
+        "ancho_pct": round(float(fw) / CANVAS_W, 4),
+        "ancho_rng_min": round(float(ancho_rng[0]), 4),
+        "ancho_rng_max": round(float(ancho_rng[1]), 4),
+        "tope_pct": round(float(y + tope_in_fitted) / CANVAS_H, 4),
+        "tope_rng_min": round(float(tope_rng[0]), 4),
+        "tope_rng_max": round(float(tope_rng[1]), 4),
+        "cx_pct": round(float(x + fw / 2.0) / CANVAS_W, 4),
+        "cx_rng_min": round(float(cx_rng[0]), 4),
+        "cx_rng_max": round(float(cx_rng[1]), 4),
+        "bottom_px": int(y + bottom_in_fitted),
+        "y_base_mas_4": int(y_base_px + 4),
+        "vent_top_px": int(y_top_px_ventana),
+        "tope_abs_px": int(y + tope_in_fitted),
+    }
+    import sys as _sys
+    _sys.modules[__name__]._last_compose_info = _last_compose_info
 
     return canvas
 

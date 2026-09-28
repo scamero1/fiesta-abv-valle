@@ -105,21 +105,30 @@
     },
     "y_base_px": 987,
     "y_base_pct": 0.9139,
-    "baseline_personas_px": 870,
-    "baseline_personas_pct": 0.8056,
-    "valores_recomendados": {
-      "escala_altura_ventana": [
-        0.36,
-        0.42
-      ],
-      "centro_horizontal_pct_canvas": [
-        0.48,
-        0.52
-      ],
-      "cabeza_pct_canvas": [
-        0.14,
-        0.17
-      ]
+    "valores_recomendados_v2": {
+      "_nota": "NUEVA ESPECIFICACION ESCALA POR ANCHO + TOPE CABEZA + COBERTURA INF OBLIGATORIA (L3)",
+      "ancho_objetivo_pct_canvas_por_personas": {
+        "1":   {"rango": [0.27, 0.31], "default": 0.290, "modelo_medido_override": null},
+        "2":   {"rango": [0.38, 0.46], "default": 0.420, "modelo_medido_override": 0.410},
+        "3+":  {"rango": [0.50, 0.55], "default": 0.525, "modelo_medido_override": null}
+      },
+      "ancho_max_global_pct_canvas": 0.55,
+      "tope_cabeza_pct_canvas_por_personas": {
+        "1":   {"rango": [0.40, 0.45], "default": 0.425},
+        "2":   {"rango": [0.40, 0.45], "default": 0.425},
+        "3+":  {"rango": [0.40, 0.45], "default": 0.425}
+      },
+      "centro_x_pct_canvas_por_personas": {
+        "1":   {"rango": [0.50, 0.55], "default": 0.525},
+        "2":   {"rango": [0.50, 0.55], "default": 0.525},
+        "3+":  {"rango": [0.50, 0.55], "default": 0.525}
+      },
+      "margen_superior_min_px": 12,
+      "margen_lateral_min_px": 12,
+      "restricciones_especiales": {
+        "keep_out_estatua_cabeza_brazos_pct": [0.47, 0.14, 0.53, 0.30],
+        "borde_der_grupo_max_pct": null
+      }
     }
   },
   "museosalsa": {
@@ -228,21 +237,30 @@
     },
     "y_base_px": 987,
     "y_base_pct": 0.9139,
-    "baseline_personas_px": 905,
-    "baseline_personas_pct": 0.8380,
-    "valores_recomendados": {
-      "escala_altura_ventana": [
-        0.49,
-        0.55
-      ],
-      "centro_horizontal_pct_canvas": [
-        0.28,
-        0.32
-      ],
-      "cabeza_pct_canvas": [
-        0.15,
-        0.18
-      ]
+    "valores_recomendados_v2": {
+      "_nota": "NUEVA ESPECIFICACION ESCALA POR ANCHO + TOPE CABEZA + COBERTURA INF OBLIGATORIA (L3)",
+      "ancho_objetivo_pct_canvas_por_personas": {
+        "1":   {"rango": [0.27, 0.31], "default": 0.290, "modelo_medido_override": null},
+        "2":   {"rango": [0.38, 0.48], "default": 0.430, "modelo_medido_override": 0.470},
+        "3+":  {"rango": [0.50, 0.55], "default": 0.525, "modelo_medido_override": null}
+      },
+      "ancho_max_global_pct_canvas": 0.55,
+      "tope_cabeza_pct_canvas_por_personas": {
+        "1":   {"rango": [0.38, 0.44], "default": 0.410},
+        "2":   {"rango": [0.38, 0.44], "default": 0.410},
+        "3+":  {"rango": [0.38, 0.44], "default": 0.410}
+      },
+      "centro_x_pct_canvas_por_personas": {
+        "1":   {"rango": [0.30, 0.38], "default": 0.340},
+        "2":   {"rango": [0.30, 0.38], "default": 0.340},
+        "3+":  {"rango": [0.30, 0.38], "default": 0.340}
+      },
+      "margen_superior_min_px": 12,
+      "margen_lateral_min_px": 12,
+      "restricciones_especiales": {
+        "keep_out_estatua_cabeza_brazos_pct": null,
+        "borde_der_grupo_max_pct": 0.52
+      }
     }
   },
   "plazavarela": {
@@ -351,21 +369,30 @@
     },
     "y_base_px": 987,
     "y_base_pct": 0.9139,
-    "baseline_personas_px": 910,
-    "baseline_personas_pct": 0.8426,
-    "valores_recomendados": {
-      "escala_altura_ventana": [
-        0.68,
-        0.74
-      ],
-      "centro_horizontal_pct_canvas": [
-        0.38,
-        0.42
-      ],
-      "cabeza_pct_canvas": [
-        0.15,
-        0.18
-      ]
+    "valores_recomendados_v2": {
+      "_nota": "NUEVA ESPECIFICACION ESCALA POR ANCHO + TOPE CABEZA + COBERTURA INF OBLIGATORIA (L3)",
+      "ancho_objetivo_pct_canvas_por_personas": {
+        "1":   {"rango": [0.27, 0.31], "default": 0.290, "modelo_medido_override": 0.290},
+        "2":   {"rango": [0.38, 0.46], "default": 0.420, "modelo_medido_override": null},
+        "3+":  {"rango": [0.50, 0.55], "default": 0.525, "modelo_medido_override": null}
+      },
+      "ancho_max_global_pct_canvas": 0.55,
+      "tope_cabeza_pct_canvas_por_personas": {
+        "1":   {"rango": [0.20, 0.28], "default": 0.240},
+        "2":   {"rango": [0.34, 0.42], "default": 0.380},
+        "3+":  {"rango": [0.34, 0.42], "default": 0.380}
+      },
+      "centro_x_pct_canvas_por_personas": {
+        "1":   {"rango": [0.42, 0.47], "default": 0.445},
+        "2":   {"rango": [0.42, 0.47], "default": 0.445},
+        "3+":  {"rango": [0.42, 0.47], "default": 0.445}
+      },
+      "margen_superior_min_px": 12,
+      "margen_lateral_min_px": 12,
+      "restricciones_especiales": {
+        "keep_out_estatua_cabeza_brazos_pct": null,
+        "borde_der_grupo_max_pct": null
+      }
     }
   },
   "__meta__": {

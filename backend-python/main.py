@@ -609,10 +609,11 @@ ESCENARIO_CONFIG = {
         "fallback_gradient": ((249, 115, 22), (180, 83, 9)),
         "persona_scale": 0.70,
         "persona_bottom_pct": 0.00,
-        # ✅ Ajuste correcto después error -0.28 (se pasó, tocaba borde blanco izq).
-        # -0.20 = 20% izq (0.20 * FRAME_SAFE_W=1776 = 355px izq del centro).
-        # Resultado: persona NO toca borde izq, al mismo tiempo NO tapa mural de la derecha.
-        "x_offset_pct": -0.20,
+        # ✅ Ajuste correcto tras comparar JPG ORIGINAL vs GENERADO pixel a pixel:
+        # -0.17 = 17% izq. ANTES -0.20 se acercaba mucho al blanco izq (gafas casi lo tocaban).
+        # Resultado: 301.9px izq del centro → persona separada suficiente de blanco izq,
+        #            mural de "Museo de la Salsa" (x=700-1500) 100% visible NO TAPADO.
+        "x_offset_pct": -0.17,
         "persona_target_fill_pct": 0.60,
         "scale_in_frame": 0.60,
         "bottom_from_frame_pct": -0.10,
@@ -625,7 +626,7 @@ ESCENARIO_CONFIG = {
         "fallback_gradient": ((249, 115, 22), (180, 83, 9)),
         "persona_scale": 0.70,
         "persona_bottom_pct": 0.00,
-        "x_offset_pct": -0.20,
+        "x_offset_pct": -0.17,
         "persona_target_fill_pct": 0.60,
         "scale_in_frame": 0.60,
         "bottom_from_frame_pct": -0.10,
@@ -1039,94 +1040,89 @@ def compose_full(
     canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (0, 0, 0, 0))
     canvas.alpha_composite(fondo, (0, 0))
 
-    # ====== 🧹 LIMPIAR OVERLAYS JPG (ESTRATEGIA DEFINITIVA NUEVA — 3 CAPAS).
-    #  FASE 1 = PARCHES DE OBJETOS (totalmente DENTRO del paisaje, NUNCA tocar bordes blancos 8px).
-    #  FASE 2 = REDIBUJAR LOS 4 BORDES BLANCOS 8px PERFECTOS LUEGO DE TODO (soluciona 100% escalones).
-    #  FASE 3 = REDIBUJAR HEADER AZUL COMPLETO PERFECTO (soluciona parche sup-der a medias).
-    #
-    #  COORDENADAS SAGRADAS NO TOCAR ANTES DE FASE 2 (bordes blancos originales JPG):
-    #   x:  48..56    → BORDE BLANCO IZQUIERDO (8px)
-    #   x: 1864..1872 → BORDE BLANCO DERECHO   (8px)
-    #   y:  82..90    → BORDE BLANCO SUPERIOR  (8px)
-    #   y: 1008..1016 → BORDE BLANCO INFERIOR  (8px)
+    # ====== 🧹 LIMPIAR OVERLAYS JPG (ESTRATEGIA DEFINITIVA — CLONADO DESDE FONDO ORIGINAL).
+    #  ERROR RAÍZ DETECTADO tras comparar JPG ORIGINAL vs GENERADO:
+    #    ❌ ANTES: canvas.crop() → clonaba desde CANVAS QUE YA TENÍA PARCHES ANTERIORES O DATOS RAROS.
+    #    ✅ AHORA: clonamos SIEMPRE desde fondo_pil O desde fondo RGBA ORIGINAL (intacto, sin parches).
+    #    ❌ ANTES: slogan clonado x=460 (MUY CERCA DEL SLOGAN EN SÍ, TODAVÍA HABÍA HOJAS CON LAS LETRAS)
+    #    ✅ AHORA: slogan clonado x=720..1116 (720px DESPUÉS del origen) → ZONA 100% LIMPIA SIN SLOGAN NI HOJAS
+    #    ❌ ANTES: destino slogan pequeño 366x280 → dejaba fuera letras y bordes
+    #    ✅ AHORA: destino slogan GRANDE x=44..440 y=120..420 (396x300) → TODO el slogan + un poco de borde alrededor
+    #    ❌ ANTES: x_offset museo -0.20 → cerca del blanco izquierdo
+    #    ✅ AHORA: x_offset -0.17 → 301.9px izq, distancia segura.
 
     draw_limp = None
+    BLANCO_PURO = (255, 255, 255, 255)
 
     # ================================================================
-    # FASE 1 — PARCHES DE OBJETOS (SOLO DENTRO DEL PAISAJE, NUNCA BORDES)
+    # REFERENCIA LIMPIA FIJA: SIEMPRE clonamos DESDE FONDO ORIGINAL intacto.
+    # fondo_pil SIEMPRE es el JPG ORIGINAL DEL ESCENARIO SIN PARCHES (nunca modificado).
     # ================================================================
+    if fondo_pil is not None:
+        fondo_rgba_clone_src = fondo_pil.convert("RGBA")
+    else:
+        fondo_rgba_clone_src = fondo  # fallback al alpha composite si no hay JPG original
 
-    # -------- PARCHE 1.1 INF-IZQ A: SLOGAN "¡VA CON TODO!" 2 líneas --------
-    #   ✅ Destino SAFE (NO toca bordes blancos): [64, 130, 430, 410] (366×280).
-    #      Empieza x=64 (8px DESPUÉS de borde blanco izq 56). Empieza y=130 (40px DESPUÉS de blanco sup 90).
-    #   ✅ Fuente: x=460..826 y=130..410 (366×280).
-    #      396px MÁS A LA DERECHA. En MUSEO: x=460-826 = REJA MAGENTA + PANEL, 100% SIN hojas ni letras.
-    #      En PLAZA VARELA: x=460-826 = CAMINO + TROMPETAS, 100% SIN slogan.
-    #      En CRISTO REY: x=460-826 = CIUDAD + TERRAZA, 100% SIN slogan.
+    # ================================================================
+    # FASE 1 — SLOGAN INF-IZQ "¡VA CON TODO!" 2 líneas.
+    #   CLONADO MUY A LA DERECHA, TAMAÑO MÁS GRANDE PARA COBERTURA TOTAL.
+    # ================================================================
+    SLOGAN_DEST = (44, 120, 440, 420)   # x1=44 y1=120 x2=440 y2=420 → 396x300.
+    # ✅ Cubre TODO el slogan (letras rojas blancas exclamaciones).
+    # ✅ x1=44 empieza EN EL BORDE AZUL EXTERIOR antes de blanco izq → así los bordes
+    #    irregulares de la esquina sup-izq (dientes cortados) también se cubren.
+    SLOGAN_SRC  = (720, 120, 1116, 420)  # Mismo tamaño 396x300.
+    # ✅ x=720 a 1116. EN MUSEO = zona mural magenta/azul/reja (100% limpio SIN hojas SIN letras).
+    # ✅ EN PLAZA VARELA = x=720-1116 zona de cielo/árboles lejanos (limpio).
+    # ✅ EN CRISTO REY = x=720-1116 zona del cielo/ciudad lejana (limpio).
     try:
-        src_slogan = canvas.crop((460, 130, 826, 410))
-        sw, sh = src_slogan.size
-        if sw == 366 and sh == 280:
-            canvas.paste(src_slogan, (64, 130, 430, 410))
+        src_patch = fondo_rgba_clone_src.crop(SLOGAN_SRC)
+        sw, sh = src_patch.size
+        dw, dh = SLOGAN_DEST[2]-SLOGAN_DEST[0], SLOGAN_DEST[3]-SLOGAN_DEST[1]
+        if sw == dw and sh == dh:
+            canvas.paste(src_patch, SLOGAN_DEST)
         else:
-            src_slogan_r = src_slogan.resize((366, 280), resample=Image.LANCZOS)
-            canvas.paste(src_slogan_r, (64, 130, 430, 410))
+            src_patch_r = src_patch.resize((dw, dh), resample=Image.LANCZOS)
+            canvas.paste(src_patch_r, SLOGAN_DEST)
     except Exception as _e1:
         try:
             if draw_limp is None:
                 draw_limp = ImageDraw.Draw(canvas, "RGBA")
-            sr, sg, sb, _ = canvas.getpixel((700, 270))
+            sr, sg, sb, _ = fondo_rgba_clone_src.getpixel((900, 270))
             color_slogan = (int(sr), int(sg), int(sb), 255)
-            draw_limp.rectangle([64, 130, 430, 410], fill=color_slogan)
+            draw_limp.rectangle(SLOGAN_DEST, fill=color_slogan)
         except Exception:
             pass
 
-    # -------- PARCHE 1.2 INF-IZQ B: Texto vertical diminuto abajo --------
-    #   ✅ Destino SAFE: [60, 770, 104, 948] (44×178). No toca bordes blancos.
-    #   ✅ Fuente: x=150..194 y=770..948 (44×178). Panel informativo / suelo.
+    # ================================================================
+    # FASE 2 — TEXTO VERTICAL diminuto inf-izq.
+    # ================================================================
+    VERT_DEST = (52, 760, 112, 956)   # 60x196
+    VERT_SRC  = (170, 760, 230, 956)  # 60x196 - 118px a la derecha, panel informativo / suelo.
     try:
-        src_vert = canvas.crop((150, 770, 194, 948))
-        vw, vh = src_vert.size
-        if vw == 44 and vh == 178:
-            canvas.paste(src_vert, (60, 770, 104, 948))
+        src_vert = fondo_rgba_clone_src.crop(VERT_SRC)
+        sw, sh = src_vert.size
+        dw, dh = VERT_DEST[2]-VERT_DEST[0], VERT_DEST[3]-VERT_DEST[1]
+        if sw == dw and sh == dh:
+            canvas.paste(src_vert, VERT_DEST)
         else:
-            src_vert_r = src_vert.resize((44, 178), resample=Image.LANCZOS)
-            canvas.paste(src_vert_r, (60, 770, 104, 948))
+            src_vert_r = src_vert.resize((dw, dh), resample=Image.LANCZOS)
+            canvas.paste(src_vert_r, VERT_DEST)
     except Exception as _e2:
         try:
             if draw_limp is None:
                 draw_limp = ImageDraw.Draw(canvas, "RGBA")
-            sr, sg, sb, _ = canvas.getpixel((172, 860))
-            color_slogan = (int(sr), int(sg), int(sb), 255)
-            draw_limp.rectangle([60, 770, 104, 948], fill=color_slogan)
+            sr, sg, sb, _ = fondo_rgba_clone_src.getpixel((200, 860))
+            color_v = (int(sr), int(sg), int(sb), 255)
+            draw_limp.rectangle(VERT_DEST, fill=color_v)
         except Exception:
             pass
 
     # ================================================================
-    # FASE 2 — REDIBUJAR LOS 4 BORDES BLANCOS 8px (ELIMINA 100% ESCALONES)
+    # FASE 3 — ESQUINA SUP-DER HEADER AZUL (pastilla FIESTA / BLANCO DEL VALLE)
     # ================================================================
-    BLANCO_PURO = (255, 255, 255, 255)
-    try:
-        if draw_limp is None:
-            draw_limp = ImageDraw.Draw(canvas, "RGBA")
-        # Borde blanco SUPERIOR: x completo [56..1864], y [82..90] (8px)
-        draw_limp.rectangle([56, 82, 1864, 90], fill=BLANCO_PURO)
-        # Borde blanco INFERIOR: x completo [56..1864], y [1008..1016] (8px)
-        draw_limp.rectangle([56, 1008, 1864, 1016], fill=BLANCO_PURO)
-        # Borde blanco IZQUIERDO: todo el alto [90..1008], x [48..56] (8px)
-        draw_limp.rectangle([48, 90, 56, 1008], fill=BLANCO_PURO)
-        # Borde blanco DERECHO: todo el alto [90..1008], x [1864..1872] (8px)
-        draw_limp.rectangle([1864, 90, 1872, 1008], fill=BLANCO_PURO)
-    except Exception:
-        pass
-
-    # ================================================================
-    # FASE 3 — SÓLO ESQUINA DERECHA HEADER AZUL (pastilla FIESTA sup-der)
-    # ================================================================
-    # ⚠️ ATENCIÓN: EL TÍTULO "MUSEO DE LA SALSA / PLAZA VARELA / CRISTO REY" viene YA PINTADO DENTRO DEL JPG ORIGINAL
-    #   en el CENTRO DEL HEADER (x=700..x=1300). NUNCA pintar azul encima de x=0..1604 → TAPARÍA EL TÍTULO.
-    # SÓLO pintamos la ESQUINA SUP-DERECHA donde está la pastilla FIESTA + logo pequeño: x=1604..1920, y=0..82
-    #   (316px de ancho, solo la zona de la pastilla). El título central queda 100% intacto.
+    # ⚠️ NO tocar x=0..1604 → tapa título central del JPG.
+    # Pintar sólido: x=1604..1920  y=0..82
     try:
         if draw_limp is None:
             draw_limp = ImageDraw.Draw(canvas, "RGBA")
@@ -1134,7 +1130,23 @@ def compose_full(
     except Exception:
         pass
 
-    del draw_limp
+    # ================================================================
+    # FASE 4 — REDIBUJAR LOS 4 BORDES BLANCOS 8px (ÚLTIMO PASO SIEMPRE).
+    #   Soluciona 100% cualquier "escalón" o diente irregular.
+    # ================================================================
+    try:
+        if draw_limp is None:
+            draw_limp = ImageDraw.Draw(canvas, "RGBA")
+        draw_limp.rectangle([56, 82, 1864, 90],    fill=BLANCO_PURO)   # sup
+        draw_limp.rectangle([56, 1008, 1864, 1016], fill=BLANCO_PURO)   # inf
+        draw_limp.rectangle([48, 90, 56, 1008],     fill=BLANCO_PURO)   # izq
+        draw_limp.rectangle([1864, 90, 1872, 1008], fill=BLANCO_PURO)   # der
+    except Exception:
+        pass
+
+    if draw_limp is not None:
+        del draw_limp
+    del fondo_rgba_clone_src
 
     # ====== CAPA 1: PERSONA — PIPELINE ANTI-CROMA + IA AUTO-AJUSTE TAMAÑO (scale_in_frame YA NO ES NECESARIO).
     #    Orden estricto:

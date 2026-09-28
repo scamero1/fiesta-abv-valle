@@ -1333,8 +1333,8 @@ def compose_full(
 
     # PASO 2.4: limites ancho y cabeza
     ANCHO_MAX_PCT_VENTANA = 0.55
-    MARGEN_LATERAL_PX = 12
-    MARGEN_SUPERIOR_PX = 12
+    MARGEN_LATERAL_PX = 20
+    MARGEN_SUPERIOR_PX = 20
     ancho_max = int(ancho_inf_ventana * ANCHO_MAX_PCT_VENTANA)
     if target_w > ancho_max:
         red = ancho_max / max(1, target_w)
@@ -1342,12 +1342,12 @@ def compose_full(
         target_h = int(target_h * red)
         scale = scale * red
 
-    # Control cordura CABEZA: 16 a 23 % alto canvas (173 a 248 px aprox 1080)
+    # Control cordura CABEZA: 16 a 21 % alto canvas (173 a 227 px aprox 1080)
     # Estimación cabeza: 23% de la ALTURA CROP original (de arriba)
     head_px_est_orig = int(crop_h * 0.23)
     head_px_est = int(head_px_est_orig * scale)
     HEAD_MIN_PCT = 0.16
-    HEAD_MAX_PCT = 0.23
+    HEAD_MAX_PCT = 0.21
     head_min_px = int(CANVAS_H * HEAD_MIN_PCT)
     head_max_px = int(CANVAS_H * HEAD_MAX_PCT)
     if head_px_est < head_min_px:
@@ -1377,12 +1377,13 @@ def compose_full(
     centro_x_canvas = int(CANVAS_W * cx_pct_default)
     x = centro_x_canvas - (fw // 2)
 
-    # Margin lateral 12px respecto a ventana (blanco/azul IMPOSIBLE por la mascara,
-    # pero mantenemos como 2ª barrera). Usamos extremos de ventana base:
-    vent_izq_aprox = 96 - MARGEN_LATERAL_PX
-    vent_der_aprox = 1822 + MARGEN_LATERAL_PX
-    x_min = vent_izq_aprox + MARGEN_LATERAL_PX
-    x_max = vent_der_aprox - MARGEN_LATERAL_PX - fw
+    # Margin lateral 20px respecto a VENTANA (bordes INFERIORES del paralelogramo inclinado
+    # (los bordes inferiores son mas anchos: BL=52, BR=1868), asi garantizamos
+    # que en los bordes inclinados (superiores BL=96, TR=1822) tambien tengan margen.
+    vent_izq_min = 52
+    vent_der_max = 1868
+    x_min = vent_izq_min + MARGEN_LATERAL_PX
+    x_max = vent_der_max - MARGEN_LATERAL_PX - fw
     x = max(x_min, min(x_max, x))
 
     # Margen superior 12px sobre y_top_px (título/logo -> la persona empieza MUY abajo

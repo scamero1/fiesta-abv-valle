@@ -1267,8 +1267,30 @@ def compose_full(
         cx_pct_min, cx_pct_max = vr.get("centro_horizontal_pct_canvas", [0.48, 0.52])
         cx_pct_default = round((cx_pct_min + cx_pct_max) / 2, 3)
         using_cache = True
+        _which_source = f"[OK JSON key={key}]"
     else:
-        # FALLBACK: modo antiguo (sin JSON/mascara) para mantener retrocompatibilidad
+        # FALLBACK INTELIGENTE POR KEY (nunca usar valores fijos 0.60/0.50 genericos
+        # porque generan la misma posicion/tamano en todos los escenarios).
+        FALLBACK_CFG = {
+            "cristorey":   {"escala": 0.53, "cx": 0.50},
+            "museosalsa":  {"escala": 0.56, "cx": 0.30},
+            "plazavarela": {"escala": 0.78, "cx": 0.40},
+        }
+        # Si key=None, intentamos inferir desde escenario_id:
+        fallback_key = key if key in FALLBACK_CFG else None
+        if fallback_key is None:
+            for k in FALLBACK_CFG:
+                if k in (escenario_id or ""):
+                    fallback_key = k
+                    break
+            if fallback_key is None:
+                # ultimo recurso: museosalsa por defecto
+                fallback_key = "museosalsa"
+        fb = FALLBACK_CFG[fallback_key]
+        escala_altura_default = fb["escala"]
+        cx_pct_default = fb["cx"]
+
+        # Fondo y mascara:
         fondo_pil = load_asset(cfg_old["backgroundImg"]) if cfg_old.get("backgroundImg") else None
         using_cache = False
         if fondo_pil is not None:
@@ -1286,8 +1308,8 @@ def compose_full(
         ancho_inf_ventana = 1816
         kslog = [134, 140, 499, 432]
         klogo = [1536, 21, 1891, 237]
-        escala_altura_default = 0.60
-        cx_pct_default = 0.50
+        _which_source = f"[FALLBACK key={fallback_key}] escala={escala_altura_default} cx={cx_pct_default}"
+    print(f"[compose_full] esc_id={escenario_id!r} -> {_which_source}")
 
     # ------------------------------------------------------------------
     # PASO 2: Pipeline persona (anti-croma, componentes, crop)
@@ -1365,17 +1387,52 @@ def compose_full(
     fw, fh = fitted.size
 
     # ------------------------------------------------------------------
-    # PASO 2.5 + 2.6: Posicion (anclaje inf) + (centro X por escenario)
+    # PASO 2.5: ANCLAJE por BORDE INFERIOR REAL de ALFA (no por fh total)
     # ------------------------------------------------------------------
-    # Anclaje: base de la persona = y_base_px + 5 (4-6px DEBAJO del borde inf)
-    # la mascara del marco recorta el excedente.
-    ANCLAJE_OFFSET_INF_PX = 5
-    base_persona_y = y_base_px + ANCLAJE_OFFSET_INF_PX
-    y = base_persona_y - fh
+    # Regla EXPLICITA del usuario:
+    #   "la persona empiece donde esta el paisaje y desde ahi tome la foto
+    #    osea el final de lo blanco en si"
+    # Interpretacion CORRECTA (no colocar persona DENTRO del marco blanco inf):
+    #   NUNCA que el alfa de persona cruce de y_base_px=987 (inicio del blanco
+    #   inferior) HACIA ABAJO. Por el contrario: colocamos el PIXEL INFERIOR REAL
+    #   (maximo Y con alfa >= 15) a y_base_px - 2 = 985 (2px por encima del borde).
+    # Esto funciona INDEPENDIENTEMENTE del tipo de foto:
+    #   - cuerpo entero (pies)
+    #   - cintura hacia arriba (cintura es el borde inferior)
+    #   - grupo 2-3 personas (la persona mas alta es la que toca la base).
+    try:
+        alfa_fit = np.asarray(fitted.split()[-1])  # uint8 shape (fh, fw)
+        ys_fit = np.where(alfa_fit >= 15)[0]
+        if len(ys_fit) == 0:
+            max_y_in_fitted = fh - 1
+        else:
+            max_y_in_fitted = int(ys_fit.max())
+    except Exception:
+        max_y_in_fitted = fh - 1
+
+    y_deseado_borde_inf = y_base_px - 2  # 2px ARRIBA del blanco inf (987) = 985
+    y = y_deseado_borde_inf - max_y_in_fitted
+    base_persona_y = y + fh  # referencia para clamps (antes era base_persona_y = y_base_px + 5)
 
     # X: centro horizontal (pct del CANVAS)
     centro_x_canvas = int(CANVAS_W * cx_pct_default)
     x = centro_x_canvas - (fw // 2)
+
+    # Helper: despues de cualquier resize de fitted, re-calcular la posicion
+    # anclada al borde inferior real del alfa.
+    def _reposicionar_anclaje():
+        nonlocal max_y_in_fitted, y, base_persona_y, fw, fh
+        try:
+            alfa_fit2 = np.asarray(fitted.split()[-1])
+            ys_fit2 = np.where(alfa_fit2 >= 15)[0]
+            if len(ys_fit2) == 0:
+                max_y_in_fitted = fh - 1
+            else:
+                max_y_in_fitted = int(ys_fit2.max())
+        except Exception:
+            max_y_in_fitted = fh - 1
+        y = y_deseado_borde_inf - max_y_in_fitted
+        base_persona_y = y + fh
 
     # Margin lateral 20px respecto a VENTANA (bordes INFERIORES del paralelogramo inclinado
     # (los bordes inferiores son mas anchos: BL=52, BR=1868), asi garantizamos
@@ -1386,14 +1443,13 @@ def compose_full(
     x_max = vent_der_max - MARGEN_LATERAL_PX - fw
     x = max(x_min, min(x_max, x))
 
-    # Margen superior 12px sobre y_top_px (título/logo -> la persona empieza MUY abajo
+    # Margen superior 20px sobre y_top_px (título/logo -> la persona empieza MUY abajo
     # por diseño, así que esto es solo sanity)
     y_min = y_top_px + MARGEN_SUPERIOR_PX
     # y_max = no se usa, por anclaje inferior (fijo)
     if y < y_min:
         # Subir la escala haría que y sea menor; mejor bajar la escala para que fh
-        # sea menor y y = base - fh aumenta. Alternativa: desplazar.
-        # Optamos por reducir escala.
+        # sea menor y y (calculado desde borde inferior) aumenta.
         necesito_fh_max = base_persona_y - y_min
         if necesito_fh_max > 4 and fh > necesito_fh_max:
             red = necesito_fh_max / max(1, fh)
@@ -1401,9 +1457,11 @@ def compose_full(
             new_fh = max(1, int(fh * red))
             fitted = fitted.resize((new_fw, new_fh), Image.LANCZOS)
             fw, fh = new_fw, new_fh
+            _reposicionar_anclaje()
             x = centro_x_canvas - (fw // 2)
+            x_min = vent_izq_min + MARGEN_LATERAL_PX
+            x_max = vent_der_max - MARGEN_LATERAL_PX - fw
             x = max(x_min, min(x_max, x))
-            y = base_persona_y - fh
 
     # ------------------------------------------------------------------
     # PASO 2.7: Keep-outs slogan / pastilla. Si invade -> desplazar, reducir.
@@ -1425,12 +1483,16 @@ def compose_full(
             nx = kslog[2] + 8
             centro_x_canvas = nx + fw // 2
             x = nx
+            x_min = vent_izq_min + MARGEN_LATERAL_PX
+            x_max = vent_der_max - MARGEN_LATERAL_PX - fw
             x = max(x_min, min(x_max, x))
         if pers_bbox[2] > klogo[0] and pers_bbox[0] < klogo[2]:
             # Mover a la IZQUIERDA de la pastilla
             nx = klogo[0] - fw - 8
             centro_x_canvas = nx + fw // 2
             x = nx
+            x_min = vent_izq_min + MARGEN_LATERAL_PX
+            x_max = vent_der_max - MARGEN_LATERAL_PX - fw
             x = max(x_min, min(x_max, x))
         pers_bbox = [x, y, x + fw, y + fh]
         if bbox_intersects(pers_bbox, kslog) or bbox_intersects(pers_bbox, klogo):
@@ -1440,9 +1502,11 @@ def compose_full(
             new_fh = max(2, int(fh * red))
             fitted = fitted.resize((new_fw, new_fh), Image.LANCZOS)
             fw, fh = new_fw, new_fh
+            _reposicionar_anclaje()
             x = centro_x_canvas - (fw // 2)
+            x_min = vent_izq_min + MARGEN_LATERAL_PX
+            x_max = vent_der_max - MARGEN_LATERAL_PX - fw
             x = max(x_min, min(x_max, x))
-            y = base_persona_y - fh
             pers_bbox = [x, y, x + fw, y + fh]
 
     # ------------------------------------------------------------------

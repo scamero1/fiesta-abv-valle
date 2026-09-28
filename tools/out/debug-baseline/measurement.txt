@@ -1,0 +1,3 @@
+cristorey: baseline=870px | 987 - baseline = 117px (altura "suelo" real arriba de marco)
+museosalsa: baseline=905px | 987 - baseline = 82px (altura "suelo" real arriba de marco)
+plazavarela: baseline=910px | 987 - baseline = 77px (altura "suelo" real arriba de marco)

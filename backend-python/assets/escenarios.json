@@ -105,18 +105,20 @@
     },
     "y_base_px": 987,
     "y_base_pct": 0.9139,
+    "baseline_personas_px": 870,
+    "baseline_personas_pct": 0.8056,
     "valores_recomendados": {
       "escala_altura_ventana": [
-        0.50,
-        0.56
+        0.36,
+        0.42
       ],
       "centro_horizontal_pct_canvas": [
         0.48,
         0.52
       ],
       "cabeza_pct_canvas": [
-        0.16,
-        0.21
+        0.14,
+        0.17
       ]
     }
   },
@@ -226,18 +228,20 @@
     },
     "y_base_px": 987,
     "y_base_pct": 0.9139,
+    "baseline_personas_px": 905,
+    "baseline_personas_pct": 0.8380,
     "valores_recomendados": {
       "escala_altura_ventana": [
-        0.53,
-        0.59
+        0.49,
+        0.55
       ],
       "centro_horizontal_pct_canvas": [
         0.28,
         0.32
       ],
       "cabeza_pct_canvas": [
-        0.16,
-        0.21
+        0.15,
+        0.18
       ]
     }
   },
@@ -347,18 +351,20 @@
     },
     "y_base_px": 987,
     "y_base_pct": 0.9139,
+    "baseline_personas_px": 910,
+    "baseline_personas_pct": 0.8426,
     "valores_recomendados": {
       "escala_altura_ventana": [
-        0.75,
-        0.81
+        0.68,
+        0.74
       ],
       "centro_horizontal_pct_canvas": [
         0.38,
         0.42
       ],
       "cabeza_pct_canvas": [
-        0.16,
-        0.21
+        0.15,
+        0.18
       ]
     }
   },

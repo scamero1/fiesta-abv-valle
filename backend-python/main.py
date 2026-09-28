@@ -1253,7 +1253,11 @@ def compose_full(
         fondo = FONDOS_CACHE[key].copy()
         mascara_ventana_full = MASCARAS_VENTANA[key]
         # Coords desde JSON:
-        y_base_px = int(esc["y_base_px"])                     # 987 (borde inf paisaje)
+        y_base_px = int(esc["y_base_px"])                     # 987 (borde inf paisaje, LIMITE MARCO)
+        # BASELINE NUEVO ESPECIFICO x ESCENARIO: SUELO REAL del paisaje donde PISAN las personas:
+        #   CR: 870 (ladrillo rojo mirador) / MS:905 (vereda) / PV:910 (calzada)
+        #   Si no existe el campo -> fallback: 25px ARRIBA de y_base_px = 962
+        baseline_personas_px = int(esc.get("baseline_personas_px", y_base_px - 25))
         y_top_px = int(esc["ventana_paisaje_px"]["y_top_paisaje"])  # 89
         alto_ventana_paisaje = y_base_px - y_top_px            # ~898
         ancho_inf_ventana = int(esc["ventana_paisaje_px"].get("ancho_ventana_inf_px", 1816))
@@ -1266,17 +1270,19 @@ def compose_full(
         escala_altura_default = round((escala_altura_min + escala_altura_max) / 2, 3)
         cx_pct_min, cx_pct_max = vr.get("centro_horizontal_pct_canvas", [0.48, 0.52])
         cx_pct_default = round((cx_pct_min + cx_pct_max) / 2, 3)
+        # NUEVA ESTRATEGIA: CABEZA PX como FUENTE PRIMARIA DE VERDAD:
+        cabeza_pct_min, cabeza_pct_max = vr.get("cabeza_pct_canvas", [0.16, 0.21])
+        cabeza_pct_default = round((cabeza_pct_min + cabeza_pct_max) / 2, 3)
+        cabeza_target_default_px = int(CANVAS_H * cabeza_pct_default)
         using_cache = True
-        _which_source = f"[OK JSON key={key}]"
+        _which_source = f"[OK JSON key={key}] bl={baseline_personas_px} cabeza={cabeza_pct_default:.3f}({cabeza_target_default_px}px)"
     else:
-        # FALLBACK INTELIGENTE POR KEY (nunca usar valores fijos 0.60/0.50 genericos
-        # porque generan la misma posicion/tamano en todos los escenarios).
+        # FALLBACK INTELIGENTE POR KEY (nunca usar valores fijos genericos)
         FALLBACK_CFG = {
-            "cristorey":   {"escala": 0.53, "cx": 0.50},
-            "museosalsa":  {"escala": 0.56, "cx": 0.30},
-            "plazavarela": {"escala": 0.78, "cx": 0.40},
+            "cristorey":   {"escala": 0.39, "cx": 0.50, "cabeza_pct": 0.155, "baseline_px": 870},
+            "museosalsa":  {"escala": 0.52, "cx": 0.30, "cabeza_pct": 0.165, "baseline_px": 905},
+            "plazavarela": {"escala": 0.71, "cx": 0.40, "cabeza_pct": 0.165, "baseline_px": 910},
         }
-        # Si key=None, intentamos inferir desde escenario_id:
         fallback_key = key if key in FALLBACK_CFG else None
         if fallback_key is None:
             for k in FALLBACK_CFG:
@@ -1284,11 +1290,13 @@ def compose_full(
                     fallback_key = k
                     break
             if fallback_key is None:
-                # ultimo recurso: museosalsa por defecto
                 fallback_key = "museosalsa"
         fb = FALLBACK_CFG[fallback_key]
         escala_altura_default = fb["escala"]
         cx_pct_default = fb["cx"]
+        cabeza_pct_default = fb["cabeza_pct"]
+        cabeza_target_default_px = int(CANVAS_H * cabeza_pct_default)
+        baseline_personas_px = fb["baseline_px"]
 
         # Fondo y mascara:
         fondo_pil = load_asset(cfg_old["backgroundImg"]) if cfg_old.get("backgroundImg") else None
@@ -1308,7 +1316,7 @@ def compose_full(
         ancho_inf_ventana = 1816
         kslog = [134, 140, 499, 432]
         klogo = [1536, 21, 1891, 237]
-        _which_source = f"[FALLBACK key={fallback_key}] escala={escala_altura_default} cx={cx_pct_default}"
+        _which_source = f"[FALLBACK key={fallback_key}] bl={baseline_personas_px} cabeza={cabeza_pct_default:.3f}({cabeza_target_default_px}px)"
     print(f"[compose_full] esc_id={escenario_id!r} -> {_which_source}")
 
     # ------------------------------------------------------------------
@@ -1342,21 +1350,40 @@ def compose_full(
     ))
     crop_w, crop_h = cr.size
 
-    # ------------------------------------------------------------------
-    # PASO 2.3 y 2.4: ESCALA por ALTURA de ventana paisaje
-    # ------------------------------------------------------------------
-    # Objetivo: altura_persona = escala_altura_default * alto_ventana_paisaje
-    target_h = int(round(alto_ventana_paisaje * escala_altura_default))
-    scale = target_h / max(1, crop_h)
-    # Ancho objetivo después de escalar:
-    target_w = int(round(crop_w * scale))
-    target_h = max(1, target_h)
-    target_w = max(1, target_w)
-
-    # PASO 2.4: limites ancho y cabeza
+    # ==============================================================================
+    #  NUEVA ESTRATEGIA PASO 2.3  (SOLUCION DEFINITIVA a Cristo Rey persona grande)
+    # ==============================================================================
+    # ESCALA = min ( escala x CABEZA EN PIXELES , escala x ALTURA VENTANA )
+    #   Causa raiz anterior: fotos CINTURA (crop_h ~ 40% del cuerpo completo) al
+    #   multiplicar por escala x altura ventana daba personas GIGANTES.
+    #   Solucion: ESCALA POR CABEZA = cabeza_target_pixels / cabeza_original_pixels
+    #   Garantiza que sin importar tipo foto (cintura/cuerpo/grupo) las cabezas
+    #   son 14-18% del canvas (151-194 px) => Cristo Rey cabeza perfecta.
+    # ==============================================================================
     ANCHO_MAX_PCT_VENTANA = 0.55
     MARGEN_LATERAL_PX = 20
     MARGEN_SUPERIOR_PX = 20
+
+    # PASO 2.3.1 CABEZA ORIGINAL en el crop (18% alto del crop BBOX REAL de alfa).
+    #   robusto para CUALQUIER foto:
+    #     - cuerpo entero: ~15% crop_h es cabeza.
+    #     - cintura hacia arriba: ~22% crop_h es cabeza.
+    #     - grupo de 3: 18% mayor altura.
+    head_orig_px = max(50, int(crop_h * 0.18))
+    # PASO 2.3.2 CABEZA TARGET leida DE JSON x ESCENARIO (cristorey=0.155 * 1080 = 167 px)
+    head_target_px = cabeza_target_default_px
+    # PASO 2.3.3 ESCALA CABEZA y ESCALA VENTANA:
+    scale_cabeza = head_target_px / max(1, head_orig_px)
+    target_h_ventana = int(round(alto_ventana_paisaje * escala_altura_default))
+    scale_ventana = target_h_ventana / max(1, crop_h)
+    # ESCALA FINAL = la MÁS PEQUEÑA (ambas protegen; cabeza es la que gana en fotos cortas)
+    scale = min(scale_cabeza, scale_ventana)
+
+    # Dimensiones target
+    target_h = max(1, int(round(crop_h * scale)))
+    target_w = max(1, int(round(crop_w * scale)))
+
+    # PASO 2.4: Limite ancho max (55% ancho inf ventana)
     ancho_max = int(ancho_inf_ventana * ANCHO_MAX_PCT_VENTANA)
     if target_w > ancho_max:
         red = ancho_max / max(1, target_w)
@@ -1364,21 +1391,17 @@ def compose_full(
         target_h = int(target_h * red)
         scale = scale * red
 
-    # Control cordura CABEZA: 16 a 21 % alto canvas (173 a 227 px aprox 1080)
-    # Estimación cabeza: 23% de la ALTURA CROP original (de arriba)
-    head_px_est_orig = int(crop_h * 0.23)
-    head_px_est = int(head_px_est_orig * scale)
-    HEAD_MIN_PCT = 0.16
-    HEAD_MAX_PCT = 0.21
-    head_min_px = int(CANVAS_H * HEAD_MIN_PCT)
-    head_max_px = int(CANVAS_H * HEAD_MAX_PCT)
-    if head_px_est < head_min_px:
-        mul = head_min_px / max(1, head_px_est)
+    # PASO 2.4.b Clamp CABEZA MIN/MAX por seguridad (rango JSON del escenario)
+    head_px_est_post = int(head_orig_px * scale)
+    head_clamp_min_px = int(CANVAS_H * cabeza_pct_min)
+    head_clamp_max_px = int(CANVAS_H * cabeza_pct_max)
+    if head_px_est_post < head_clamp_min_px:
+        mul = head_clamp_min_px / max(1, head_px_est_post)
         target_h = int(min(target_h * mul, CANVAS_H * 0.95))
         target_w = int(round(crop_w * (target_h / max(1, crop_h))))
         scale = target_h / max(1, crop_h)
-    elif head_px_est > head_max_px:
-        mul = head_max_px / max(1, head_px_est)
+    elif head_px_est_post > head_clamp_max_px:
+        mul = head_clamp_max_px / max(1, head_px_est_post)
         target_h = int(target_h * mul)
         target_w = int(round(crop_w * (target_h / max(1, crop_h))))
         scale = target_h / max(1, crop_h)
@@ -1387,21 +1410,18 @@ def compose_full(
     fw, fh = fitted.size
 
     # ------------------------------------------------------------------
-    # PASO 2.5: ANCLAJE por BORDE INFERIOR REAL de ALFA (no por fh total)
+    # PASO 2.5: ANCLAJE por BASELINE ESPECIFICO DEL ESCENARIO (NO y_base_px=987)
     # ------------------------------------------------------------------
-    # Regla EXPLICITA del usuario:
-    #   "la persona empiece donde esta el paisaje y desde ahi tome la foto
-    #    osea el final de lo blanco en si"
-    # Interpretacion CORRECTA (no colocar persona DENTRO del marco blanco inf):
-    #   NUNCA que el alfa de persona cruce de y_base_px=987 (inicio del blanco
-    #   inferior) HACIA ABAJO. Por el contrario: colocamos el PIXEL INFERIOR REAL
-    #   (maximo Y con alfa >= 15) a y_base_px - 2 = 985 (2px por encima del borde).
-    # Esto funciona INDEPENDIENTEMENTE del tipo de foto:
-    #   - cuerpo entero (pies)
-    #   - cintura hacia arriba (cintura es el borde inferior)
-    #   - grupo 2-3 personas (la persona mas alta es la que toca la base).
+    # Baselines MEDIDOS VISUALMENTE en el SUELO del paisaje:
+    #   CR=870 (ladrillo rojo mirador detras de balaustrada riel negro)
+    #   MS=905 (suelo tierra/vereda de el mural)
+    #   PV=910 (calzada gris monumento trompetas)
+    # Anclaje: PIXEL INFERIOR REAL de la persona (max Y alfa >= 15) se coloca
+    #          en baseline - 2 (2px arriba del suelo del paisaje)
+    # Esto resuelve el bug user: "sigue saliendo desde la linea blanca para
+    # arriba; necesito que empiece DESDE EL PAISAJE para arriba".
     try:
-        alfa_fit = np.asarray(fitted.split()[-1])  # uint8 shape (fh, fw)
+        alfa_fit = np.asarray(fitted.split()[-1])
         ys_fit = np.where(alfa_fit >= 15)[0]
         if len(ys_fit) == 0:
             max_y_in_fitted = fh - 1
@@ -1410,16 +1430,15 @@ def compose_full(
     except Exception:
         max_y_in_fitted = fh - 1
 
-    y_deseado_borde_inf = y_base_px - 2  # 2px ARRIBA del blanco inf (987) = 985
+    y_deseado_borde_inf = baseline_personas_px - 2
     y = y_deseado_borde_inf - max_y_in_fitted
-    base_persona_y = y + fh  # referencia para clamps (antes era base_persona_y = y_base_px + 5)
+    base_persona_y = y + fh
 
-    # X: centro horizontal (pct del CANVAS)
+    # X: centro horizontal por escenario
     centro_x_canvas = int(CANVAS_W * cx_pct_default)
     x = centro_x_canvas - (fw // 2)
 
-    # Helper: despues de cualquier resize de fitted, re-calcular la posicion
-    # anclada al borde inferior real del alfa.
+    # Helper reposicionar anclaje DESPUES de cualquier resize posterior (keep-outs/clamp)
     def _reposicionar_anclaje():
         nonlocal max_y_in_fitted, y, base_persona_y, fw, fh
         try:
@@ -1434,22 +1453,15 @@ def compose_full(
         y = y_deseado_borde_inf - max_y_in_fitted
         base_persona_y = y + fh
 
-    # Margin lateral 20px respecto a VENTANA (bordes INFERIORES del paralelogramo inclinado
-    # (los bordes inferiores son mas anchos: BL=52, BR=1868), asi garantizamos
-    # que en los bordes inclinados (superiores BL=96, TR=1822) tambien tengan margen.
+    # Margenes
     vent_izq_min = 52
     vent_der_max = 1868
     x_min = vent_izq_min + MARGEN_LATERAL_PX
     x_max = vent_der_max - MARGEN_LATERAL_PX - fw
     x = max(x_min, min(x_max, x))
 
-    # Margen superior 20px sobre y_top_px (título/logo -> la persona empieza MUY abajo
-    # por diseño, así que esto es solo sanity)
     y_min = y_top_px + MARGEN_SUPERIOR_PX
-    # y_max = no se usa, por anclaje inferior (fijo)
     if y < y_min:
-        # Subir la escala haría que y sea menor; mejor bajar la escala para que fh
-        # sea menor y y (calculado desde borde inferior) aumenta.
         necesito_fh_max = base_persona_y - y_min
         if necesito_fh_max > 4 and fh > necesito_fh_max:
             red = necesito_fh_max / max(1, fh)

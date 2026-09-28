@@ -1040,113 +1040,21 @@ def compose_full(
     canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (0, 0, 0, 0))
     canvas.alpha_composite(fondo, (0, 0))
 
-    # ====== 🧹 LIMPIAR OVERLAYS JPG (ESTRATEGIA DEFINITIVA — CLONADO DESDE FONDO ORIGINAL).
-    #  ERROR RAÍZ DETECTADO tras comparar JPG ORIGINAL vs GENERADO:
-    #    ❌ ANTES: canvas.crop() → clonaba desde CANVAS QUE YA TENÍA PARCHES ANTERIORES O DATOS RAROS.
-    #    ✅ AHORA: clonamos SIEMPRE desde fondo_pil O desde fondo RGBA ORIGINAL (intacto, sin parches).
-    #    ❌ ANTES: slogan clonado x=460 (MUY CERCA DEL SLOGAN EN SÍ, TODAVÍA HABÍA HOJAS CON LAS LETRAS)
-    #    ✅ AHORA: slogan clonado x=720..1116 (720px DESPUÉS del origen) → ZONA 100% LIMPIA SIN SLOGAN NI HOJAS
-    #    ❌ ANTES: destino slogan pequeño 366x280 → dejaba fuera letras y bordes
-    #    ✅ AHORA: destino slogan GRANDE x=44..440 y=120..420 (396x300) → TODO el slogan + un poco de borde alrededor
-    #    ❌ ANTES: x_offset museo -0.20 → cerca del blanco izquierdo
-    #    ✅ AHORA: x_offset -0.17 → 301.9px izq, distancia segura.
-
-    draw_limp = None
-    BLANCO_PURO = (255, 255, 255, 255)
-
+    # ====== REGLA 1 SAGRADA (NUNCA MODIFICAR EL FONDO ORIGINAL):
+    #  ✅ NUNCA se clona, parchea, repinta, recorta ni dibuja NADA sobre el fondo.
+    #  ✅ El fondo trae: marco azul, marco blanco inclinado, título, slogan "¡VA CON TODO!",
+    #     pastilla del logo y barra legal. TODO permanece IDÉNTICO al JPG original 1920x1080.
+    #  ✅ Única modificación permitida al canvas: alpha_composite de la PERSONA después.
+    #  Cualquier draw.rectangle / paste / crop sobre el canvas = ELIMINADO, VIOLA REGLA 1.
     # ================================================================
-    # REFERENCIA LIMPIA FIJA: SIEMPRE clonamos DESDE FONDO ORIGINAL intacto.
-    # fondo_pil SIEMPRE es el JPG ORIGINAL DEL ESCENARIO SIN PARCHES (nunca modificado).
-    # ================================================================
-    if fondo_pil is not None:
-        fondo_rgba_clone_src = fondo_pil.convert("RGBA")
-    else:
-        fondo_rgba_clone_src = fondo  # fallback al alpha composite si no hay JPG original
-
-    # ================================================================
-    # FASE 1 — SLOGAN INF-IZQ "¡VA CON TODO!" 2 líneas.
-    #   CLONADO MUY A LA DERECHA, TAMAÑO MÁS GRANDE PARA COBERTURA TOTAL.
-    # ================================================================
-    SLOGAN_DEST = (44, 120, 440, 420)   # x1=44 y1=120 x2=440 y2=420 → 396x300.
-    # ✅ Cubre TODO el slogan (letras rojas blancas exclamaciones).
-    # ✅ x1=44 empieza EN EL BORDE AZUL EXTERIOR antes de blanco izq → así los bordes
-    #    irregulares de la esquina sup-izq (dientes cortados) también se cubren.
-    SLOGAN_SRC  = (720, 120, 1116, 420)  # Mismo tamaño 396x300.
-    # ✅ x=720 a 1116. EN MUSEO = zona mural magenta/azul/reja (100% limpio SIN hojas SIN letras).
-    # ✅ EN PLAZA VARELA = x=720-1116 zona de cielo/árboles lejanos (limpio).
-    # ✅ EN CRISTO REY = x=720-1116 zona del cielo/ciudad lejana (limpio).
-    try:
-        src_patch = fondo_rgba_clone_src.crop(SLOGAN_SRC)
-        sw, sh = src_patch.size
-        dw, dh = SLOGAN_DEST[2]-SLOGAN_DEST[0], SLOGAN_DEST[3]-SLOGAN_DEST[1]
-        if sw == dw and sh == dh:
-            canvas.paste(src_patch, SLOGAN_DEST)
-        else:
-            src_patch_r = src_patch.resize((dw, dh), resample=Image.LANCZOS)
-            canvas.paste(src_patch_r, SLOGAN_DEST)
-    except Exception as _e1:
-        try:
-            if draw_limp is None:
-                draw_limp = ImageDraw.Draw(canvas, "RGBA")
-            sr, sg, sb, _ = fondo_rgba_clone_src.getpixel((900, 270))
-            color_slogan = (int(sr), int(sg), int(sb), 255)
-            draw_limp.rectangle(SLOGAN_DEST, fill=color_slogan)
-        except Exception:
-            pass
-
-    # ================================================================
-    # FASE 2 — TEXTO VERTICAL diminuto inf-izq.
-    # ================================================================
-    VERT_DEST = (52, 760, 112, 956)   # 60x196
-    VERT_SRC  = (170, 760, 230, 956)  # 60x196 - 118px a la derecha, panel informativo / suelo.
-    try:
-        src_vert = fondo_rgba_clone_src.crop(VERT_SRC)
-        sw, sh = src_vert.size
-        dw, dh = VERT_DEST[2]-VERT_DEST[0], VERT_DEST[3]-VERT_DEST[1]
-        if sw == dw and sh == dh:
-            canvas.paste(src_vert, VERT_DEST)
-        else:
-            src_vert_r = src_vert.resize((dw, dh), resample=Image.LANCZOS)
-            canvas.paste(src_vert_r, VERT_DEST)
-    except Exception as _e2:
-        try:
-            if draw_limp is None:
-                draw_limp = ImageDraw.Draw(canvas, "RGBA")
-            sr, sg, sb, _ = fondo_rgba_clone_src.getpixel((200, 860))
-            color_v = (int(sr), int(sg), int(sb), 255)
-            draw_limp.rectangle(VERT_DEST, fill=color_v)
-        except Exception:
-            pass
-
-    # ================================================================
-    # FASE 3 — ESQUINA SUP-DER HEADER AZUL (pastilla FIESTA / BLANCO DEL VALLE)
-    # ================================================================
-    # ⚠️ NO tocar x=0..1604 → tapa título central del JPG.
-    # Pintar sólido: x=1604..1920  y=0..82
-    try:
-        if draw_limp is None:
-            draw_limp = ImageDraw.Draw(canvas, "RGBA")
-        draw_limp.rectangle([1604, 0, 1920, 82], fill=AZUL_2728)
-    except Exception:
-        pass
-
-    # ================================================================
-    # FASE 4 — REDIBUJAR LOS 4 BORDES BLANCOS 8px (ÚLTIMO PASO SIEMPRE).
-    #   Soluciona 100% cualquier "escalón" o diente irregular.
-    # ================================================================
-    try:
-        if draw_limp is None:
-            draw_limp = ImageDraw.Draw(canvas, "RGBA")
-        draw_limp.rectangle([56, 82, 1864, 90],    fill=BLANCO_PURO)   # sup
-        draw_limp.rectangle([56, 1008, 1864, 1016], fill=BLANCO_PURO)   # inf
-        draw_limp.rectangle([48, 90, 56, 1008],     fill=BLANCO_PURO)   # izq
-        draw_limp.rectangle([1864, 90, 1872, 1008], fill=BLANCO_PURO)   # der
-    except Exception:
-        pass
-
-    if draw_limp is not None:
-        del draw_limp
-    del fondo_rgba_clone_src
+    #  ====== REGLA 3 (persona no sobrepasa título/slogan/pastilla):
+    #  Coordenadas MEDIDAS EN JPG REAL (proporciones 0..1 canvas 1920x1080):
+    #   - Título header: y ∈ [0, 82/1080=0.076]
+    #   - Slogan sup-izq "¡VA CON TODO!": x∈[0.030, 0.138],  y∈[0.119, 0.361]
+    #   - Pastilla sup-der "FIESTA":       x∈[0.835, 1.000], y∈[0.000, 0.079]
+    #  Con bottom_from_frame_pct -0.10 (actual), la persona empieza Y ≥ 460 px (> slogan 390px).
+    #  No hay solapamiento vertical → REGLA 3 SATISFECHA incluso si la persona está en las X del slogan/pastilla.
+    # ====================================================================
 
     # ====== CAPA 1: PERSONA — PIPELINE ANTI-CROMA + IA AUTO-AJUSTE TAMAÑO (scale_in_frame YA NO ES NECESARIO).
     #    Orden estricto:
@@ -1208,13 +1116,22 @@ def compose_full(
     x = max(x_min, min(x_max, x))
 
     # ====== Posición Y DENTRO DEL FRAME DEL PAISAJE — SAFE_PAD_Y=16px NUNCA TOCAR AZUL (y≤82) NI BLANCO (y>1008)
+    # ====== REGLA 3 EXTRA: y_min REGLA3 = 460 px (int(CANVAS_H * 0.426)).
+    #    Coords medidas en JPG real:
+    #      - Slogan sup-izq "¡VA CON TODO!" termina en y=390 (390/1080=0.361)
+    #      - Título header termina en y=82 (0.076)
+    #      - Pastilla sup-der "FIESTA" termina en y=85 (0.079)
+    #    Obligamos a la persona a EMPEZAR (top) en y ≥ 460 = 70px DESPUÉS del slogan (390).
+    #    Así NUNCA habrá solapamiento vertical ni con slogan/pastilla/título (Regla3 SATISFECHA 100%).
     bottom_pct_frame = float(cfg.get("bottom_from_frame_pct", cfg.get("persona_bottom_pct", 0.00)))
     SAFE_PAD_Y = 16
     # Baseline: siempre dentro FRAME. bottom_from_frame_pct = -0.10 (sube 90px, centro vertical paisaje).
     y_baseline_segura = int((FRAME_Y2 - SAFE_PAD_Y) - (FRAME_SAFE_H * bottom_pct_frame))
     y = int(y_baseline_segura - fh)
-    y_min = FRAME_Y1 + SAFE_PAD_Y          # 90 + 16 = 106 ✅ NUNCA toca AZUL ni BLANCO superior. JUSTO EMPIEZA PAISAJE.
-    y_max = FRAME_Y2 - SAFE_PAD_Y - fh     # 1008 - 16 - fh = 992 - fh ✅ pies ≥16px antes blanco inf, NUNCA tocan.
+    y_min_frame  = FRAME_Y1 + SAFE_PAD_Y          # 90 + 16 = 106 (no toca azul/blanco sup)
+    y_min_regla3 = int(CANVAS_H * 0.426)          # 460 (NO SOLAPA slogan/pastilla/título — REGLA 3 CRÍTICA)
+    y_min = max(y_min_frame, y_min_regla3)        # 460 ✅ gana el más restrictivo
+    y_max = FRAME_Y2 - SAFE_PAD_Y - fh             # 1008 - 16 - fh = 992 - fh ✅ pies ≥16px antes blanco inf
     y = max(y_min, min(y_max, y))
     canvas.alpha_composite(fitted, (x, y))
 
@@ -1227,11 +1144,49 @@ def compose_full(
 
     # ====== CAPA 3: OVERLAYS — ELIMINADOS COMPLETAMENTE POR USUARIO.
     #  Usuario: "elimina todo texto y recuadro que aparece en las fotos ya que salen".
-    #  ✅ Los parches de limpieza (sup-der dup pastillas / inf-izq texto vertical) SIGUEN activos
-    #     para BORRAR lo que los JPG originales traen de fábrica.
-    #  ✅ NO volvemos a pintar NADA encima (no slogan, no pastilla). Foto LIMPIA: escenario + persona.
+    #  ✅ NO pintamos NADA encima (no slogan, no pastilla). Foto = fondo JPG ORIGINAL + persona.
     # canvas = draw_slogan_va_con_todo(canvas)   # ❌ ELIMINADO
     # canvas = draw_logo_pastilla(canvas)       # ❌ ELIMINADO
+
+    # ====================================================================
+    #  REGLA 4: Validación Numérica (diferencia FUERA de máscara persona = 0
+    #  Verifica que el fondo JPG ORIGINAL permanece INTACTO en TODOS los píxeles
+    #  donde NO está la persona (alfa > 0). Cualquier diferencia = VIOLACIÓN REGLA 1.
+    #  Si diff != 0 lanza RuntimeWarning (NO interrumpe flujo evento).
+    # ====================================================================
+    try:
+        import numpy as np
+        _arr_canvas = np.asarray(canvas.convert("RGB"), dtype=np.int16)
+        _arr_fondo  = np.asarray(fondo.convert("RGB"),  dtype=np.int16)
+        _mask_persona = np.zeros((CANVAS_H, CANVAS_W), dtype=bool)
+        if 0 <= x < CANVAS_W and 0 <= y < CANVAS_H and fw > 0 and fh > 0:
+            _x1 = max(0, x); _y1 = max(0, y)
+            _x2 = min(CANVAS_W, x + fw); _y2 = min(CANVAS_H, y + fh)
+            _fitted_alpha = np.asarray(
+                fitted.split()[-1].crop((_x1 - x, _y1 - y, _x2 - x, _y2 - y)),
+                dtype=np.uint8
+            )
+            _mask_persona[_y1:_y2, _x1:_x2] = _fitted_alpha > 0
+        _fuera_mask = ~_mask_persona
+        _diff_total = int(np.sum(np.abs(
+            _arr_canvas[_fuera_mask].reshape(-1) - _arr_fondo[_fuera_mask].reshape(-1)
+        )))
+        if _diff_total != 0:
+            import warnings
+            warnings.warn(
+                f"[REGLA4 FAIL] Diferencia total FUERA de persona = {_diff_total} (≠0). "
+                f"VIOLA Regla1 (fondo sagrado NO intacto).",
+                RuntimeWarning,
+                stacklevel=2
+            )
+        del _arr_canvas, _arr_fondo, _mask_persona, _fuera_mask
+    except Exception as _errR4:
+        import warnings
+        warnings.warn(
+            f"[REGLA4 SKIP] No se pudo ejecutar validación NumPy: {str(_errR4)}",
+            RuntimeWarning,
+            stacklevel=2
+        )
 
     return canvas
 

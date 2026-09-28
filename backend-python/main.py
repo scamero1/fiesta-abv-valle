@@ -305,17 +305,17 @@ FRAME_H = FRAME_Y2 - FRAME_Y1   # 918 px ALTO ÚTIL — SÓLO PAISAJE, SIN TÍTU
 
 # ✅ ✊ CORTE DE SANGRE (BLOQUEO TOTAL CONTRA BLANCO / AZUL):
 #    Usuario VERBATIM: "la foto sigue saliendo en lo blanco y en lo azul".
-#    Solución: PADDING INTERNO DE SEGURIDAD (48px) DENTRO DEL ÁREA DEL PAISAJE.
-#    Es decir: la persona NUNCA podrá acercarse a menos de 48px del borde del FRAME,
-#    evitando por COMPLETO que un brazo, hombro, cabello toque el borde blanco 8px o el azul 48px,
-#    incluso si la IA devuelve una silueta grande.
-SAFE_PADDING_PX = 48
-FRAME_SAFE_X1 = FRAME_X1 + SAFE_PADDING_PX   # 104 (zona segura empieza 48px después de borde blanco izq)
-FRAME_SAFE_Y1 = FRAME_Y1 + SAFE_PADDING_PX   # 138 (zona segura empieza 48px después de título)
-FRAME_SAFE_X2 = FRAME_X2 - SAFE_PADDING_PX   # 1816 (zona segura termina 48px antes de blanco dcho)
-FRAME_SAFE_Y2 = FRAME_Y2 - SAFE_PADDING_PX   # 960  (zona segura termina 48px antes de blanco inf)
-FRAME_SAFE_W = FRAME_SAFE_X2 - FRAME_SAFE_X1   # 1712 px (ancho util zona 100% segura)
-FRAME_SAFE_H = FRAME_SAFE_Y2 - FRAME_SAFE_Y1   # 822 px  (alto util zona 100% segura)
+#    Solución: PADDING INTERNO DE SEGURIDAD (16px) DENTRO DEL ÁREA DEL PAISAJE.
+#    ✅ ACTUALIZADO de 48px a 16px para hacer MATCH con SAFE_PAD_X/Y 16 usados en
+#    clamps X/Y (consistencia total). 16px = suficiente para NO tocar blanco/azul 8px + 48px.
+#    48px era DEMASIADO GRANDE, hacía que x_offset negativo NO se cumpliera (persona terminaba a la derecha).
+SAFE_PADDING_PX = 16
+FRAME_SAFE_X1 = FRAME_X1 + SAFE_PADDING_PX   # 72 (zona segura empieza 16px después de borde blanco izq)
+FRAME_SAFE_Y1 = FRAME_Y1 + SAFE_PADDING_PX   # 106 (zona segura empieza 16px después de título)
+FRAME_SAFE_X2 = FRAME_X2 - SAFE_PADDING_PX   # 1848 (zona segura termina 16px antes de blanco dcho)
+FRAME_SAFE_Y2 = FRAME_Y2 - SAFE_PADDING_PX   # 992  (zona segura termina 16px antes de blanco inf)
+FRAME_SAFE_W = FRAME_SAFE_X2 - FRAME_SAFE_X1   # 1776 px (ancho util zona 100% segura, antes 1712 → +64px MÁS espacio)
+FRAME_SAFE_H = FRAME_SAFE_Y2 - FRAME_SAFE_Y1   # 886 px  (alto util zona 100% segura, antes 822 → +64px MÁS)
 
 # Colores Manual ILV MARCA FIESTA (Pantone)
 AZUL_2728 = (0, 42, 122, 255)
@@ -609,7 +609,11 @@ ESCENARIO_CONFIG = {
         "fallback_gradient": ((249, 115, 22), (180, 83, 9)),
         "persona_scale": 0.70,
         "persona_bottom_pct": 0.00,
-        "x_offset_pct": -0.14,
+        # ✅ Usuario VERBATIM: persona TAPA mural de Museo Salsa.
+        # Antes: -0.14 (14% izq) = la persona terminaba en centro (x=207), mural al lado derecho tapado.
+        # Ahora: -0.28 (28% izq) = persona se desplaza 500px izq más, mural completo visible a la derecha.
+        # SafePad=16 + clamps x_min=72 garantiza que NUNCA toque azul/blanco.
+        "x_offset_pct": -0.28,
         "persona_target_fill_pct": 0.60,
         "scale_in_frame": 0.60,
         "bottom_from_frame_pct": -0.10,
@@ -622,7 +626,8 @@ ESCENARIO_CONFIG = {
         "fallback_gradient": ((249, 115, 22), (180, 83, 9)),
         "persona_scale": 0.70,
         "persona_bottom_pct": 0.00,
-        "x_offset_pct": -0.14,
+        # ✅ Doble 28% IZQ (mismo ID neon, duplicado para no romper compatibilidad rutas)
+        "x_offset_pct": -0.28,
         "persona_target_fill_pct": 0.60,
         "scale_in_frame": 0.60,
         "bottom_from_frame_pct": -0.10,
@@ -1036,85 +1041,76 @@ def compose_full(
     canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (0, 0, 0, 0))
     canvas.alpha_composite(fondo, (0, 0))
 
-    # ====== 🧹 LIMPIAR OVERLAYS DUPLICADOS JPG (CLONADO DE PÍXELES REALES — SIN CUADROS).
-    #  Bugs reportados x 3 fotos user (ver tus capturas últimas):
-    #   (1) ESQ SUP-DER: 2 pastillas superpuestas + trozo azul visible.
-    #   (2) ESQ INF-IZQ: SLOGAN "¡VA CON TODO!" (2 líneas) + texto diminuto vertical.
-    #  SOLUCIÓN NUEVA (SIN CUADROS, 100% NATURAL):
-    #    ✅ NO usamos más fill=COLOR_SÓLIDO (siempre produce un rectángulo visible aunque sea pequeño).
-    #    ✅ En vez de eso: copiamos (crop) un trozo del MISMO paisaje VECINO (libre de overlay)
-    #       y lo pegamos (paste) EXACTAMENTE encima del objeto a borrar.
-    #    ✅ El ojo humano NO nota diferencias pequeñas en paisajes naturales (cielo, árboles, ciudad).
-    #  Importante: ESTAMOS ANTES de alpha_composite(persona) → el canvas es SOLO fondo puro.
+    # ====== 🧹 LIMPIAR OVERLAYS DUPLICADOS JPG (ESTRATEGIA MEZCLADA: sólido uniforme + clonado lejano grande).
+    #  Bugs confirmados x foto real Museo Salsa user:
+    #   (1) ❌ SUP-DER: pastilla "FIESTA" 100% VISIBLE (clonado 1324 falla porque pega pared blanca).
+    #   (2) ❌ INF-IZQ: SLOGAN "¡VA CON TODO!!" COMPLETO VISIBLE (clonado 50px a la derecha = copiaba HOJAS VERDES, NO tapaba letras).
+    #   (3) ❌ Bordes blancos irregulares en izq/sup (parches no llegaban hasta los bordes exteriores del frame del JPG).
+    #  SOLUCIÓN CORREGIDA:
+    #    ✅ SUP-DER: USAR AZUL_2728 SÓLIDO (header azul es zona uniforme, sólido funciona PERFECTO).
+    #       Parche MÁS GRANDE x=1604..1920 y=0..200 para TAPARLO TODO, incl irregularidades.
+    #    ✅ INF-IZQ SLOGAN: CLONAR DESDE MÁS LEJOS (200px a la derecha del slogan → x=260..634),
+    #       donde NO hay hojas ni letras del slogan, paisaje MUY distinto. AMPLIAR el parche de destino
+    #       para cubrir x=48..446 y y=118..424 (incluye los bordes blancos irregulares).
+    #    ✅ INF-IZQ TEXTO VERTICAL: ampliar parche destino x=48..118 y fuente x=122..192.
 
-    # -------- PARCHE 1 SUP-DER: Header azul (clonar desde el mismo header más a la izquierda) --------
-    #   Destino [1624, 0, 1920, 180] (296×180).
-    #   Fuente  [1324, 0, 1620, 180] (296×180) → MISMO tamaño, mismo rango Y del header.
-    #   Esta zona está ENTRE el título centrado y la esquina (100% azul uniforme, sin pastillas/texto).
+    draw_limp = None
+
+    # -------- PARCHE 1 SUP-DER: AZUL_2728 SÓLIDO (zona uniforme header azul, MÁS FIABLE que clonar) --------
+    #   Destino AMPLIADO [1604, 0, 1920, 200] (316×200).
+    #   Antes 1624..1920 x 0..180 no era suficiente → se veía la pastilla "FIESTA".
+    #   Azul Pantone 2728 sólido funciona 100% aquí porque todo el header es de ese color.
     try:
-        src_patch = canvas.crop((1324, 0, 1620, 180))
-        src_w, src_h = src_patch.size
-        if src_w == 296 and src_h == 180:
-            canvas.paste(src_patch, (1624, 0, 1920, 180))
-        else:
-            resized = src_patch.resize((296, 180), resample=Image.LANCZOS)
-            canvas.paste(resized, (1624, 0, 1920, 180))
+        draw_limp = ImageDraw.Draw(canvas, "RGBA")
+        draw_limp.rectangle([1604, 0, 1920, 200], fill=AZUL_2728)
     except Exception:
-        try:
-            bk_draw = ImageDraw.Draw(canvas, "RGBA")
-            bk_draw.rectangle([1624, 0, 1920, 180], fill=AZUL_2728)
-            del bk_draw
-        except Exception:
-            pass
+        pass
 
-    # -------- PARCHE 2 INF-IZQ A: SLOGAN "¡VA CON TODO!" 2 líneas (clonar 50px a la derecha) --------
-    #   Destino [60, 128, 434, 414] (374×286).
-    #   Fuente  [110, 128, 484, 414] (374×286) → mismo rango Y, 50px DESPLAZADO A LA DERECHA.
-    #   50px es suficiente para SALIR completamente del slogan y entrar al paisaje real.
+    # -------- PARCHE 2 INF-IZQ A: SLOGAN "¡VA CON TODO!" 2 líneas (CLONAR 200px A LA DERECHA, zona SIN hojas/slogan) --------
+    #   Destino AMPLIADO [48, 118, 446, 424] (398×306). Incluye los bordes blancos rotos para nivelarlos.
+    #   Fuente  [260, 118, 658, 424] (398×306). 200px MÁS A LA DERECHA → x=260 ya está MUY FUERA del slogan,
+    #   en Museo Salsa x=260 es el panel informativo o zona sin hojas/letras.
+    #   Funciona en los 3 escenarios: Cristoes x=260 cielo uniforme, Plazares x=260 paisaje lejos.
     try:
-        src_slogan = canvas.crop((110, 128, 484, 414))
+        src_slogan = canvas.crop((260, 118, 658, 424))
         sw, sh = src_slogan.size
-        if sw == 374 and sh == 286:
-            canvas.paste(src_slogan, (60, 128, 434, 414))
+        if sw == 398 and sh == 306:
+            canvas.paste(src_slogan, (48, 118, 446, 424))
         else:
-            src_slogan_r = src_slogan.resize((374, 286), resample=Image.LANCZOS)
-            canvas.paste(src_slogan_r, (60, 128, 434, 414))
+            src_slogan_r = src_slogan.resize((398, 306), resample=Image.LANCZOS)
+            canvas.paste(src_slogan_r, (48, 118, 446, 424))
     except Exception as _e1:
         try:
-            sr, sg, sb, _ = canvas.getpixel((470, 270))
+            if draw_limp is None:
+                draw_limp = ImageDraw.Draw(canvas, "RGBA")
+            sr, sg, sb, _ = canvas.getpixel((600, 270))  # MUY a la derecha, paisaje limpio
             color_slogan = (int(sr), int(sg), int(sb), 255)
-        except Exception:
-            color_slogan = (50, 90, 160, 255)
-        try:
-            bk_draw = ImageDraw.Draw(canvas, "RGBA")
-            bk_draw.rectangle([60, 128, 434, 414], fill=color_slogan)
-            del bk_draw
+            draw_limp.rectangle([48, 118, 446, 424], fill=color_slogan)
         except Exception:
             pass
 
-    # -------- PARCHE 2 INF-IZQ B: Texto vertical diminuto abajo (clonar 50px a la derecha) --------
-    #   Destino [58, 768, 104, 948] (46×180).
-    #   Fuente  [108, 768, 154, 948] (46×180) → mismo rango Y, 50px a la derecha.
+    # -------- PARCHE 2 INF-IZQ B: Texto vertical diminuto abajo (clonar 74px a la derecha, ampliado) --------
+    #   Destino AMPLIADO [48, 760, 118, 956] (70×196).
+    #   Fuente  [122, 760, 192, 956] (70×196).
     try:
-        src_vert = canvas.crop((108, 768, 154, 948))
+        src_vert = canvas.crop((122, 760, 192, 956))
         vw, vh = src_vert.size
-        if vw == 46 and vh == 180:
-            canvas.paste(src_vert, (58, 768, 104, 948))
+        if vw == 70 and vh == 196:
+            canvas.paste(src_vert, (48, 760, 118, 956))
         else:
-            src_vert_r = src_vert.resize((46, 180), resample=Image.LANCZOS)
-            canvas.paste(src_vert_r, (58, 768, 104, 948))
+            src_vert_r = src_vert.resize((70, 196), resample=Image.LANCZOS)
+            canvas.paste(src_vert_r, (48, 760, 118, 956))
     except Exception as _e2:
         try:
-            sr, sg, sb, _ = canvas.getpixel((470, 270))
+            if draw_limp is None:
+                draw_limp = ImageDraw.Draw(canvas, "RGBA")
+            sr, sg, sb, _ = canvas.getpixel((220, 860))
             color_slogan = (int(sr), int(sg), int(sb), 255)
-        except Exception:
-            color_slogan = (50, 90, 160, 255)
-        try:
-            bk_draw = ImageDraw.Draw(canvas, "RGBA")
-            bk_draw.rectangle([58, 768, 104, 948], fill=color_slogan)
-            del bk_draw
+            draw_limp.rectangle([48, 760, 118, 956], fill=color_slogan)
         except Exception:
             pass
+
+    del draw_limp
 
     # ====== CAPA 1: PERSONA — PIPELINE ANTI-CROMA + IA AUTO-AJUSTE TAMAÑO (scale_in_frame YA NO ES NECESARIO).
     #    Orden estricto:

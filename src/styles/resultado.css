@@ -54,55 +54,63 @@
 .res {
   flex: 1 1 auto;
   min-height: 0;
-  display: flex;
-  gap: 28px;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  max-width: var(--content-max-w);
-  margin: 0 auto;
+  display: flex !important;                /* ✅ LAYOUT 2 COLUMNAS SIEMPRE ACTIVO: base CSS. NO depende de MQ. NUNCA desaparece la foto. */
+  flex-direction: row !important;
+  gap: 24px;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 auto !important;
+  padding: 8px clamp(12px, 2.5dvw, 32px) !important;
   position: relative;
   contain: layout;
 }
 
 .res .l {
-  flex: 1.5 1 0%;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
+  flex: 0 0 auto !important;              /* ✅ Foto izquierda: tamaño automático pero nunca colapsa. */
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 .res .r {
-  flex: 1 1 0%;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  padding: 4px;
+  flex: 0 0 auto !important;              /* ✅ Columna derecha: ancho fijo uniforme. NUNCA se estira. */
+  width: clamp(320px, 38dvw, 380px) !important;
+  max-width: 380px !important;
+  min-width: 300px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;         /* ✅ CENTRADO HORIZONTAL: QR / TÍTULO / BOTONES. */
+  justify-content: center !important;     /* ✅ CENTRADO VERTICAL: no se quedan arriba. */
+  text-align: center !important;
+  gap: 14px !important;
+  padding: 8px 6px !important;
+  margin: 0 auto !important;
 }
 
 .res .fr,
 .foto-final-frame {
   aspect-ratio: 16/9;
-  border-radius: 16px;
+  border-radius: 18px;
   border: none !important;
   outline: none !important;
   position: relative;
   overflow: hidden;
-  width: 100%;
-  max-width: 100%;
-  max-height: 100%;
-  height: auto;
+  width: clamp(480px, 56dvw, 820px) !important;  /* ✅ FOTO SIEMPRE VISIBLE: min 480px, ideal 56% ancho viewport, max 820px = 461px alto. */
+  max-width: 820px !important;
+  min-width: 480px !important;
+  height: auto !important;
   background: #0a0e1f;
   box-shadow: 0 24px 54px -22px rgba(0,0,0,0.72);
   contain: layout paint;
-  margin: 0 auto;
+  margin: 0 auto !important;
 }
 
 .res-img,
@@ -138,29 +146,32 @@
   border-top: 1px solid rgba(0,0,0,0.06);
 }
 
-/* QR padding 24 blanco radio 16 — ✅ OVERFLOW VISIBLE para NUNCA CORTAR los bordes del QR
-   ✅ Tamaño máximo 220px (antes 280) → MÁS PEQUEÑO AÚN, cabe perfecto en TCL 1280x800 landscape
-   ✅ Quiet zone 24px blanco alrededor (4 módulos QR = mínimo para scanner móvil) */
+/* QR padding 22 blanco radio 16 — ✅ OVERFLOW VISIBLE para NUNCA CORTAR los bordes del QR
+   ✅ Tamaño FIJO en BASE: 210×210 px. Si la pantalla es pequeña se reduce con clamp.
+   ✅ Quiet zone 22px blanco alrededor (3-4 módulos QR mínimo para scanner). */
 .qr {
-  width: clamp(200px, 22dvw, 220px);
-  height: clamp(200px, 22dvw, 220px);
-  max-width: 220px;
-  max-height: 220px;
-  background: #fff;
-  padding: 24px;
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: clamp(180px, 22dvw, 210px) !important;
+  height: clamp(180px, 22dvw, 210px) !important;
+  max-width: 210px !important;
+  max-height: 210px !important;
+  min-width: 180px !important;
+  min-height: 180px !important;
+  background: #ffffff !important;
+  padding: 22px !important;
+  border-radius: 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   box-shadow:
     0 14px 32px -10px rgba(0,0,0,0.55),
     0 0 0 1px rgba(0,0,0,0.08);
   position: relative;
   z-index: 2;
   flex: 0 0 auto;
-  box-sizing: border-box;
+  box-sizing: border-box !important;
   overflow: visible !important;   /* NUNCA MÁS CORTAR EL QR POR NINGÚN MOTIVO */
   contain: none !important;
+  margin: 0 auto !important;     /* ✅ CENTRADO HORIZONTAL ABSOLUTO DENTRO DE LA COLUMNA DERECHA */
 }
 
 .qr::after {
@@ -186,38 +197,42 @@
   image-rendering: -webkit-optimize-contrast;
 }
 
+/* TÍTULO encima del QR: visible, grande, 2 líneas si hace falta, CENTRADO. */
 .qr-leyenda-titulo {
   font-family: var(--font-display);
-  font-weight: 800;
-  font-size: clamp(1rem, 2.6dvw, 1.5rem) !important;
+  font-weight: 800 !important;
+  font-size: clamp(1.1rem, 2.4dvw, 1.45rem) !important;
   color: var(--tx) !important;
-  text-align: center;
-  line-height: 1.15;
-  margin: 0;
-  padding: 0 6px;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  word-break: normal !important;
-  writing-mode: horizontal-tb !important;
-  white-space: normal;           /* ✅ NUNCA MÁS CORTE EL TÍTULO — SI ES LARGO, HACE WRAP CENTRADO, NUNCA NOWRAP RECORTADO. */
-  flex-wrap: nowrap;
-  overflow-wrap: anywhere;
-  max-width: 100%;
-}
-
-.res-botones-grid {
+  text-align: center !important;
+  line-height: 1.2;
+  margin: 0 auto !important;
+  padding: 0 8px !important;
   width: 100% !important;
   max-width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  word-break: normal !important;
+  writing-mode: horizontal-tb !important;
+  white-space: normal !important;           /* ✅ NUNCA MÁS CORTE EL TÍTULO — wrap centrado 2 líneas. */
+  overflow-wrap: anywhere;
+  flex: 0 0 auto;
+}
+
+/* BOTONES GRID 2×2: 4 botones uniformes, 54px altura fija. */
+.res-botones-grid {
+  width: 100% !important;
+  max-width: 350px !important;                  /* ✅ ANCHO MÁXIMO: 350px = ~70% ancho columna R. */
+  min-width: 0 !important;
   display: grid !important;
   grid-template-columns: 1fr 1fr !important;
+  grid-auto-rows: 54px !important;
   align-items: center !important;
-  justify-items: center !important;
+  justify-items: stretch !important;
   align-content: center !important;
   justify-content: center !important;
   gap: 10px 12px !important;
-  margin: 4px 0 0 !important;
+  margin: 4px auto 0 !important;               /* ✅ CENTRADO HORIZONTAL */
   padding: 0 !important;
 }
 .res-botones-grid .btn-primario,
@@ -226,16 +241,24 @@
 .btn-resultado-cta {
   width: 100% !important;
   min-width: 0 !important;
+  min-height: 54px !important;
+  height: 54px !important;
+  max-height: 54px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   text-align: center !important;
-  padding: 10px 12px !important;
+  padding: 8px 10px !important;
   line-height: 1.1;
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
   word-break: keep-all;
-  white-space: nowrap;
+  white-space: nowrap !important;
   overflow: hidden;
   text-overflow: ellipsis;
+  border-radius: 14px !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
 }
 
 /* Toast exito */
@@ -259,85 +282,48 @@
   animation: in .25s var(--ease) both;
 }
 
-/* Landscape TCL 800h CRÍTICO DPR 1.325 → CSS 966×604 (TCL SI CUMPLE minW=800 minH=500, antes 1200/620 NO)
-   🎯 NUEVO DISEÑO RESULTADO PANTALLA QR + BOTONES 2×2: TODO CENTRADO ABSOLUTO. NADA SE CORTA.
-   Altura util = 604 - header 44 - legal 36 = 524px. Sumas: foto 448 + gap 14 = 462, colr: title 56 + qr 200 + gap 12 + grid 2x2(124) = 392px → TODO CABE. */
+/* Landscape TCL 800h DPR 1.325 → CSS 966×604 (TCL SI CUMPLE minW=800 minH=500)
+   ⚠️ IMPORTANTE: Layout 2 columnas, foto izquierda, QR derecha YA ESTÁ DEFINIDO EN LA BASE (arriba).
+   ESTE MEDIA QUERY SÓLO HACE AJUSTES FINOS DE TAMAÑO. NO redefine dirección flex ni layout.
+   Altura útil = 604 - header 44 - legal 44 = 516px.
+   Sumas: foto max 820px → altura 461px + gap 18 = 479. QR col 360: title 48 + qr 210+22=232 + gap 10 + grid(118) = 408 → TODO CABE. */
 @media (orientation: landscape) and (min-height: 500px) and (max-height: 900px) and (min-width: 800px) and (max-width: 1399px) {
-  .resultado-header { padding: 0 28px; height: 44px; min-height: 44px; display: grid !important; grid-template-columns: 1fr auto 1fr !important; align-items: center !important; justify-items: center !important; }
-  .resultado-header .header-left { grid-column: 1/2 !important; justify-self: start !important; width: 100% !important; display: flex !important; align-items: center !important; max-width: none !important; min-width: 0 !important; }
-  .resultado-header .header-middle { grid-column: 2/3 !important; justify-self: center !important; width: auto !important; display: flex !important; align-items: center !important; max-width: none !important; min-width: 0 !important; padding: 0 !important; }
-  .resultado-header .header-right { grid-column: 3/4 !important; justify-self: end !important; width: 100% !important; display: flex !important; align-items: center !important; justify-content: flex-end !important; max-width: none !important; min-width: 0 !important; overflow: visible !important; max-height: 100%; }
-  .resultado-titulo { font-size: 1.85rem !important; font-weight: 900 !important; white-space: nowrap !important; }
+  .resultado-header {
+    padding: 0 24px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+  }
+  .resultado-titulo { font-size: 1.85rem !important; font-weight: 900 !important; }
 
-  /* ✅ PADDING INFERIOR SEGURO 80px SOBRE LEGAL: NUNCA 4TO BOTÓN COMPARTIR CORTE */
   .resultado-content {
     padding-top: 0 !important;
     padding-bottom: calc(var(--legal-h) + var(--pad-safe-b) + 80px) !important;
     gap: 0 !important;
   }
 
-  /* Layout res 2 cols: foto 60% | QR 40% — TODO CENTRADO GEOMÉTRICAMENTE */
   .res {
-    display: flex !important;
-    flex-direction: row !important;
-    gap: 24px !important;
-    padding: 10px 32px !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 100% !important;
-    max-width: none !important;
-    margin: 0 !important;
+    gap: 20px !important;
+    padding: 8px 28px !important;
   }
-  .res .l { flex: 0 0 auto !important; display: flex !important; align-items: center !important; justify-content: center !important; padding: 0 !important; min-width: 0 !important; width: auto !important; height: auto !important; }
   .res .r {
-    flex: 0 0 360px !important;                /* COLUMNA DERECHA ANCHO FIJO 360px — NADA SE DESBORDA */
+    flex: 0 0 360px !important;
+    width: 360px !important;
     max-width: 360px !important;
-    min-width: 320px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;             /* ✅ CENTRADO HORIZONTAL COLUMNA DERECHA: QR/BOTONES/TÍTULO */
-    justify-content: center !important;         /* ✅ CENTRADO VERTICAL: NUNCA se quedan arriba */
-    text-align: center !important;
-    gap: 14px !important;
-    padding: 8px 6px !important;
-    margin: 0 auto !important;
-    width: 100% !important;
+    min-width: 340px !important;
+    gap: 12px !important;
   }
 
-  /* ✅ FOTO FINAL: 16:9, ancho max 820px = altura ~461px. Perfecta en 604 util. */
   .res .fr, .foto-final-frame {
-    aspect-ratio: 16/9;
-    min-width: 0 !important;
-    min-height: 0 !important;
-    max-width: 820px !important;
-    width: min(820px, 56dvw) !important;
-    height: auto !important;
-    border-radius: 22px !important;
-    border: none !important;
-    outline: none !important;
-    box-shadow: 0 22px 48px -20px rgba(0,0,0,0.75) !important;
-    display: block !important;
-    margin: 0 auto !important;
+    max-width: 780px !important;
+    width: min(780px, 54dvw) !important;
+    min-width: 540px !important;
+    border-radius: 20px !important;
   }
 
-  /* ✅ TÍTULO QR: wrap centrado nunca corta */
   .qr-leyenda-titulo {
-    font-size: 1.2rem !important;
-    font-weight: 800 !important;
-    line-height: 1.2 !important;
-    white-space: normal !important;
-    padding: 0 12px !important;
-    margin: 0 auto !important;
-    text-align: center !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    color: var(--tx) !important;
+    font-size: 1.25rem !important;
   }
 
-  /* ✅ QR CENTRADO GEOMÉTRICO, 200×200, padding 20 quiet zone, overflow visible NUNCA CORTADO */
   .qr {
     width: 200px !important;
     height: 200px !important;
@@ -346,73 +332,12 @@
     min-width: 200px !important;
     min-height: 200px !important;
     padding: 20px !important;
-    border-radius: 16px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    margin: 0 auto !important;
-    overflow: visible !important;
-    contain: none !important;
-    box-sizing: border-box !important;
-    background: #ffffff !important;
-    box-shadow: 0 16px 36px -12px rgba(0,0,0,0.58), 0 0 0 1px rgba(0,0,0,0.08) !important;
-  }
-  .qr-code-canvas,
-  .qr-code {
-    display: block !important;
-    width: 100% !important;
-    height: 100% !important;
-    max-width: 100% !important;
-    max-height: 100% !important;
-    margin: 0 auto !important;
-    padding: 0 !important;
-    object-fit: contain !important;
   }
 
-  /* ✅ BOTONES GRID 2×2 CENTRADO ABSOLUTO, 2 cols, 2 rows. 54px altura FIJA. */
-  .res-botones,
-  .res-botones-2,
   .res-botones-grid {
-    margin: 0 auto !important;
-    width: 100% !important;
     max-width: 340px !important;
-    min-width: 0 !important;
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    grid-auto-rows: 54px !important;
-    align-items: center !important;
-    justify-items: stretch !important;
-    justify-content: center !important;
-    align-content: center !important;
-    gap: 10px 12px !important;
-    padding: 0 !important;
   }
-  .btn-resultado-cta,
-  .res-botones .btn-primario,
-  .res-botones .btn-secundario,
-  .res-botones .btn-cta-red,
-  .res-botones-2 button,
-  .res-botones-grid button {
-    min-width: 0 !important;
-    min-height: 54px !important;
-    max-height: 54px !important;
-    height: 54px !important;
-    width: 100% !important;
-    font-size: 1.05rem !important;
-    font-weight: 700 !important;
-    padding: 8px 10px !important;
-    line-height: 1.1 !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    text-align: center !important;
-    border-radius: 14px !important;
-    box-sizing: border-box !important;
-    margin: 0 !important;
-  }
+
   .toast-exito { margin: 0 auto !important; }
 }
 @media (orientation: portrait) {

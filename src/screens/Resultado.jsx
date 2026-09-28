@@ -102,9 +102,9 @@ export default function Resultado() {
             </div>
           </div>
           <div className="r">
-            <b className="qr-leyenda-titulo" style={{ fontSize: '24px', fontWeight: 800, color: '#fff', margin: 0 }}>
-              Escanea y descarga
-            </b>
+            <h3 className="qr-leyenda-titulo">
+              Escanea y descarga tu foto
+            </h3>
 
             <div className="qr" aria-label="Código QR para descargar la foto">
               <QRCodeCanvas
@@ -118,16 +118,7 @@ export default function Resultado() {
               />
             </div>
 
-            <div
-              className="grid res-botones-grid"
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '10px 12px',
-                marginTop: 4,
-                width: '100%',
-              }}
-            >
+            <div className="grid res-botones-grid">
               <button className="btn-primario btn-cta-red cta btn-resultado-cta" onClick={handleTerminar} autoFocus={true}>
                 TERMINAR
               </button>

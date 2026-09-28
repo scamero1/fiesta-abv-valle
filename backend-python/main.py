@@ -658,6 +658,221 @@ ESCENARIO_CONFIG = {
 }
 
 
+# ==============================================================================
+# PASO 0 y PASO 1 - CACHE DE ASSETS MEDIDOS y CARGA INICIAL (al arrancar FastAPI)
+#   - escenarios.json (coordenadas px/pct + valores recomendados
+#   - 3 fondos JPG resize LANCZOS a 1920x1080 (UN resize posterior)
+#   - 3 máscaras PNG L (ventana paisaje - keepout pastilla)
+#   - mapa 6 IDs frontend -> 3 keys del JSON
+# ==============================================================================
+def _load_escenarios_json():
+    p = os.path.join(PUBLIC_ASSETS, "escenarios.json")
+    if not os.path.exists(p):
+        print("[BOOT] ⚠️ No se encontró escenarios.json en assets. Usar defaults.")
+        return {}
+    try:
+        with open(p, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[BOOT] ⚠️ Falló carga escenarios.json: {e}")
+        return {}
+
+ESCENARIOS_JSON: Dict[str, Any] = _load_escenarios_json()
+
+# Mapa 6 IDs frontend -> key del JSON (cristorey/museosalsa/plazavarela)
+MAPA_IDS_ESCENARIO_KEY: Dict[str, str] = {}
+for _key, _val in ESCENARIOS_JSON.items():
+    if not isinstance(_val, dict) or str(_key).startswith("__"):
+        continue
+    for _id in _val.get("ids_frontend", []):
+        MAPA_IDS_ESCENARIO_KEY[_id] = _key
+
+# Cache fondos 1920x1080 RGBA (inicializado None, se carga lazy al primer uso)
+FONDOS_CACHE: Dict[str, "Image.Image"] = {}
+# Cache máscaras de ventana (L (1920x1080, 255=paisaje, 0=marco)
+MASCARAS_VENTANA: Dict[str, "Image.Image"] = {}
+
+
+def _cargar_assets_escenario(key: str):
+    """Carga lazy fondo (1920x1080 RGBA) y máscara PNG L para un escenario."""
+    if key in FONDOS_CACHE and key in MASCARAS_VENTANA:
+        return
+    esc = ESCENARIOS_JSON.get(key)
+    if not esc:
+        return
+    fname = esc.get("archivo_fondo", "")
+    if fname:
+        p = os.path.join(PUBLIC_ASSETS, fname)
+        if os.path.exists(p):
+            try:
+                with Image.open(p) as im:
+                    im.load()
+                    if im.size == (CANVAS_W, CANVAS_H):
+                        fondo = im.convert("RGBA")
+                    else:
+                        fondo = cover_resize(im.convert("RGBA"), CANVAS_W, CANVAS_H)
+                FONDOS_CACHE[key] = fondo
+            except Exception as e:
+                print(f"[BOOT] ⚠️ Falló cargar fondo {fname}: {e}")
+    mask_name = f"mask_{key}.png"
+    pm = os.path.join(PUBLIC_ASSETS, mask_name)
+    if os.path.exists(pm):
+        try:
+            with Image.open(pm) as mk:
+                MASCARAS_VENTANA[key] = mk.convert("L")
+        except Exception as e:
+            print(f"[BOOT] ⚠️ Falló cargar mascara {mask_name}: {e}")
+    print(f"[BOOT] ✅ Assets cargados: {key}")
+
+
+# Cargar todos los assets INMEDIATAMENTE al importar main.py (cache caliente)
+for _k in list(ESCENARIOS_JSON.keys()):
+    if not _k.startswith("__"):
+        _cargar_assets_escenario(_k)
+
+
+# ==============================================================================
+# FUNCIONES AUXILIARES NUEVAS (PROMPT MAESTRO PASO 2)
+#   - connected_components (labelizado binario simple, 8-vecindad, NumPy)
+#   - filtrar componentes conexas (área >= 25% de la mayor, o que toquen su bbox)
+#   - obtener key escenario desde ID frontend
+# ==============================================================================
+def connected_components(binario: np.ndarray) -> tuple[np.ndarray, int]:
+    """Labelizado de componentes conexas 8-vecindad. Retorna (labels, n_labels).
+       Implementacion Union-Find sin errores de sintaxis.
+       binario: ndarray bool shape (H,W), True = foreground.
+    """
+    H, W = binario.shape
+    labels = np.zeros((H, W), dtype=np.int32)
+    parent: list[int] = [0]
+    lbl_counter = 0
+
+    def find(x: int) -> int:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a: int, b: int) -> None:
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+
+    for y in range(H):
+        for x in range(W):
+            if not binario[y, x]:
+                continue
+            neighbors: list[int] = []
+            yp = y - 1
+            if yp >= 0:
+                for dx in (-1, 0, 1):
+                    xp = x + dx
+                    if 0 <= xp < W and labels[yp, xp] > 0:
+                        neighbors.append(int(labels[yp, xp]))
+            xp = x - 1
+            if xp >= 0 and labels[y, xp] > 0:
+                neighbors.append(int(labels[y, xp]))
+            if not neighbors:
+                lbl_counter += 1
+                parent.append(lbl_counter)
+                labels[y, x] = lbl_counter
+            else:
+                min_l = min(neighbors)
+                labels[y, x] = min_l
+                for nl in neighbors:
+                    if nl != min_l:
+                        union(min_l, nl)
+    mapping: dict[int, int] = {0: 0}
+    new_id = 0
+    final_labels = np.zeros_like(labels)
+    for y in range(H):
+        for x in range(W):
+            lab = int(labels[y, x])
+            if lab == 0:
+                continue
+            root = find(lab)
+            if root not in mapping:
+                new_id += 1
+                mapping[root] = new_id
+            final_labels[y, x] = mapping[root]
+    return final_labels, new_id
+
+
+def _bbox_from_mask(mask_bool: np.ndarray) -> tuple[int, int, int, int] | None:
+    ys, xs = np.nonzero(mask_bool)
+    if len(xs) == 0:
+        return None
+    return int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max())
+
+
+def filter_person_components(alpha_uma: np.ndarray, min_area_ratio: float = 0.25) -> np.ndarray:
+    """PROMPT MAESTRO PASO 2.2: Mantener componente mayor + toda componente con
+       area >= 25% del area mayor, O QUE TOQUE el bbox expandido de la mayor.
+       alpha_uma: uint8 (H,W) con valores 0..255.
+    """
+    bin = alpha_uma >= 15
+    if not bin.any():
+        return alpha_uma
+    labels, n = connected_components(bin)
+    if n <= 1:
+        return alpha_uma
+    areas: list[int] = [0] * (n + 1)
+    bboxes: dict[int, tuple[int, int, int, int]] = {}
+    H, W = alpha_uma.shape
+    # Histograma por label y extremos por label
+    minx: list[int] = [W] * (n + 1)
+    miny: list[int] = [H] * (n + 1)
+    maxx: list[int] = [-1] * (n + 1)
+    maxy: list[int] = [-1] * (n + 1)
+    for y in range(H):
+        row = labels[y]
+        for x in range(W):
+            lb = int(row[x])
+            if lb == 0:
+                continue
+            areas[lb] += 1
+            if x < minx[lb]:
+                minx[lb] = x
+            if x > maxx[lb]:
+                maxx[lb] = x
+            if y < miny[lb]:
+                miny[lb] = y
+            if y > maxy[lb]:
+                maxy[lb] = y
+    for lb in range(1, n + 1):
+        if areas[lb] > 0:
+            bboxes[lb] = (minx[lb], miny[lb], maxx[lb], maxy[lb])
+    id_mayor = 1
+    area_mayor = areas[1]
+    for lb in range(2, n + 1):
+        if areas[lb] > area_mayor:
+            area_mayor = areas[lb]
+            id_mayor = lb
+    bbox_mayor = bboxes.get(id_mayor)
+    keep = labels == id_mayor
+    area_min = int(area_mayor * min_area_ratio)
+    if bbox_mayor is not None:
+        x1m, y1m, x2m, y2m = bbox_mayor
+        pad = 10
+        for lb in range(1, n + 1):
+            if lb == id_mayor:
+                continue
+            if lb not in bboxes:
+                continue
+            x1, y1, x2, y2 = bboxes[lb]
+            area_ok = areas[lb] >= area_min
+            toca_bbox_mayor = (x1 <= x2m + pad) and (x2 >= x1m - pad) and (y1 <= y2m + pad) and (y2 >= y1m - pad)
+            if area_ok or toca_bbox_mayor:
+                keep = keep | (labels == lb)
+    out = alpha_uma.copy()
+    out[~keep] = 0
+    return out
+
+
+def escenario_key_from_id(escenario_id: str) -> str | None:
+    return MAPA_IDS_ESCENARIO_KEY.get(escenario_id)
+
+
 def load_asset(filename: str) -> Image.Image | None:
     p = os.path.join(PUBLIC_ASSETS, filename)
     if os.path.exists(p):
@@ -1011,181 +1226,295 @@ def compose_full(
     alpha_matting: bool = True,
 ) -> Image.Image:
     """
-    Composicion 2 CAPAS PRINCIPALES + LEGAL MINIMO (NADA DE MARCAS) — FORMATO HORIZONTAL 16:9:
-      0 (Fondo): escenario JPG cover resize 1920x1080 (Full HD 16:9 horizontal)
-      1 (Persona): PNG transparente IA, escala 82%, TOCA EL SUELO (pies pegados a barra legal)
-      2 (Legal OBLIGATORIO): UNICAMENTE barra blanca 4.5% con texto.
-    NADA DE MARCOS, NADA DE FOOTER NEGRO, NADA DE LOGOS, NADA DE BOTELLAS, NADA DE SLOGANS, NADA DE HASHTAGS.
+    PROMPT MAESTRO - Composicion NUEVA (reglas 1 a 8):
+      0) FONDO SAGRADO: solo se copia 1:1 del cache ya resized a 1920x1080 LANCZOS.
+      1) PERSONA: pipeline anti-croma -> componentes conexas -> crop bbox real
+                 -> escala por ALTURA (fraccion alto ventana paisaje)
+                 -> anclaje 5px POR DEBAJO de y_base (borde inf paisaje)
+                 -> posicion horizontal por escenario (centro X pct canvas)
+                 -> RECORTE DURO alfa * mascara_ventana (sin feather ni halo)
+      2) COMPOSICION: canvas = fondo.copy().paste(persona, (x,y), alfa_masked)
+      3) REGLA4: validacion numerica diferencia 0 fuera de persona.
     """
-    cfg = ESCENARIO_CONFIG.get(escenario_id)
-    if cfg is None:
-        raise HTTPException(status_code=400, detail=f"Escenario '{escenario_id}' no existe. Opciones: sunset, feria, neon, calle-del-sabor, plaza-varela, cristo-rey")
+    # ------------------------------------------------------------------
+    # PASO 1: RESOLVER escenario_id -> key JSON + fondo cacheado
+    # ------------------------------------------------------------------
+    key = escenario_key_from_id(escenario_id)
+    cfg_old = ESCENARIO_CONFIG.get(escenario_id)
+    if cfg_old is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Escenario '{escenario_id}' no existe. Opciones: sunset, feria, neon, calle-del-sabor, plaza-varela, cristo-rey",
+        )
 
-    # ====== CAPA 0: FONDO ESCENARIO — SÓLO USAR EL JPG ORIGINAL DEL USUARIO, SIN NUESTROS COLORES DEGRADADOS ENCIMA.
-    # Usuario ordenó: "no quede sobreexpuesta... empiece desde la foto que se dio no lo de colores".
-    # => Si el JPG del escenario existe: LO USAMOS 1:1 (TAL CUAL), SIN gradient_cover, SIN colores nuestros.
-    # => Gradient COLORES nuestros SÓLO se usa si el JPG NO existe (fallback, fondo custom sin asset, error).
-    fondo_pil = load_asset(cfg["backgroundImg"]) if cfg.get("backgroundImg") else None
-    if fondo_pil is not None:
-        fw_jpg, fh_jpg = fondo_pil.size
-        # Si el JPG ya está exactamente en 1920x1080 (como los 3 del usuario): usar DIRECTAMENTE, no resize.
-        # Si por algún motivo es otro tamaño, sí cover resize a CANVAS.
-        if fw_jpg == CANVAS_W and fh_jpg == CANVAS_H:
-            fondo = fondo_pil.convert("RGBA")
-        else:
-            fondo = cover_resize(fondo_pil, CANVAS_W, CANVAS_H).convert("RGBA")
+    if key is not None and key in FONDOS_CACHE and key in MASCARAS_VENTANA:
+        esc = ESCENARIOS_JSON[key]
+        fondo = FONDOS_CACHE[key].copy()
+        mascara_ventana_full = MASCARAS_VENTANA[key]
+        # Coords desde JSON:
+        y_base_px = int(esc["y_base_px"])                     # 987 (borde inf paisaje)
+        y_top_px = int(esc["ventana_paisaje_px"]["y_top_paisaje"])  # 89
+        alto_ventana_paisaje = y_base_px - y_top_px            # ~898
+        ancho_inf_ventana = int(esc["ventana_paisaje_px"].get("ancho_ventana_inf_px", 1816))
+        # keep-outs en px:
+        kslog = esc.get("keep_out_slogan_px", {}).get("bbox", [134, 140, 499, 432])
+        klogo = esc.get("keep_out_logo_px", {}).get("bbox", [1536, 21, 1891, 237])
+        # Valores recomendados:
+        vr = esc.get("valores_recomendados", {})
+        escala_altura_min, escala_altura_max = vr.get("escala_altura_ventana", [0.58, 0.65])
+        escala_altura_default = round((escala_altura_min + escala_altura_max) / 2, 3)
+        cx_pct_min, cx_pct_max = vr.get("centro_horizontal_pct_canvas", [0.48, 0.52])
+        cx_pct_default = round((cx_pct_min + cx_pct_max) / 2, 3)
+        using_cache = True
     else:
-        fondo = gradient_cover(CANVAS_W, CANVAS_H, cfg["fallback_gradient"][0], cfg["fallback_gradient"][1]).convert("RGBA")
+        # FALLBACK: modo antiguo (sin JSON/mascara) para mantener retrocompatibilidad
+        fondo_pil = load_asset(cfg_old["backgroundImg"]) if cfg_old.get("backgroundImg") else None
+        using_cache = False
+        if fondo_pil is not None:
+            fw_jpg, fh_jpg = fondo_pil.size
+            if (fw_jpg, fh_jpg) == (CANVAS_W, CANVAS_H):
+                fondo = fondo_pil.convert("RGBA")
+            else:
+                fondo = cover_resize(fondo_pil, CANVAS_W, CANVAS_H).convert("RGBA")
+        else:
+            fondo = gradient_cover(CANVAS_W, CANVAS_H, cfg_old["fallback_gradient"][0], cfg_old["fallback_gradient"][1]).convert("RGBA")
+        mascara_ventana_full = Image.new("L", (CANVAS_W, CANVAS_H), 255)
+        y_base_px = 987
+        y_top_px = 89
+        alto_ventana_paisaje = y_base_px - y_top_px
+        ancho_inf_ventana = 1816
+        kslog = [134, 140, 499, 432]
+        klogo = [1536, 21, 1891, 237]
+        escala_altura_default = 0.60
+        cx_pct_default = 0.50
 
-    canvas = Image.new("RGBA", (CANVAS_W, CANVAS_H), (0, 0, 0, 0))
-    canvas.alpha_composite(fondo, (0, 0))
-
-    # ====== REGLA 1 SAGRADA (NUNCA MODIFICAR EL FONDO ORIGINAL):
-    #  ✅ NUNCA se clona, parchea, repinta, recorta ni dibuja NADA sobre el fondo.
-    #  ✅ El fondo trae: marco azul, marco blanco inclinado, título, slogan "¡VA CON TODO!",
-    #     pastilla del logo y barra legal. TODO permanece IDÉNTICO al JPG original 1920x1080.
-    #  ✅ Única modificación permitida al canvas: alpha_composite de la PERSONA después.
-    #  Cualquier draw.rectangle / paste / crop sobre el canvas = ELIMINADO, VIOLA REGLA 1.
-    # ================================================================
-    #  ====== REGLA 3 (persona no sobrepasa título/slogan/pastilla):
-    #  Coordenadas MEDIDAS EN JPG REAL (proporciones 0..1 canvas 1920x1080):
-    #   - Título header: y ∈ [0, 82/1080=0.076]
-    #   - Slogan sup-izq "¡VA CON TODO!": x∈[0.030, 0.138],  y∈[0.119, 0.361]
-    #   - Pastilla sup-der "FIESTA":       x∈[0.835, 1.000], y∈[0.000, 0.079]
-    #  Con bottom_from_frame_pct -0.10 (actual), la persona empieza Y ≥ 460 px (> slogan 390px).
-    #  No hay solapamiento vertical → REGLA 3 SATISFECHA incluso si la persona está en las X del slogan/pastilla.
-    # ====================================================================
-
-    # ====== CAPA 1: PERSONA — PIPELINE ANTI-CROMA + IA AUTO-AJUSTE TAMAÑO (scale_in_frame YA NO ES NECESARIO).
-    #    Orden estricto:
-    #    1. close_alpha_holes radius=6 + 2 pass morfológico → EFECTO CROMA FIX (camisa color igual al fondo no desaparece).
-    #    2. feather 3px → suaviza bordes del closing fuerte.
-    #    3. 🧠 IA autoscale_person_to_safe(target_fill=93%) → escala automática detectando BBox REAL.
-    #       Si la IA falla → fallback scale_in_frame del config.
-    #    4. Posición SIEMPRE DENTRO DE SAFE_FRAME (104≤x≤1816 / 138≤y≤960) CLAMP 100% BLOQUEADO
-    #       (blanco/azul IMPOSIBLE de tocar). Centrado horizontal. PEGADO a baseline inferior SAFE (y=960).
+    # ------------------------------------------------------------------
+    # PASO 2: Pipeline persona (anti-croma, componentes, crop)
+    # ------------------------------------------------------------------
     persona_rgba = persona_rgba.convert("RGBA")
-    # FIX EFECTO CROMA: closing morfológico fuerte (radius=6) + 2do pass radius=4.
+    # Pipeline actual (mantener): closing radius=6 + 2do pass + feather 3px
     persona_no_holes = close_alpha_holes(persona_rgba, radius_px=6)
-    # Feather 3px para compensar el borde "navaja" del closing morfológico agresivo.
+    # OJO: Feather SÓLO en el CONTORNO de la persona (NO contra marco,
+    # el recorte DURO con mascara_ventana elimina feather en el borde del marco).
     persona_clean = feather_borders_alpha(persona_no_holes, feather_px=3)
 
-    # ====================================================================
-    # 🧠 IA AUTO-AJUSTE: PRIMERO intentamos escalar la persona automáticamente
-    #                    detectando el tamaño REAL (quitar espacio transparente muerto).
-    #                    TAMAÑO POR ESCENARIO via cfg.persona_target_fill_pct (override por escenario):
-    #                      - cristo-rey = 82% MUY grande abajo; museo-salsa = 72% mediano; plaza-varela = 46% pequeño
-    #                    Fallback genérico = 58% (plano medio si no config).
-    # ====================================================================
-    # 🎯 OVERRIDE PROTOTIPO POR ESCENARIO (NO genérico 58%):
-    target_fill_escenario = float(cfg.get("persona_target_fill_pct", 0.58))
+    # Filtrado de componentes conexas (eliminar manchas)
     try:
-        persona_auto_scaled, ia_scale_applied = autoscale_person_to_safe(
-            persona_clean,
-            target_fill_pct=target_fill_escenario,
-            min_final_scale=0.25,
-            max_final_scale=1.3,
-        )
-        fitted = persona_auto_scaled
+        alpha_clean = np.asarray(persona_clean.split()[-1], dtype=np.uint8)
+        alpha_filt = filter_person_components(alpha_clean, min_area_ratio=0.25)
+        persona_filt = persona_clean.copy()
+        persona_filt.putalpha(Image.fromarray(alpha_filt, mode="L"))
     except Exception:
-        # FALLBACK ANTIGUO SOLO SI LA IA DE BBOX FALLA: usar scale_in_frame hardcodeado.
-        fitted = None
+        persona_filt = persona_clean
 
-    if fitted is None or fitted.size[0] <= 4 or fitted.size[1] <= 4:
-        # Fallback: método antiguo si la IA retornó algo inválido.
-        scale_in_frame = cfg.get("scale_in_frame", None)
-        if scale_in_frame and 0.2 < float(scale_in_frame) < 1.0:
-            sif = float(scale_in_frame)
-            target_max_w_frame = int(FRAME_SAFE_W * sif)
-            target_max_h_frame = int(FRAME_SAFE_H * (sif * 1.12))
-            fitted = fit_contain(persona_clean, target_max_w_frame, target_max_h_frame)
-        else:
-            scale_legacy = cfg.get("persona_scale", 0.72)
-            t_w = int(CANVAS_W * scale_legacy)
-            t_h = int(CANVAS_H * (scale_legacy * 1.12))
-            fitted = fit_contain(persona_clean, t_w, t_h)
+    # Crop al BBOX REAL del alfa > 15 (PASO 2.1)
+    bbox = get_alpha_content_bbox(persona_filt, alpha_min=15)
+    if bbox is None:
+        bbox = (0, 0, persona_filt.size[0], persona_filt.size[1])
+    pad = 8
+    iw, ih = persona_filt.size
+    cr = persona_filt.crop((
+        max(0, bbox[0] - pad), max(0, bbox[1] - pad),
+        min(iw, bbox[2] + pad), min(ih, bbox[3] + pad),
+    ))
+    crop_w, crop_h = cr.size
+
+    # ------------------------------------------------------------------
+    # PASO 2.3 y 2.4: ESCALA por ALTURA de ventana paisaje
+    # ------------------------------------------------------------------
+    # Objetivo: altura_persona = escala_altura_default * alto_ventana_paisaje
+    target_h = int(round(alto_ventana_paisaje * escala_altura_default))
+    scale = target_h / max(1, crop_h)
+    # Ancho objetivo después de escalar:
+    target_w = int(round(crop_w * scale))
+    target_h = max(1, target_h)
+    target_w = max(1, target_w)
+
+    # PASO 2.4: limites ancho y cabeza
+    ANCHO_MAX_PCT_VENTANA = 0.55
+    MARGEN_LATERAL_PX = 12
+    MARGEN_SUPERIOR_PX = 12
+    ancho_max = int(ancho_inf_ventana * ANCHO_MAX_PCT_VENTANA)
+    if target_w > ancho_max:
+        red = ancho_max / max(1, target_w)
+        target_w = int(target_w * red)
+        target_h = int(target_h * red)
+        scale = scale * red
+
+    # Control cordura CABEZA: 16 a 23 % alto canvas (173 a 248 px aprox 1080)
+    # Estimación cabeza: 23% de la ALTURA CROP original (de arriba)
+    head_px_est_orig = int(crop_h * 0.23)
+    head_px_est = int(head_px_est_orig * scale)
+    HEAD_MIN_PCT = 0.16
+    HEAD_MAX_PCT = 0.23
+    head_min_px = int(CANVAS_H * HEAD_MIN_PCT)
+    head_max_px = int(CANVAS_H * HEAD_MAX_PCT)
+    if head_px_est < head_min_px:
+        mul = head_min_px / max(1, head_px_est)
+        target_h = int(min(target_h * mul, CANVAS_H * 0.95))
+        target_w = int(round(crop_w * (target_h / max(1, crop_h))))
+        scale = target_h / max(1, crop_h)
+    elif head_px_est > head_max_px:
+        mul = head_max_px / max(1, head_px_est)
+        target_h = int(target_h * mul)
+        target_w = int(round(crop_w * (target_h / max(1, crop_h))))
+        scale = target_h / max(1, crop_h)
+
+    fitted = cr.resize((target_w, target_h), Image.LANCZOS)
     fw, fh = fitted.size
 
-    # ====== Posición X DENTRO DEL FRAME DEL PAISAJE — SAFE_PAD_X=16px (no 8 ni 24, balance) NUNCA TOCAR AZUL/BLANCO
-    safe_center_x = FRAME_SAFE_X1 + (FRAME_SAFE_W // 2)
-    x_offset_pct = float(cfg.get("x_offset_pct", 0.0))
-    x = int(safe_center_x - (fw // 2) + (FRAME_SAFE_W * x_offset_pct))
-    SAFE_PAD_X = 16
-    x_min = FRAME_X1 + SAFE_PAD_X      # 56 + 16 = 72 ✅ NUNCA toca blanco izq ni azul
-    x_max = FRAME_X2 - fw - SAFE_PAD_X # 1864 - fw - 16 = 1848 - fw ✅ NUNCA toca blanco der ni azul
+    # ------------------------------------------------------------------
+    # PASO 2.5 + 2.6: Posicion (anclaje inf) + (centro X por escenario)
+    # ------------------------------------------------------------------
+    # Anclaje: base de la persona = y_base_px + 5 (4-6px DEBAJO del borde inf)
+    # la mascara del marco recorta el excedente.
+    ANCLAJE_OFFSET_INF_PX = 5
+    base_persona_y = y_base_px + ANCLAJE_OFFSET_INF_PX
+    y = base_persona_y - fh
+
+    # X: centro horizontal (pct del CANVAS)
+    centro_x_canvas = int(CANVAS_W * cx_pct_default)
+    x = centro_x_canvas - (fw // 2)
+
+    # Margin lateral 12px respecto a ventana (blanco/azul IMPOSIBLE por la mascara,
+    # pero mantenemos como 2ª barrera). Usamos extremos de ventana base:
+    vent_izq_aprox = 96 - MARGEN_LATERAL_PX
+    vent_der_aprox = 1822 + MARGEN_LATERAL_PX
+    x_min = vent_izq_aprox + MARGEN_LATERAL_PX
+    x_max = vent_der_aprox - MARGEN_LATERAL_PX - fw
     x = max(x_min, min(x_max, x))
 
-    # ====== Posición Y DENTRO DEL FRAME DEL PAISAJE — SAFE_PAD_Y=16px NUNCA TOCAR AZUL (y≤82) NI BLANCO (y>1008)
-    # ====== REGLA 3 EXTRA: y_min REGLA3 = 460 px (int(CANVAS_H * 0.426)).
-    #    Coords medidas en JPG real:
-    #      - Slogan sup-izq "¡VA CON TODO!" termina en y=390 (390/1080=0.361)
-    #      - Título header termina en y=82 (0.076)
-    #      - Pastilla sup-der "FIESTA" termina en y=85 (0.079)
-    #    Obligamos a la persona a EMPEZAR (top) en y ≥ 460 = 70px DESPUÉS del slogan (390).
-    #    Así NUNCA habrá solapamiento vertical ni con slogan/pastilla/título (Regla3 SATISFECHA 100%).
-    bottom_pct_frame = float(cfg.get("bottom_from_frame_pct", cfg.get("persona_bottom_pct", 0.00)))
-    SAFE_PAD_Y = 16
-    # Baseline: siempre dentro FRAME. bottom_from_frame_pct = -0.10 (sube 90px, centro vertical paisaje).
-    y_baseline_segura = int((FRAME_Y2 - SAFE_PAD_Y) - (FRAME_SAFE_H * bottom_pct_frame))
-    y = int(y_baseline_segura - fh)
-    y_min_frame  = FRAME_Y1 + SAFE_PAD_Y          # 90 + 16 = 106 (no toca azul/blanco sup)
-    y_min_regla3 = int(CANVAS_H * 0.426)          # 460 (NO SOLAPA slogan/pastilla/título — REGLA 3 CRÍTICA)
-    y_min = max(y_min_frame, y_min_regla3)        # 460 ✅ gana el más restrictivo
-    y_max = FRAME_Y2 - SAFE_PAD_Y - fh             # 1008 - 16 - fh = 992 - fh ✅ pies ≥16px antes blanco inf
-    y = max(y_min, min(y_max, y))
-    canvas.alpha_composite(fitted, (x, y))
+    # Margen superior 12px sobre y_top_px (título/logo -> la persona empieza MUY abajo
+    # por diseño, así que esto es solo sanity)
+    y_min = y_top_px + MARGEN_SUPERIOR_PX
+    # y_max = no se usa, por anclaje inferior (fijo)
+    if y < y_min:
+        # Subir la escala haría que y sea menor; mejor bajar la escala para que fh
+        # sea menor y y = base - fh aumenta. Alternativa: desplazar.
+        # Optamos por reducir escala.
+        necesito_fh_max = base_persona_y - y_min
+        if necesito_fh_max > 4 and fh > necesito_fh_max:
+            red = necesito_fh_max / max(1, fh)
+            new_fw = max(1, int(fw * red))
+            new_fh = max(1, int(fh * red))
+            fitted = fitted.resize((new_fw, new_fh), Image.LANCZOS)
+            fw, fh = new_fw, new_fh
+            x = centro_x_canvas - (fw // 2)
+            x = max(x_min, min(x_max, x))
+            y = base_persona_y - fh
 
-    # ====== CAPA 2: ADVERTENCIA LEGAL — ✅ LOS 3 JPG ORIGINALES DEL USUARIO YA LA TRAEN DENTRO (y=1022→1080).
-    # Por lo tanto: SÓLO pintamos nuestra barra legal draw_legal_bar_minimal SI Y SÓLO SI NO EXISTÍA EL JPG del escenario
-    # (es decir, se usó el fallback gradient custom sin los assets del usuario). Así NUNCA hay DOBLE legal = sobreexpuesta.
-    if fondo_pil is None:
-        # Fallback custom sin JPG original → sí pintar la legal nuestra.
-        canvas = draw_legal_bar_minimal(canvas)
+    # ------------------------------------------------------------------
+    # PASO 2.7: Keep-outs slogan / pastilla. Si invade -> desplazar, reducir.
+    # ------------------------------------------------------------------
+    def bbox_intersects(a, b):
+        return not (a[2] <= b[0] or a[0] >= b[2] or a[3] <= b[1] or a[1] >= b[3])
+    pers_bbox = [x, y, x + fw, y + fh]
+    for tries in range(6):
+        invadi = False
+        for kb in (kslog, klogo):
+            if kb and bbox_intersects(pers_bbox, kb):
+                invadi = True
+                break
+        if not invadi:
+            break
+        # 1) intentar desplazar a la derecha o izquierda
+        if pers_bbox[0] < kslog[2] and pers_bbox[2] > kslog[0]:
+            # Mover a la DERECHA del slogan
+            nx = kslog[2] + 8
+            centro_x_canvas = nx + fw // 2
+            x = nx
+            x = max(x_min, min(x_max, x))
+        if pers_bbox[2] > klogo[0] and pers_bbox[0] < klogo[2]:
+            # Mover a la IZQUIERDA de la pastilla
+            nx = klogo[0] - fw - 8
+            centro_x_canvas = nx + fw // 2
+            x = nx
+            x = max(x_min, min(x_max, x))
+        pers_bbox = [x, y, x + fw, y + fh]
+        if bbox_intersects(pers_bbox, kslog) or bbox_intersects(pers_bbox, klogo):
+            # 2) último recurso: reducir 10% la escala
+            red = 0.90
+            new_fw = max(2, int(fw * red))
+            new_fh = max(2, int(fh * red))
+            fitted = fitted.resize((new_fw, new_fh), Image.LANCZOS)
+            fw, fh = new_fw, new_fh
+            x = centro_x_canvas - (fw // 2)
+            x = max(x_min, min(x_max, x))
+            y = base_persona_y - fh
+            pers_bbox = [x, y, x + fw, y + fh]
 
-    # ====== CAPA 3: OVERLAYS — ELIMINADOS COMPLETAMENTE POR USUARIO.
-    #  Usuario: "elimina todo texto y recuadro que aparece en las fotos ya que salen".
-    #  ✅ NO pintamos NADA encima (no slogan, no pastilla). Foto = fondo JPG ORIGINAL + persona.
-    # canvas = draw_slogan_va_con_todo(canvas)   # ❌ ELIMINADO
-    # canvas = draw_logo_pastilla(canvas)       # ❌ ELIMINADO
+    # ------------------------------------------------------------------
+    # PASO 2.8: RECORTE DURO. alfa_final = alfa_persona * mascara_ventana.
+    # Sin feather: 0 o 255 donde toca el marco (evita halos contra azul/blanco).
+    # ------------------------------------------------------------------
+    # 1) Extraer sub-imagen de la mascara_ventana en coords x,y,fw,fh
+    x1_c = max(0, x)
+    y1_c = max(0, y)
+    x2_c = min(CANVAS_W, x + fw)
+    y2_c = min(CANVAS_H, y + fh)
+    sub_w = x2_c - x1_c
+    sub_h = y2_c - y1_c
+    alfa_recorte = Image.new("L", (fw, fh), 0)
+    if sub_w > 0 and sub_h > 0:
+        crop_mask_area = mascara_ventana_full.crop((x1_c, y1_c, x2_c, y2_c))
+        # Coordenadas locales dentro de fitted (donde empieza el overlap)
+        lx = x1_c - x
+        ly = y1_c - y
+        alfa_recorte.paste(crop_mask_area, (lx, ly))
+    # Multiplicar: alfa persona * alfa recorte = RECORTE DURO
+    alfa_pers = fitted.split()[-1]
+    import PIL.ImageChops as _IC
+    alfa_final_mask = _IC.multiply(alfa_pers, alfa_recorte)
+    persona_final = fitted.copy()
+    persona_final.putalpha(alfa_final_mask)
 
-    # ====================================================================
-    #  REGLA 4: Validación Numérica (diferencia FUERA de máscara persona = 0
-    #  Verifica que el fondo JPG ORIGINAL permanece INTACTO en TODOS los píxeles
-    #  donde NO está la persona (alfa > 0). Cualquier diferencia = VIOLACIÓN REGLA 1.
-    #  Si diff != 0 lanza RuntimeWarning (NO interrumpe flujo evento).
-    # ====================================================================
+    # ------------------------------------------------------------------
+    # PASO 3: COMPOSICION SIMPLE (canvas = fondo.copy(), paste con alfa)
+    # ------------------------------------------------------------------
+    canvas = fondo.copy()
+    canvas.paste(persona_final, (x, y), persona_final)
+
+    # Si NO usamos cache (fallback viejo sin JPG), pintar barra legal nuestra.
+    if not using_cache:
+        fondo_pil_exist = (key is None and load_asset(cfg_old.get("backgroundImg", "")) is None)
+        if fondo_pil_exist or (not using_cache and cfg_old.get("backgroundImg") and load_asset(cfg_old["backgroundImg"]) is None):
+            canvas = draw_legal_bar_minimal(canvas)
+
+    # ------------------------------------------------------------------
+    # REGLA 4: Validacion numerica diferencia fuera de la persona = 0
+    # ------------------------------------------------------------------
     try:
+        import warnings
         import numpy as np
         _arr_canvas = np.asarray(canvas.convert("RGB"), dtype=np.int16)
-        _arr_fondo  = np.asarray(fondo.convert("RGB"),  dtype=np.int16)
+        _arr_fondo = np.asarray(fondo.convert("RGB"), dtype=np.int16)
         _mask_persona = np.zeros((CANVAS_H, CANVAS_W), dtype=bool)
         if 0 <= x < CANVAS_W and 0 <= y < CANVAS_H and fw > 0 and fh > 0:
-            _x1 = max(0, x); _y1 = max(0, y)
-            _x2 = min(CANVAS_W, x + fw); _y2 = min(CANVAS_H, y + fh)
-            _fitted_alpha = np.asarray(
-                fitted.split()[-1].crop((_x1 - x, _y1 - y, _x2 - x, _y2 - y)),
-                dtype=np.uint8
+            _xa = max(0, x); _ya = max(0, y)
+            _xb = min(CANVAS_W, x + fw); _yb = min(CANVAS_H, y + fh)
+            _a = np.asarray(
+                persona_final.split()[-1].crop((_xa - x, _ya - y, _xb - x, _yb - y)),
+                dtype=np.uint8,
             )
-            _mask_persona[_y1:_y2, _x1:_x2] = _fitted_alpha > 0
-        _fuera_mask = ~_mask_persona
-        _diff_total = int(np.sum(np.abs(
-            _arr_canvas[_fuera_mask].reshape(-1) - _arr_fondo[_fuera_mask].reshape(-1)
+            _mask_persona[_ya:_yb, _xa:_xb] = _a > 0
+        _fuera = ~_mask_persona
+        _diff = int(np.sum(np.abs(
+            _arr_canvas[_fuera].reshape(-1) - _arr_fondo[_fuera].reshape(-1)
         )))
-        if _diff_total != 0:
-            import warnings
+        if _diff != 0:
             warnings.warn(
-                f"[REGLA4 FAIL] Diferencia total FUERA de persona = {_diff_total} (≠0). "
+                f"[REGLA4 FAIL] Diferencia total FUERA de persona = {_diff} (≠0). "
                 f"VIOLA Regla1 (fondo sagrado NO intacto).",
                 RuntimeWarning,
-                stacklevel=2
+                stacklevel=2,
             )
-        del _arr_canvas, _arr_fondo, _mask_persona, _fuera_mask
+        del _arr_canvas, _arr_fondo, _mask_persona, _fuera
     except Exception as _errR4:
         import warnings
         warnings.warn(
-            f"[REGLA4 SKIP] No se pudo ejecutar validación NumPy: {str(_errR4)}",
+            f"[REGLA4 SKIP] No se pudo ejecutar validacion: {str(_errR4)}",
             RuntimeWarning,
-            stacklevel=2
+            stacklevel=2,
         )
 
     return canvas

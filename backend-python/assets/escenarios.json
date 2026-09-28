@@ -1,0 +1,370 @@
+{
+  "cristorey": {
+    "ids_frontend": [
+      "sunset",
+      "cristo-rey"
+    ],
+    "archivo_fondo": "esc-cristorey.jpg",
+    "canvas": {
+      "w": 1920,
+      "h": 1080
+    },
+    "ventana_paisaje_px": {
+      "esquinas_tl_tr_br_bl": [
+        [
+          96,
+          89
+        ],
+        [
+          1822,
+          89
+        ],
+        [
+          1868,
+          987
+        ],
+        [
+          52,
+          987
+        ]
+      ],
+      "y_top_paisaje": 89,
+      "y_base_borde_inf": 987,
+      "ancho_ventana_inf_px": 1816,
+      "alto_ventana_px": 898
+    },
+    "ventana_paisaje_pct": {
+      "esquinas_tl_tr_br_bl": [
+        [
+          0.05,
+          0.0824
+        ],
+        [
+          0.949,
+          0.0824
+        ],
+        [
+          0.9729,
+          0.9139
+        ],
+        [
+          0.0271,
+          0.9139
+        ]
+      ],
+      "y_top_pct": 0.0824,
+      "y_base_pct": 0.9139
+    },
+    "keep_out_slogan_px": {
+      "bbox": [
+        134,
+        140,
+        499,
+        432
+      ]
+    },
+    "keep_out_slogan_pct": {
+      "bbox": [
+        0.0698,
+        0.1296,
+        0.2599,
+        0.4
+      ]
+    },
+    "keep_out_logo_px": {
+      "bbox": [
+        1536,
+        21,
+        1891,
+        237
+      ]
+    },
+    "keep_out_logo_pct": {
+      "bbox": [
+        0.8,
+        0.0194,
+        0.9849,
+        0.2194
+      ]
+    },
+    "franja_titulo_px": {
+      "bbox": [
+        0,
+        0,
+        1920,
+        86
+      ]
+    },
+    "franja_legal_px": {
+      "bbox": [
+        0,
+        1020,
+        1920,
+        1080
+      ]
+    },
+    "y_base_px": 987,
+    "y_base_pct": 0.9139,
+    "valores_recomendados": {
+      "escala_altura_ventana": [
+        0.55,
+        0.62
+      ],
+      "centro_horizontal_pct_canvas": [
+        0.5,
+        0.55
+      ],
+      "cabeza_pct_canvas": [
+        0.16,
+        0.23
+      ]
+    }
+  },
+  "museosalsa": {
+    "ids_frontend": [
+      "neon",
+      "calle-del-sabor"
+    ],
+    "archivo_fondo": "esc-museosalsa.jpg",
+    "canvas": {
+      "w": 1920,
+      "h": 1080
+    },
+    "ventana_paisaje_px": {
+      "esquinas_tl_tr_br_bl": [
+        [
+          96,
+          89
+        ],
+        [
+          1822,
+          89
+        ],
+        [
+          1868,
+          987
+        ],
+        [
+          52,
+          987
+        ]
+      ],
+      "y_top_paisaje": 89,
+      "y_base_borde_inf": 987,
+      "ancho_ventana_inf_px": 1816,
+      "alto_ventana_px": 898
+    },
+    "ventana_paisaje_pct": {
+      "esquinas_tl_tr_br_bl": [
+        [
+          0.05,
+          0.0824
+        ],
+        [
+          0.949,
+          0.0824
+        ],
+        [
+          0.9729,
+          0.9139
+        ],
+        [
+          0.0271,
+          0.9139
+        ]
+      ],
+      "y_top_pct": 0.0824,
+      "y_base_pct": 0.9139
+    },
+    "keep_out_slogan_px": {
+      "bbox": [
+        134,
+        140,
+        499,
+        432
+      ]
+    },
+    "keep_out_slogan_pct": {
+      "bbox": [
+        0.0698,
+        0.1296,
+        0.2599,
+        0.4
+      ]
+    },
+    "keep_out_logo_px": {
+      "bbox": [
+        1536,
+        21,
+        1891,
+        237
+      ]
+    },
+    "keep_out_logo_pct": {
+      "bbox": [
+        0.8,
+        0.0194,
+        0.9849,
+        0.2194
+      ]
+    },
+    "franja_titulo_px": {
+      "bbox": [
+        0,
+        0,
+        1920,
+        86
+      ]
+    },
+    "franja_legal_px": {
+      "bbox": [
+        0,
+        1020,
+        1920,
+        1080
+      ]
+    },
+    "y_base_px": 987,
+    "y_base_pct": 0.9139,
+    "valores_recomendados": {
+      "escala_altura_ventana": [
+        0.58,
+        0.65
+      ],
+      "centro_horizontal_pct_canvas": [
+        0.3,
+        0.38
+      ],
+      "cabeza_pct_canvas": [
+        0.16,
+        0.23
+      ]
+    }
+  },
+  "plazavarela": {
+    "ids_frontend": [
+      "feria",
+      "plaza-varela"
+    ],
+    "archivo_fondo": "esc-plazavarela.jpg",
+    "canvas": {
+      "w": 1920,
+      "h": 1080
+    },
+    "ventana_paisaje_px": {
+      "esquinas_tl_tr_br_bl": [
+        [
+          96,
+          89
+        ],
+        [
+          1822,
+          89
+        ],
+        [
+          1868,
+          987
+        ],
+        [
+          52,
+          987
+        ]
+      ],
+      "y_top_paisaje": 89,
+      "y_base_borde_inf": 987,
+      "ancho_ventana_inf_px": 1816,
+      "alto_ventana_px": 898
+    },
+    "ventana_paisaje_pct": {
+      "esquinas_tl_tr_br_bl": [
+        [
+          0.05,
+          0.0824
+        ],
+        [
+          0.949,
+          0.0824
+        ],
+        [
+          0.9729,
+          0.9139
+        ],
+        [
+          0.0271,
+          0.9139
+        ]
+      ],
+      "y_top_pct": 0.0824,
+      "y_base_pct": 0.9139
+    },
+    "keep_out_slogan_px": {
+      "bbox": [
+        134,
+        140,
+        499,
+        432
+      ]
+    },
+    "keep_out_slogan_pct": {
+      "bbox": [
+        0.0698,
+        0.1296,
+        0.2599,
+        0.4
+      ]
+    },
+    "keep_out_logo_px": {
+      "bbox": [
+        1536,
+        21,
+        1891,
+        237
+      ]
+    },
+    "keep_out_logo_pct": {
+      "bbox": [
+        0.8,
+        0.0194,
+        0.9849,
+        0.2194
+      ]
+    },
+    "franja_titulo_px": {
+      "bbox": [
+        0,
+        0,
+        1920,
+        86
+      ]
+    },
+    "franja_legal_px": {
+      "bbox": [
+        0,
+        1020,
+        1920,
+        1080
+      ]
+    },
+    "y_base_px": 987,
+    "y_base_pct": 0.9139,
+    "valores_recomendados": {
+      "escala_altura_ventana": [
+        0.8,
+        0.88
+      ],
+      "centro_horizontal_pct_canvas": [
+        0.42,
+        0.45
+      ],
+      "cabeza_pct_canvas": [
+        0.16,
+        0.23
+      ]
+    }
+  },
+  "__meta__": {
+    "canvas_w": 1920,
+    "canvas_h": 1080,
+    "generado_por": "tools/ajuste_manual_escenarios.py (valores medidos manualmente)"
+  }
+}

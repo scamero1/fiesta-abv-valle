@@ -48,6 +48,7 @@ import json
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
+import numpy as np
 
 try:
     import psycopg
@@ -710,7 +711,7 @@ def _cargar_assets_escenario(key: str):
                     if im.size == (CANVAS_W, CANVAS_H):
                         fondo = im.convert("RGBA")
                     else:
-                        fondo = cover_resize(im.convert("RGBA"), CANVAS_W, CANVAS_H)
+                        fondo = im.convert("RGBA").resize((CANVAS_W, CANVAS_H), Image.LANCZOS)
                 FONDOS_CACHE[key] = fondo
             except Exception as e:
                 print(f"[BOOT] ⚠️ Falló cargar fondo {fname}: {e}")

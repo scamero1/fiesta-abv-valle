@@ -18,6 +18,21 @@ backend-python/public-fotos/
 .env.production.local
 .railway/
 
+# --- Tools / test cache y outputs generados (NO subir renders) ---
+tools/__pycache__/
+tools/*.pyc
+tools/out/
+
+# --- Fotos temporales / fixtures sin trackear / backups locales ---
+_BACKUP_*_*/
+aguardiente-blanco-fiesta-*.jpg
+imagen generada.jpeg
+*Fondo VIEJO*.*
+*Fondo new.jpg.jpeg
+Cristo Rey Fondo.jpg.jpeg
+Museo de la salsa Fondo.jpg.jpeg
+Plaza Varela Fondo.jpg.jpeg
+
 # --- OS ---
 Thumbs.db
 .DS_Store

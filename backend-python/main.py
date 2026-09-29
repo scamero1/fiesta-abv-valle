@@ -1225,7 +1225,7 @@ def draw_logo_pastilla(composed: Image.Image) -> Image.Image:
 # HELPERS NUEVOS CALIDAD DE RECORTE y COMPOSICION (L6 nueva especificacion)
 # SIN dependencia scipy (solo Pillow + NumPy). Union-Find connected_components propio.
 # ==============================================================================
-def _alpha_erode(alpha_pil: Image.Image, radius_px: int = 1) -> Image.Image:
+def _alpha_erode(alpha_pil: Image.Image, radius_px: int = 2) -> Image.Image:
     """Erosiona el alfa 1-2 px (quitar halo / borde claro residual)."""
     if radius_px <= 0:
         return alpha_pil.copy()
@@ -1336,7 +1336,7 @@ def _feather_on_landscape_only(
 
 def _detect_n_personas_from_components(
     alpha_crop: np.ndarray,
-    min_area_ratio: float = 0.08,
+    min_area_ratio: float = 0.05,
 ) -> str:
     """Cuenta componentes conexas 8-vecindad con área >= min_area_ratio * max_area.
     Usa UNION-FIND connected_components propio (no scipy).
@@ -1491,7 +1491,7 @@ def compose_full(
     # ==================================================================
     alpha_pil = persona_no_holes.split()[-1]
     # erosion 1.5px aproximado (MinFilter 3x3 = 1px, luego un extra en componente suave)
-    alpha_eroded_1 = _alpha_erode(alpha_pil, radius_px=1)
+    alpha_eroded_1 = _alpha_erode(alpha_pil, radius_px=2)
     persona_eroded = persona_no_holes.copy()
     persona_eroded.putalpha(alpha_eroded_1)
 
@@ -1518,7 +1518,7 @@ def compose_full(
     alpha_crop_arr = np.asarray(cr.split()[-1], dtype=np.uint8)
 
     # Detectar N personas para elegir rangos
-    n_pers = _detect_n_personas_from_components(alpha_crop_arr, min_area_ratio=0.08)
+    n_pers = _detect_n_personas_from_components(alpha_crop_arr, min_area_ratio=0.05)
     print(f"[compose_full] n_personas detectado={n_pers!r} crop_w={crop_w} crop_h={crop_h}")
 
     # Rangos por N personas (L1, L2, L5):

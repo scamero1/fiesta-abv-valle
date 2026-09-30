@@ -44,34 +44,34 @@
   --sp-5: 20px;  --sp-6: 24px;  --sp-7: 28px;  --sp-8: 32px;
   --sp-10: 40px; --sp-12: 48px; --sp-16: 64px;
 
-  /* ===== RADIOS (prototipo 16/18/30) ===== */
+  /* ===== RADIOS ===== */
   --radius-xs: 6px;
   --radius-sm: 12px;
   --radius-md: 16px;
-  --radius-lg: 18px;
-  --radius-xl: 30px;
+  --radius-lg: 16px;
+  --radius-xl: 28px;
   --radius-full: 9999px;
 
-  /* ===== BOTONES (PROTOTIPO FISICO 3D) ===== */
-  --cta-h: 64px;
-  --btn-cta-pad-y: 18px;
-  --btn-cta-pad-x: 52px;
-  --btn-cta-fs: 26px;
-  --btn-ghost-pad-y: 16px;
-  --btn-ghost-pad-x: 32px;
-  --btn-ghost-fs: 22px;
+  /* ===== BOTONES ===== */
+  --cta-h: 60px;
+  --btn-cta-pad-y: 16px;
+  --btn-cta-pad-x: 48px;
+  --btn-cta-fs: 24px;
+  --btn-ghost-pad-y: 14px;
+  --btn-ghost-pad-x: 28px;
+  --btn-ghost-fs: 20px;
 
-  /* ===== HEADER / STEPPER (PROTOTIPO) ===== */
-  --header-h: 72px;
-  --step-seg-w: 44px;
-  --step-seg-h: 8px;
-  --step-seg-r: 4px;
+  /* ===== HEADER / STEPPER ===== */
+  --header-h: 60px;
+  --step-seg-w: 38px;
+  --step-seg-h: 6px;
+  --step-seg-r: 3px;
   --step-done: var(--color-verde-ok);
   --step-current: var(--color-dorado);
   --step-pending: rgba(255,255,255,0.15);
 
-  /* ===== LEGAL BAR (PROTOTIPO 44px NEGRA) ===== */
-  --legal-h: 44px;
+  /* ===== LEGAL BAR ===== */
+  --legal-h: 34px;
 
   /* ===== Z-INDEX ===== */
   --z-bg: 0;
@@ -195,7 +195,7 @@ body {
 .camara-bg-dark {
   position: absolute;
   inset: 0;
-  background: linear-gradient(165deg, var(--azul2) -30%, var(--azul) 55%);
+  background: url('../assets/Fondo Horizontal.png');
   background-size: cover !important;
   background-repeat: no-repeat !important;
   background-position: center !important;
@@ -207,7 +207,10 @@ body {
 }
 
 .bg-pantone-2728 {
-  background: linear-gradient(165deg, var(--azul2) -30%, var(--azul) 55%);
+  background: url('../assets/Fondo Horizontal.png');
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
 }
 
 .screen > *:not(.screen-bg):not(.camara-bg-dark) {

@@ -1,88 +1,68 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext.jsx'
-import { SloganVaConTodo } from '../components/BrandComponents.jsx'
 import '../styles/bienvenida.css'
 
-const BOTELLAS = [
-  {
-    id: 'sin-azucar',
-    img: '/assets/botella-sin-azucar.png',
-    posicion: 'side',
-  },
-  {
-    id: 'fiesta',
-    img: '/assets/botella-fiesta-azul.png',
-    posicion: 'mid',
-  },
-  {
-    id: 'night',
-    img: '/assets/botella-night.png',
-    posicion: 'side',
-  },
-]
+import logo100 from '../assets/Logo 100 años.png'
+import logoBlanco from '../assets/Logo aguardiente blanco.png'
+import esloganImg from '../assets/El sabor que nos une.png'
+import botellaImg from '../assets/Botella.png'
 
 export default function Bienvenida() {
   const navigate = useNavigate()
   const { reiniciarFlujo } = useApp()
+  const [aceptoTyC, setAceptoTyC] = useState(false)
 
   const handleIniciar = () => {
+    if (!aceptoTyC) return
     reiniciarFlujo()
     navigate('/instrucciones')
   }
 
   return (
     <div className="screen bienvenida-screen">
-      <div className="screen-bg bienvenida-bg bg-pantone-2728" />
-
-      <div className="particles bienvenida-particles">
-        {Array.from({ length: 18 }).map((_, i) => (
-          <span
-            key={i}
-            className="particle pt"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 4}s`,
-            }}
-          />
-        ))}
-      </div>
+      <div className="screen-bg bienvenida-bg fondo-pieza-ganadores" />
 
       <div className="screen-content bienvenida-content anim-in">
-        <div className="hero">
-          <div className="mark hero-mark">
-            <img
-              src="/assets/logo-oficial.png"
-              alt="Aguardiente Blanco del Valle"
-              className="logo-oficial-img hero-logo"
-              onError={(e) => { e.currentTarget.style.display = 'none'; const sib = e.currentTarget.nextElementSibling; if (sib) sib.style.display = '' }}
-            />
-            <span className="hero-mark-text" style={{ display: 'none' }}>Aguardiente Blanco del Valle <b>FIESTA</b></span>
+        <div className="nuevo-login-wrap">
+
+          <div className="logos-top-row">
+            <img src={logo100} alt="100 años" className="logo-top logo-100" />
+            <img src={logoBlanco} alt="Aguardiente Blanco" className="logo-top logo-abv" />
           </div>
 
-          <div className="slogan-wrap">
-            <SloganVaConTodo size="lg" />
+          <div className="eslogan-zone">
+            <img src={esloganImg} alt="El sabor que nos une" className="eslogan-img" />
           </div>
 
-          <div className="trip">
-            {BOTELLAS.map((b, i) => (
-              <img
-                key={b.id}
-                src={b.img}
-                alt="Aguardiente Blanco del Valle"
-                className={`bt-img-pura ${b.posicion === 'mid' ? 'mid' : 'side'}`}
-                style={{
-                  animationDelay: `${i * 0.9}s`,
-                }}
+          <div className="botella-zone">
+            <img src={botellaImg} alt="Botella Aguardiente Blanco" className="botella-login" />
+          </div>
+
+          <div className="zona-inferior-login">
+            <label className="check-tyc-wrap" htmlFor="chk-tyc">
+              <input
+                type="checkbox"
+                id="chk-tyc"
+                className="check-tyc-input"
+                checked={aceptoTyC}
+                onChange={(e) => setAceptoTyC(e.target.checked)}
               />
-            ))}
-          </div>
+              <span className="check-tyc-label">
+                Acepto los términos y condiciones y la política de tratamiento de datos
+              </span>
+            </label>
 
-          <div className="hero-cta-wrap">
-            <button className="btn-primario btn-iniciar btn-cta-red cta" onClick={handleIniciar} autoFocus>
+            <button
+              className={`btn-primario btn-iniciar btn-cta-red cta ${!aceptoTyC ? 'is-disabled' : ''}`}
+              onClick={handleIniciar}
+              disabled={!aceptoTyC}
+              autoFocus
+            >
               ¡INICIAR!
             </button>
           </div>
+
         </div>
       </div>
     </div>

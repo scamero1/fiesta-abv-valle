@@ -649,13 +649,7 @@ img.preview-img {
   margin-top: 8px !important;
 }
 
-/* Landscape TCL 800h — CÁMARA MÁXIMA POSIBLE (QUITAR elementos, compactar, DISTRIBUCIÓN ÓPTIMA):
-   - QUITADO hint centro ("colocanet" texto arriba centro) = +36px ganados
-   - Header reducido 44→36, Stepper comprimido               = +8px
-   - Controls reducido 84→72h, obturador 104→92px             = +12px
-   - camwrap SIN padding laterales 0/0                        = +40px (20l 20r)
-   - vp 1216/684 EXACTO 16/9 → TODO el ancho útil (márgenes 32l 32r por screen-pad-x)
-   TOTAL GANANCIA: +96px ANCHO / +56px ALTO vs anterior. */
+/* Landscape TCL 800h: camara max */
 @media (orientation: landscape) and (min-height: 620px) and (max-height: 900px) and (min-width: 1200px) and (max-width: 1399px) {
   .camara-screen {
     --screen-pad-x: 16px;    /* reducido de 24→16, gana 16px más ancho total */

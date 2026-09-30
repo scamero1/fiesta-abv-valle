@@ -153,10 +153,10 @@
   .steps {
     grid-template-columns: 1fr 1fr;
     align-content: stretch;
-    gap: 14px;
-    margin-bottom: 6px;
+    gap: 12px;
+    margin-bottom: 4px;
   }
-  .card { padding: 16px 18px; }
+  .card { padding: 14px 16px; }
 }
 
 /* Portrait TCL 800w */

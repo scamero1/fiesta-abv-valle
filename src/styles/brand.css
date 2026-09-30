@@ -15,20 +15,22 @@
 
 /* ======================================================================
    NUCLEAR LEGAL FOOTER FIX: Especificidad MÁXIMA (selector 4 niveles) +
-   todos !important + bottom=144px para GAP INFERIOR 0-144px donde se VE
-   el TEXTO IMPRESO del fondo JPG: "aplica terminos y condiciones".
-   Medida NumPy JPG Pieza Ganadores 1280x800: texto impreso Y=[656..714],
-   borde superior texto = Y=656. H=800 -> 800-656 = 144px desde el borde
-   INFERIOR del viewport hasta la BASE de la legal bar HTML.
-   Esto FUNCIONA SIEMPRE (TCL con gestos, celular, tablets) porque:
-     1. Background-position = center bottom => JPG bottom = viewport bottom.
-     2. Legal bar BASE = borde superior del texto impreso = al BORDE.
+   todos !important.
+   CORRECCION por FOTO REAL user enviada: bottom=144px cortaba LA BOTELLA
+   ABV A MITAD (la franja blanca quedaba flotando sobre el cuerpo de la
+   botella, los logos 100 años y etiquetas inferiores quedaban debajo).
+   SOLUCION: Legal bar PEGADA al BORDE INFERIOR del viewport (bottom 0),
+   respetando safe-area-inset-bottom para barra GESTOS Android.
+   El fondo JPG Pieza Ganadores con background-position = center bottom
+   calc(0px + 12px) se sube 12px para que las etiquetas inferiores de la
+   botella (Sin Azucar 24°, label PERJUDICIAL) y los logos (1921 ILV,
+   100 años) NO queden TAPADOS por la legal bar blanco 36px de alto.
    ====================================================================== */
 html body .app-container .legal-footer,
 html body .legal-footer,
 html body .legal-disclaimer.legal-footer.legal-stripe-black {
   position: fixed !important;
-  bottom: 144px !important;
+  bottom: 0 !important;
   left: 0 !important;
   right: 0 !important;
   width: 100% !important;
@@ -37,7 +39,7 @@ html body .legal-disclaimer.legal-footer.legal-stripe-black {
   height: 36px !important;
   background: #FFFFFF !important;
   padding: 0 16px 0 16px !important;
-  padding-bottom: 0 !important;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) * 0.35) !important;
   margin: 0 !important;
   margin-bottom: 0 !important;
   border: 0 !important;
@@ -261,21 +263,22 @@ html body .legal-disclaimer.legal-footer.legal-stripe-black {
 /* Landscape TCL 800h — Componentes GLOBALES (Slogan / Legal / Stepper / Logos / Botones CTA)
    TOKENS HARD Landscape TCL 1280×800 10.1" PWA standalone */
 @media (orientation: landscape) and (min-width: 1200px) and (max-width: 1399px) and (min-height: 600px) {
-  /* LEGAL FOOTER al BORDE superior del TEXTO IMPRESO "aplica terminos y condiciones"
-     Fondo Pieza Ganadores analisis NumPy:
-       texto impreso rango Y=[656..714], BORDE SUP = Y=656.
-       Legal bar HTML altura = 36px => ocupa Y[620..656], BASE=656 exacto.
-       Viewport H=800 => bottom = 800 - 656 = 144 px (NO bottom:0).
-       Altura total reservada legal bar = 144px (36 visibles + 108 transparente inf donde esta texto impreso). */
+  /* LEGAL FOOTER TCL (coherente con NUCLEAR FIX GLOBAL bottom 0).
+     FOTO REAL user: bottom=144 CORTABA la BOTELLA ABV por la MITAD (franja blanca
+     flotaba sobre el cuerpo de la botella, etiquetas inf quedaban debajo = error grave).
+     Ahora legal bar PEGADA al borde inf viewport, safe-area gestual Android +
+     background-position JPG = center bottom calc(100% - 12px) => 12px margen
+     entre etiquetas botella inf / logos (1921, 100 años) y legal bar. */
   html body .legal-footer, html body .legal-disclaimer.legal-footer.legal-stripe-black {
     position: fixed !important;
-    bottom: 144px !important;
+    bottom: 0 !important;
     left: 0 !important;
     right: 0 !important;
     width: 100% !important;
     min-height: 36px !important;
     height: 36px !important;
     padding: 0 18px 0px 18px !important;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) * 0.35) !important;
     margin-bottom: 0 !important;
     z-index: 9999 !important;
   }

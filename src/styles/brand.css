@@ -28,12 +28,13 @@ html body .legal-disclaimer.legal-footer.legal-stripe-black {
   min-width: 100% !important;
   min-height: var(--legal-h, 44px);
   height: var(--legal-h, 44px) !important;
-  background: #000000 !important;
-  padding: 0 24px 0 24px !important;
+  background: #FFFFFF !important;
+  padding: 0 16px 0 16px !important;
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) * 0.25) !important;
   margin: 0 !important;
   margin-bottom: 0 !important;
   border: 0 !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.12) !important;
   border-radius: 0 !important;
   z-index: 9999 !important;
   flex: 0 0 auto;
@@ -73,16 +74,18 @@ html body .legal-disclaimer.legal-footer.legal-stripe-black {
 
 .legal-text,
 .legal-inner.legal-inner-black .legal-text {
-  color: #FFFFFF;
-  font-size: var(--legal-text-size, 0.8125rem);
-  font-weight: 600;
+  color: #000000;
+  font-size: clamp(0.62rem, 1.05dvw, 0.75rem);
+  font-weight: 700;
   text-align: center;
   width: 100%;
-  line-height: 1.3;
+  line-height: 1.1;
   text-transform: none;
   padding: 0;
   margin: 0;
-  white-space: normal;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  letter-spacing: -0.005em;
 }
 
 .legal-text-dark { color: #000; }
@@ -265,9 +268,10 @@ html body .legal-disclaimer.legal-footer.legal-stripe-black {
     z-index: 9999 !important;
   }
   .legal-text, .legal-inner.legal-inner-black .legal-text {
-    font-size: 0.8125rem !important;  /* 13px exacto legal reglamentario */
-    font-weight: 600;
-    line-height: 1.25;
+    font-size: 0.6875rem !important;
+    font-weight: 700 !important;
+    line-height: 1.05 !important;
+    letter-spacing: -0.01em !important;
   }
   /* SLOGAN ¡VA CON TODO! */
   .slogan-vacontodo {

@@ -1,11 +1,26 @@
 /* ============================================================
-   BIENVENIDA — NUEVO LOGIN
-   Breakpoints:
-   · TCL Tab 10L landscape 1280x800: 1200-1320 w x 620-900 h
-   · Tablets landscape small: 1000-1199 w x 560+ h
-   · Celular landscape: h ≤ 720 / h ≤ 500
-   · Celular portrait: w ≤ 540
-   · Tablet portrait: 740-860 w
+   BIENVENIDA — NUEVO LOGIN SOLO FONDO Pieza Ganadores
+   Fondo Pieza Ganadores.jpg.jpeg = FONDO COMPLETO que YA LLEVA
+   DIBUJADOS: logos, eslogan, botella, etc. NUNCA superponer PNGs
+   encima de estos elementos que ya vienen en el fondo.
+
+   SOLO AGREGAMOS SOBRE EL FONDO, EN ZONA LIBRE DETECTADA
+   (NumPy analisis desviacion std MINIMA, mas lisa, sin dibujo):
+   · CHECKBOX términos y condiciones OBLIGATORIO
+   · BOTÓN ¡INICIAR! rojo 3D
+
+   ZONA LIBRE DETECTADA (desv=18.5 std RGB):
+   X: 28% a 72% del ancho   Y: 50% a 72% del alto
+   = area 563 ancho x 176 alto px (TCL 1280x800 landscape)
+   Colocamos elemento CENTRADO en esta zona (regla proporciones 0..1)
+
+   Breakpoints (cumplir: TCL Tab 10L primero + celular/todos):
+   · TCL landscape 1280x800: 1200-1320 w x 620-900 h
+   · Tablet landscape 1000-1199
+   · Tablet landscape 1400-1800
+   · Celular landscape h<=720 / h<=500
+   · Celular portrait   w<=540 / w<=340
+   · Tablet portrait    740-860 x 1000+
    ============================================================ */
 
 .fondo-pieza-ganadores,
@@ -25,113 +40,33 @@
   gap: 0;
 }
 
-.nuevo-login-wrap {
-  flex: 1 1 auto;
-  width: 100%;
-  min-height: 0;
+/* ============================================================
+   ZONA LIBRE donde colocar checkbox + botón (centro vertical)
+   Medida desde análisis NumPy sobre el archivo REAL del fondo:
+   left_min = 28% W / left_max = 72% W    (centro 50% W)
+   top_min  = 50% H / top_max  = 72% H    (centro 61% H)
+   ============================================================ */
+.login-zone-med-centro {
+  position: absolute;
+  left: 50%;
+  top: 61%;
+  transform: translate(-50%, -50%);
+  width: 58%;            /* 72% - 28% = 44% ~ 58% para tener margen lateral 7% dentro */
+  max-width: 760px;
+  min-width: 260px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  padding-top: calc(var(--pad-safe-t) + 10px);
-  padding-bottom: calc(var(--legal-h) + 10px + var(--pad-safe-b));
-  padding-left: var(--screen-pad-x);
-  padding-right: var(--screen-pad-x);
-  box-sizing: border-box;
-  position: relative;
-}
-
-/* Logos fila superior */
-.logos-top-row {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex: 0 0 auto;
-}
-
-.logo-top {
-  object-fit: contain;
-  display: block;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.25));
-}
-
-.logo-100 {
-  height: clamp(44px, 7.2dvh, 76px);
-  max-width: 42%;
-}
-
-.logo-abv {
-  height: clamp(48px, 8.6dvh, 84px);
-  max-width: 48%;
-}
-
-/* Eslogan "El sabor que nos une" */
-.eslogan-zone {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
   justify-content: center;
-  width: 100%;
-  margin-top: 2px;
-}
-
-.eslogan-img {
-  width: min(960px, 80dvw);
-  max-height: clamp(64px, 12dvh, 140px);
-  object-fit: contain;
-  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.30));
-}
-
-/* Botella central */
-.botella-zone {
-  flex: 1 1 auto;
-  min-height: 0;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  margin: 0;
-  overflow: hidden;
-}
-
-.botella-login {
-  height: min(340px, 48dvh);
-  max-height: 90%;
-  max-width: 60dvw;
-  object-fit: contain;
-  filter: drop-shadow(0 14px 28px rgba(0,0,0,.35));
-  animation: floaty-botella 4s ease-in-out infinite;
-  transform-origin: 50% 100%;
-  will-change: transform;
-}
-
-@keyframes floaty-botella {
-  0%, 100% { transform: translateY(0) rotate(-0.3deg); }
-  50%      { transform: translateY(-10px) rotate(0.3deg); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .botella-login { animation: none; }
-}
-
-/* Zona inferior: checkbox Términos + Botón INICIAR */
-.zona-inferior-login {
-  width: 100%;
-  max-width: 780px;
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
   gap: 14px;
-  padding-bottom: 6px;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  z-index: var(--z-content);
+  contain: layout;
 }
 
-/* Checkbox Términos */
+/* CHECKBOX TÉRMINOS ---------------------------------------------------- */
 .check-tyc-wrap {
   display: flex;
   align-items: center;
@@ -139,47 +74,51 @@
   gap: 12px;
   width: 100%;
   max-width: 640px;
-  padding: 10px 14px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 2px solid rgba(255, 255, 255, 0.18);
+  padding: 10px 16px;
+  background: rgba(0, 0, 0, 0.38);
+  border: 2px solid rgba(255, 255, 255, 0.22);
   border-radius: 16px;
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
   transition: background .18s ease, border-color .18s ease, transform .1s ease;
   box-sizing: border-box;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 .check-tyc-wrap:hover {
-  background: rgba(255, 255, 255, 0.17);
-  border-color: rgba(255, 255, 255, 0.30);
+  background: rgba(0, 0, 0, 0.48);
+  border-color: rgba(255, 255, 255, 0.35);
 }
 
 .check-tyc-wrap:active { transform: translateY(1px); }
 
 .check-tyc-input {
   flex: 0 0 auto;
+  flex-shrink: 0;
   width: 22px;
   height: 22px;
   accent-color: var(--rojo);
   cursor: pointer;
   margin: 0;
-  flex-shrink: 0;
 }
 
 .check-tyc-label {
   flex: 1 1 auto;
-  color: #fff;
+  color: #ffffff;
   font-size: clamp(12.5px, 1.8dvh, 16px);
   font-weight: 600;
   line-height: 1.35;
-  letter-spacing: .01em;
-  text-shadow: 0 1px 2px rgba(0,0,0,.35);
+  letter-spacing: 0.01em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
 }
 
-/* Botón INICIAR rojo (estado normal y deshabilitado) */
+/* BOTÓN INICIAR -------------------------------------------------------- */
 .btn-iniciar {
-  width: min(640px, 92dvw);
+  width: 100%;
+  max-width: 640px;
   height: clamp(58px, 8.8dvh, 78px);
   font-size: clamp(19px, 3dvh, 28px) !important;
   font-weight: 900 !important;
@@ -198,63 +137,23 @@
 }
 
 /* ============================================================
-   TABLET LANDSCAPE PEQUEÑA (1000 a 1199 ancho, >=560 alto)
-   ============================================================ */
-@media (orientation: landscape)
-  and (min-width: 1000px) and (max-width: 1199px)
-  and (min-height: 560px) {
-
-  .nuevo-login-wrap {
-    padding-left: 30px;
-    padding-right: 30px;
-    padding-top: 8px;
-    padding-bottom: calc(var(--legal-h) + 10px);
-    gap: 4px;
-  }
-
-  .logo-100 { height: 58px; max-width: 320px; }
-  .logo-abv  { height: 62px; max-width: 380px; }
-
-  .eslogan-img { width: 780px; max-height: 96px; }
-
-  .botella-login { height: 260px; }
-
-  .zona-inferior-login { max-width: 640px; gap: 12px; }
-
-  .check-tyc-wrap  { max-width: 600px; padding: 10px 16px; }
-  .check-tyc-label { font-size: 14.5px; }
-
-  .btn-iniciar { width: 600px; height: 70px; font-size: 24px !important; }
-}
-
-/* ============================================================
-   TCL TAB 10L — LANDSCAPE 1280 x 800 (1200-1320 w, 620-900 h)
+   TCL TAB 10L — LANDSCAPE PRINCIPAL 1280 x 800
+   Ajustes FINOS exactos para que no se mueva nada del diseño.
+   Zona libre medida sobre el fondo 1280x800:
+   - X centro 640 (50% W)
+   - Y centro 488 ≈ 61% H = 800 x 0.61
+   Checkbox: max 620 ancho. Botón: 620 ancho x 74 alto.
    ============================================================ */
 @media (orientation: landscape)
   and (min-width: 1200px) and (max-width: 1320px)
   and (min-height: 620px) and (max-height: 900px) {
 
-  .nuevo-login-wrap {
-    padding-left: 40px;
-    padding-right: 40px;
-    padding-top: 12px;
-    padding-bottom: calc(38px + 12px);
-    gap: 4px;
-  }
-
-  .logos-top-row { gap: 16px; }
-
-  .logo-100 { height: 64px; max-width: 360px; }
-  .logo-abv  { height: 68px; max-width: 460px; }
-
-  .eslogan-img { width: 880px; max-height: 104px; }
-
-  .botella-login { height: 290px; }
-
-  .zona-inferior-login {
-    max-width: 680px;
+  .login-zone-med-centro {
+    width: 640px;       /* igual que ancho max checkbox + botón */
+    top: 61%;           /* centro Y de la zona libre 50-72% = (50+72)/2 */
+    left: 50%;
+    transform: translate(-50%, -50%);
     gap: 14px;
-    padding-bottom: 6px;
   }
 
   .check-tyc-wrap {
@@ -262,150 +161,115 @@
     padding: 12px 18px;
   }
 
-  .check-tyc-label { font-size: 15.5px; }
-  .check-tyc-input { width: 24px; height: 24px; }
+  .check-tyc-input {
+    width: 24px;
+    height: 24px;
+  }
+
+  .check-tyc-label {
+    font-size: 15.5px;
+  }
 
   .btn-iniciar {
-    width: 620px;
+    max-width: 620px;
     height: 74px;
     font-size: 26px !important;
   }
 }
 
 /* ============================================================
-   TABLET LANDSCAPE GRANDE (1400+ w, >= 780 h)
+   TABLET LANDSCAPE PEQUEÑA 1000 a 1199 w x >=560 h
+   ============================================================ */
+@media (orientation: landscape)
+  and (min-width: 1000px) and (max-width: 1199px)
+  and (min-height: 560px) {
+
+  .login-zone-med-centro {
+    width: min(620px, 58%);
+    top: 61%;
+    gap: 12px;
+  }
+
+  .check-tyc-wrap  { max-width: 600px; padding: 10px 16px; }
+  .check-tyc-label { font-size: 14.5px; }
+
+  .btn-iniciar {
+    max-width: 600px;
+    height: 70px;
+    font-size: 24px !important;
+  }
+}
+
+/* ============================================================
+   TABLET LANDSCAPE GRANDE 1400+ w
    ============================================================ */
 @media (orientation: landscape)
   and (min-width: 1400px) and (max-width: 1800px)
   and (min-height: 780px) {
 
-  .nuevo-login-wrap {
-    padding-left: 60px;
-    padding-right: 60px;
-    padding-top: 16px;
-    padding-bottom: calc(var(--legal-h) + 16px);
-    gap: 8px;
+  .login-zone-med-centro {
+    width: min(740px, 58%);
+    top: 61%;
+    gap: 16px;
   }
 
-  .logo-100 { height: 80px; max-width: 420px; }
-  .logo-abv  { height: 88px; max-width: 560px; }
-
-  .eslogan-img { width: 1100px; max-height: 140px; }
-
-  .botella-login { height: 380px; }
-
-  .check-tyc-wrap { max-width: 720px; padding: 14px 20px; }
-  .check-tyc-label { font-size: 17px; }
+  .check-tyc-wrap  { max-width: 720px; padding: 14px 20px; }
   .check-tyc-input { width: 26px; height: 26px; }
+  .check-tyc-label { font-size: 17px; }
 
-  .btn-iniciar { width: 720px; height: 84px; font-size: 30px !important; }
+  .btn-iniciar {
+    max-width: 720px;
+    height: 84px;
+    font-size: 30px !important;
+  }
 }
 
 /* ============================================================
-   CELULAR LANDSCAPE — altura <= 720 (Samsung A, iPhone SE etc)
+   CELULAR LANDSCAPE h <= 720
    ============================================================ */
 @media (orientation: landscape) and (max-height: 720px) {
-
-  .nuevo-login-wrap {
-    padding-top: calc(var(--pad-safe-t) + 6px);
-    padding-bottom: calc(var(--legal-h) + 6px + var(--pad-safe-b));
-    padding-left: 24px;
-    padding-right: 24px;
-    gap: 2px;
+  .login-zone-med-centro {
+    width: min(620px, 58%);
+    top: 63%;
+    gap: 10px;
   }
-
-  .logo-100 { height: 46px; max-width: 34%; }
-  .logo-abv  { height: 50px; max-width: 40%; }
-
-  .eslogan-img { max-height: 70px; }
-
-  .botella-login { height: 200px; max-height: 50dvh; }
-
-  .zona-inferior-login { max-width: 620px; gap: 10px; padding-bottom: 2px; }
-
   .check-tyc-wrap  { max-width: 600px; padding: 8px 12px; border-radius: 14px; }
   .check-tyc-input { width: 20px; height: 20px; }
   .check-tyc-label { font-size: 13px; }
-
-  .btn-iniciar { width: 600px; height: 60px; font-size: 20px !important; }
+  .btn-iniciar      { max-width: 600px; height: 60px; font-size: 20px !important; }
 }
 
 /* ============================================================
-   CELULAR LANDSCAPE CHICO — altura <= 500 (muy compacto)
+   CELULAR LANDSCAPE COMPACTO h <= 500
    ============================================================ */
 @media (orientation: landscape) and (max-height: 500px) {
-
-  .nuevo-login-wrap {
-    padding-top: 4px;
-    padding-bottom: calc(var(--legal-h) + 4px + var(--pad-safe-b));
-    gap: 0;
-  }
-
-  .logos-top-row { gap: 10px; }
-  .logo-100 { height: 38px; }
-  .logo-abv  { height: 42px; }
-  .eslogan-img { max-height: 50px; }
-  .botella-login { height: 150px; }
-
+  .login-zone-med-centro { top: 64%; gap: 8px; width: min(580px, 58%); }
   .check-tyc-wrap  { padding: 6px 10px; }
   .check-tyc-label { font-size: 12px; }
   .check-tyc-input { width: 18px; height: 18px; }
-
-  .btn-iniciar { height: 54px; font-size: 18px !important; }
+  .btn-iniciar      { height: 54px; font-size: 18px !important; }
 }
 
 /* ============================================================
-   MOBILE PORTRAIT (celulares normales) — ancho máximo 540px
+   CELULAR PORTRAIT w <= 540 (normales: iPhone, Android 360-480w)
+   Zona libre cambia (diferente layout portrait). La movemos
+   ABAJO DEL TODO para no tapar logos del fondo.
    ============================================================ */
 @media (orientation: portrait) and (max-width: 540px) {
-
-  .nuevo-login-wrap {
-    padding-top: calc(var(--pad-safe-t) + 12px);
-    padding-bottom: calc(var(--legal-h) + 14px + var(--pad-safe-b));
-    padding-left: 18px;
-    padding-right: 18px;
-    gap: 10px;
-  }
-
-  .logos-top-row {
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-  }
-
-  .logo-100 {
-    height: 50px;
-    max-width: 70%;
-  }
-
-  .logo-abv {
-    height: 56px;
-    max-width: 80%;
-  }
-
-  .eslogan-zone { margin-top: 4px; }
-
-  .eslogan-img {
-    width: 100%;
+  .login-zone-med-centro {
+    position: absolute;
+    left: 50%;
+    top: auto;
+    bottom: calc(var(--legal-h) + var(--pad-safe-b) + 16px);
+    transform: translateX(-50%);
+    width: 92%;
     max-width: 420px;
-    max-height: 92px;
-  }
-
-  .botella-login {
-    height: min(320px, 42dvh);
-    max-width: 86dvw;
-  }
-
-  .zona-inferior-login {
-    max-width: 100%;
     gap: 12px;
-    padding-bottom: 2px;
   }
 
   .check-tyc-wrap {
-    max-width: 100%;
     width: 100%;
+    max-width: 100%;
     padding: 10px 12px;
     border-radius: 14px;
     gap: 10px;
@@ -434,30 +298,22 @@
 }
 
 /* ============================================================
-   TABLET PORTRAIT (740-860 w x 1000+ h) / iPad mini / Tab 10L vertical
+   TABLET PORTRAIT 740-860 x 1000+ (TCL vertical, iPad mini)
    ============================================================ */
 @media (orientation: portrait)
   and (min-width: 740px) and (max-width: 860px)
   and (min-height: 1000px) {
 
-  .nuevo-login-wrap {
-    padding-left: 28px;
-    padding-right: 28px;
-    padding-top: calc(var(--pad-safe-t) + 16px);
-    padding-bottom: calc(var(--legal-h) + 20px + var(--pad-safe-b));
-    gap: 12px;
+  .login-zone-med-centro {
+    position: absolute;
+    left: 50%;
+    top: auto;
+    bottom: calc(var(--legal-h) + var(--pad-safe-b) + 26px);
+    transform: translateX(-50%);
+    width: 86%;
+    max-width: 680px;
+    gap: 16px;
   }
-
-  .logos-top-row { gap: 20px; }
-
-  .logo-100 { height: 80px; max-width: 360px; }
-  .logo-abv  { height: 86px; max-width: 440px; }
-
-  .eslogan-img { width: 680px; max-height: 130px; }
-
-  .botella-login { height: 420px; max-height: 48dvh; }
-
-  .zona-inferior-login { max-width: 680px; gap: 16px; }
 
   .check-tyc-wrap {
     max-width: 640px;
@@ -468,28 +324,21 @@
   .check-tyc-label { font-size: 16px; }
 
   .btn-iniciar {
-    width: 640px;
+    max-width: 640px;
     height: 78px;
     font-size: 28px !important;
   }
 }
 
 /* ============================================================
-   CELULAR PORTRAIT MUY CHICO (<= 340 ancho)
+   CELULAR PORTRAIT MUY CHICO w <= 340
    ============================================================ */
 @media (orientation: portrait) and (max-width: 340px) {
-
-  .nuevo-login-wrap {
-    padding-left: 14px;
-    padding-right: 14px;
-    gap: 8px;
-  }
-
-  .logo-100 { height: 42px; max-width: 68%; }
-  .logo-abv  { height: 48px; max-width: 78%; }
-  .eslogan-img { max-height: 76px; }
-  .botella-login { height: 240px; }
-
+  .login-zone-med-centro { width: 92%; gap: 10px; }
   .check-tyc-label { font-size: 12.5px; }
-  .btn-iniciar { height: 58px; font-size: 20px !important; }
+  .btn-iniciar      { height: 58px; font-size: 20px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .check-tyc-wrap, .btn-iniciar { transition: none !important; }
 }

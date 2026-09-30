@@ -213,6 +213,35 @@ body {
   background-position: center;
 }
 
+/* ============================================================
+   QUITAR STEPPER (5 segmentitos) ESQUINA SUP DERECHA
+   De TODAS las pantallas: Instrucciones / Camara / Seleccion /
+   ConfirmarVistaPrevia / Resultado.
+   ============================================================ */
+.stepper-wrapper,
+.StepperPaso {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
+
+.header-right {
+  min-width: 0 !important;
+  max-width: 0 !important;
+  width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  display: none !important;
+  visibility: hidden !important;
+}
+
 .screen > *:not(.screen-bg):not(.camara-bg-dark) {
   position: relative;
   z-index: var(--z-content);

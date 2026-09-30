@@ -27,7 +27,7 @@
 .bienvenida-bg {
   background-image: url('../assets/Fondo Pieza Ganadores.jpg.jpeg');
   background-size: cover;
-  background-position: center bottom calc(var(--legal-h, 36px));
+  background-position: center center;
   background-repeat: no-repeat;
 }
 
@@ -48,11 +48,11 @@
    ============================================================ */
 .login-zone-med-centro {
   position: absolute;
-  left: 50%;
-  top: 60%;
+  left: 40%;
+  top: 69%;
   transform: translate(-50%, -50%);
   width: 27%;
-  max-width: 320px;
+  max-width: 340px;
   min-width: 260px;
   display: flex;
   flex-direction: column;
@@ -148,16 +148,22 @@
   and (min-width: 1200px) and (max-width: 1320px)
   and (min-height: 620px) and (max-height: 900px) {
 
+  /* TCL Tab 10L Gen 3 1280×800 landscape:
+     Coordenadas NUMERICAS calculadas del fondo REAL Pieza Ganadores nuevo:
+       TEXTO IMPRESO 'aplica terminos' detectado rango Y=[656..714], BORDE SUP=656.
+       Legal bar HTML 36px ocupa Y=[620..656], bottom=144px (800-656).
+       Login conjunto ocupa altura ~120px, 10px encima legal = centro Y=550px = 68.75%.
+       Centro X mas uniforme ancho 340px = 510px = 39.84% W. */
   .login-zone-med-centro {
-    width: 320px;
-    top: 60%;
-    left: 50%;
+    width: 340px;
+    top: 68.75%;
+    left: 39.84%;
     transform: translate(-50%, -50%);
     gap: 11px;
   }
 
   .check-tyc-wrap {
-    max-width: 310px;
+    max-width: 330px;
     padding: 8px 12px;
   }
 
@@ -171,7 +177,7 @@
   }
 
   .btn-iniciar {
-    max-width: 310px;
+    max-width: 330px;
     height: 58px;
     font-size: 20px !important;
   }

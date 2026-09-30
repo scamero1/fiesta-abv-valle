@@ -27,7 +27,7 @@
 .bienvenida-bg {
   background-image: url('../assets/Fondo Pieza Ganadores.jpg.jpeg');
   background-size: cover;
-  background-position: center center;
+  background-position: center bottom;
   background-repeat: no-repeat;
 }
 
@@ -48,8 +48,8 @@
    ============================================================ */
 .login-zone-med-centro {
   position: absolute;
-  left: 40%;
-  top: 69%;
+  left: 50%;
+  top: 65%;
   transform: translate(-50%, -50%);
   width: 27%;
   max-width: 340px;
@@ -148,16 +148,20 @@
   and (min-width: 1200px) and (max-width: 1320px)
   and (min-height: 620px) and (max-height: 900px) {
 
-  /* TCL Tab 10L Gen 3 1280×800 landscape:
-     Coordenadas NUMERICAS calculadas del fondo REAL Pieza Ganadores nuevo:
-       TEXTO IMPRESO 'aplica terminos' detectado rango Y=[656..714], BORDE SUP=656.
-       Legal bar HTML 36px ocupa Y=[620..656], bottom=144px (800-656).
-       Login conjunto ocupa altura ~120px, 10px encima legal = centro Y=550px = 68.75%.
-       Centro X mas uniforme ancho 340px = 510px = 39.84% W. */
+  /* TCL Tab 10L Gen 3 1280×800 landscape GESTOS Android:
+     Ajuste basado en FOTO REAL user (screenshot enviado):
+       - Legal bar (blanca HTML: NUCLEAR bottom 144px + altura 36 = ocupa
+         Y=[620..656]. GAP inf 144px muestra texto impreso JPG aplica terminos.
+       - Titulo 'EL SABOR que nos une' = ocupa ~ 25%..55% H aprox.
+       - LOGIN DEBE ESTAR ENTRE titulo y legal-bar => centro ~65% H (no pide user).
+       - 65% H = 520 px. Parte baja del conjunto = 520 + 60 = 580. Legal empieza en 620:
+         => margen 40px SEGURO, NO SE TOCAN.
+       - CENTRADO HORIZONTAL respecto viewport (antes 39.84% era muy izq, user screenshot
+         => botella tapa botella -> ahora left:50% centro geométrico). */
   .login-zone-med-centro {
     width: 340px;
-    top: 68.75%;
-    left: 39.84%;
+    top: 65%;
+    left: 50%;
     transform: translate(-50%, -50%);
     gap: 11px;
   }

@@ -195,7 +195,7 @@ body {
 .camara-bg-dark {
   position: absolute;
   inset: 0;
-  background: url('../assets/Fondo Horizontal.png');
+  background: url('../assets/Fondo Pieza Ganadores.jpg.jpeg');
   background-size: cover !important;
   background-repeat: no-repeat !important;
   background-position: center !important;
@@ -207,7 +207,7 @@ body {
 }
 
 .bg-pantone-2728 {
-  background: url('../assets/Fondo Horizontal.png');
+  background: url('../assets/Fondo Pieza Ganadores.jpg.jpeg');
   background-size: cover;
   background-repeat: no-repeat;
   background-position: center;

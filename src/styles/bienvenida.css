@@ -27,7 +27,7 @@
 .bienvenida-bg {
   background-image: url('../assets/Fondo Pieza Ganadores.jpg.jpeg');
   background-size: cover;
-  background-position: center calc(100% - -18px);
+  background-position: center calc(100% - -12px);
   background-repeat: no-repeat;
 }
 
@@ -35,22 +35,21 @@
   padding: 0;
   margin: 0;
   display: flex;
-  align-items: stretch;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 220px;
   gap: 0;
+  position: relative;
 }
 
 /* ============================================================
-   ZONA LIBRE donde colocar checkbox + botón (centro vertical)
-   Medida desde análisis NumPy sobre el archivo REAL del fondo:
-   left_min = 28% W / left_max = 72% W    (centro 50% W)
-   top_min  = 50% H / top_max  = 72% H    (centro 61% H)
+   ZONA LOGIN — FLEXBOX, SIN position absolute/fixed.
+   Colocado por el padre .bienvenida-content flex-end + padding-bottom.
+   NUNCA se desvía por padding/margin/header/safe-area de contenedores.
    ============================================================ */
 .login-zone-med-centro {
-  position: absolute;
-  left: 50%;
-  top: 72%;
-  transform: translate(-50%, -50%);
+  position: relative;
   width: 30%;
   max-width: 360px;
   min-width: 260px;
@@ -148,57 +147,37 @@
   and (min-width: 1200px) and (max-width: 1320px)
   and (min-height: 620px) and (max-height: 900px) {
 
-  /* TCL Tab 10L Gen 3 1280×800 landscape GESTOS Android PWA FULLSCREEN.
-     USUARIO LOGRO FULLSCREEN NATIVO. Ya NO HAY status bar 36, NO HAY barra gestual.
-     Viewport util EXACTO = W1280 × H800 nativo.
-
-     CORRECCION 1 TCL (SOLO FULLSCREEN): Bg-position D = -22.
-       SHA anterior 136c18d D = -26.
-       ERROR EN FOTO REAL USUARIO: logo MAS DE 100 AÑOS (esq inf der) FUE CORTADO/TAPADO
-       por BARRA LEGAL BLANCA. Se veia la mitad superior del logo 1921 ILV y letras
-       "MAS DE 100" sobresaliendo por ARRIBA de la legal bar (resto TAPADO).
-       Causa: D=-26 → VP_logo_bottom = 738 - (-26) = 764. Legal bar ocupa [764..800].
-       Logo INICIA en el pixel MISMO que el banner legal → se introduce el logo 36 px
-       DENTRO del banner legal y se ve CORTADO por la mitad.
-       SOL D=-22: VP_logo_bottom = 738 - (-22) = 760. Top legal = 764. MARGEN = 4 px.
-         Logos 1921 + MAS DE 100 AÑOS ENTEROS, 4 px POR ENCIMA de legal bar.
-         NUNCA cortados. Cumple pedido user "cuadrar banner con final logos" (margen 4px
-         minimo, no 0). Visualmente banners/logos quedan alineados + mini separacion.
-       D=-22 relleno SUP: TAPITA AZUL VP = 0 - (-22) = 22. Relleno 22 px.
-         Anterior D=-26 daba 26. Reduccion NETA relleno sup = 4 px. Insignificante visual.
-         Tapita sigue ENTERA. No se corta. Relleno OK.
-
-     CORRECCION 2 GRAVE (FOTO REAL): Login checkbox+boton PISABA "que nos une" (ultima
-       linea titulo). Overlay blur se ve A TRAVES de la palabra une blanca del JPG.
-       Causa RAIZ: SHA anterior login bottom:190 position: absolute (no fixed).
-       Espec CSS absolute bottom = medido desde PADDING EDGE contenedor padre relativo
-       (.screen-content .bienvenida-content). Ese padre tiene padding-bottom = var(--legal-h)
-       = 40 px. Padding edge padre = VP 800 - 40 = 760. bottom 190 = 760 - 190 = 570 VP.
-       Yo habia calculado teoricamente PIE boton = 800 - 190 = 610 VP.
-       Realidad = 570 VP (40 px MAS ARRIBA de lo esperado). 40 px diferencia = exactamente
-       el padding-bottom del padre. Por eso pisa el titulo que acaba ~400 vp.
-       SOLUCION INAMOVIBLE ROMPER desvio: position: fixed.
-         position: fixed bottom: 190px left: 50% translate(-50%, 0).
-         Fixed bottom = SIEMPRE medido desde VIEWPORT BORDER (viewport 800x1280 real).
-         NUNCA depende de padding/margin/header del contenedor padre.
-         Resultado NUMERICO EXACTO: PIE boton = 800 - 190 = 610 VP (lo que queria).
-         Login rango = [610 - 120 .. 610] = [490 .. 610]. Titulo acaba ~401.
-         MARGEN SUP = 490 - 401 = 89 px. NUNCA pisan ✅.
+  /* TCL Tab 10L Gen 3 1280×800 PWA FULLSCREEN. ESTRATEGIA NUEVA FLEXBOX.
+     User dice "sigue igual NADA cambia".
+     Problema: overrides position fixed y bg-position en media query NO se aplicaban
+     en TCL real (specificity war perdida o SW cacheado viejo).
+     SOLUCION POR OTRA VIA:
+       1) PADRE bienvenida-content flex justify-content:flex-end + padding-bottom 230px
+          coloca el login SIN absolute SIN fixed. Solo padding. Imposible fallar.
+       2) D=-12 en SELECTOR BASE (fuera media query). TCL y PC mismo valor.
+          Sin override !important en breakpoint. No hay wars.
+     Numerico TCL 1280x800:
+       PIE boton = 800 - padding-bottom(230) = 570. Rango login ~ [450..570].
+       Titulo acaba ~400. MARGEN SUP = 50px. Nunca pisan. ✅
+       Legal bar empieza 764. MARGEN INF = 194px. Nunca se tocan. ✅
+       D=-12: VP_logo_bottom=738-(-12)=750. Top legal=764. Margen=14px. Logos ENTEROS. ✅
+       D=-12: TAPITA VP=0-(-12)=12. Relleno 12. Nunca corta. ✅
   */
+  .bienvenida-content {
+    padding-bottom: 230px !important;
+  }
+  .login-zone-med-centro {
+    position: relative !important;
+    width: 360px;
+    left: auto;
+    top: auto;
+    bottom: auto;
+    transform: none;
+    gap: 12px;
+  }
   .fondo-pieza-ganadores,
   .bienvenida-bg {
-    background-position: center calc(100% - -22px) !important;
-  }
-
-  .login-zone-med-centro {
-    position: fixed !important;  /* NUNCA mas absolute. Rompe dependencia padding padre 40 */
-    width: 360px;
-    bottom: 190px;
-    top: auto !important;
-    left: 50%;
-    transform: translate(-50%, 0);
-    gap: 12px;
-    z-index: calc(var(--z-content) + 10) !important;
+    background-position: center calc(100% - -12px) !important;
   }
 
   .check-tyc-wrap {

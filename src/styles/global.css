@@ -198,7 +198,7 @@ body {
   background: url('../assets/Fondo Pieza Ganadores.jpg.jpeg');
   background-size: cover !important;
   background-repeat: no-repeat !important;
-  background-position: center calc(100% - -18px) !important;
+  background-position: center calc(100% - -12px) !important;
   overflow: hidden;
   z-index: var(--z-bg);
   pointer-events: none;
@@ -210,7 +210,7 @@ body {
   background: url('../assets/Fondo Pieza Ganadores.jpg.jpeg');
   background-size: cover;
   background-repeat: no-repeat;
-  background-position: center calc(100% - -18px);
+  background-position: center calc(100% - -12px);
 }
 
 /* ============================================================
@@ -749,22 +749,16 @@ img {
   .op .sw { width: 108px; }
 
   /* OVERRIDE TCL FULLSCREEN background-position JPG.
-     Usuario LOGRO fullscreen 1280x800 SIN status bar SIN barra gestual.
-     SHA anterior 136c18d D=-26 → ERROR LOGOS CORTADOS.
-     D=-26 puso logo MAS DE 100 AÑOS a 764 VP = MISMO pixel que banner legal (764).
-     Logo 36 px de alto introducido EN el banner legal → cortado por la mitad.
-     SOLUCION D=-22:
-       Logo bottom VP = 738 - (-22) = 760. Top legal = 764. Margen = 4 px.
-       Logos 1921 + MAS DE 100 ANOS ENTEROS POR ENCIMA del banner blanco legal.
-       NUNCA cortados. Visualmente alineacion perfecta.
-       TAPITA AZUL superior VP = 0 - (-22) = 22 vp. Relleno superior 22 px.
-         Reduccion neta vs D=-26 = 4 px. Tapita sigue entera. Relleno suficiente.
-       TITULO EL SABOR VP = [203..397]. ENTERO.
+     ESTRATEGIA NUEVA D=-12 directo en SELECTOR BASE sin wars.
+     Igual que base. Explicitamente declarado por si acaso.
+     D=-12:
+       VP_logo_bottom = 738 - (-12) = 750. Top legal=764. Margen 14px. ENTEROS.
+       VP_tapita_sup = 0 - (-12) = 12. Relleno 12. Nunca corta.
   */
   .screen-bg,
   .camara-bg-dark,
   .bg-pantone-2728 {
-    background-position: center calc(100% - -22px) !important;
+    background-position: center calc(100% - -12px) !important;
   }
 }
 

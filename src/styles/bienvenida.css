@@ -152,36 +152,53 @@
      USUARIO LOGRO FULLSCREEN NATIVO. Ya NO HAY status bar 36, NO HAY barra gestual.
      Viewport util EXACTO = W1280 × H800 nativo.
 
-     CORRECCION 1 TCL (SOLO FULLSCREEN): Bg-position D = -26.
-       Valor anterior SHA 04a2f3f = D = -18 era logo-perfecto 8 margen pero
-       TAPITA AZUL BOTELLA SUP IZQ quedaba PEGADA a borde 0 vp (18 vp margen) ya que
-       tapita empieza en Y_JPG = 0. User pide RELLENAR PARTE SUPERIOR (mas espacio
-       entre borde sup viewport y tapita azul plastica botella, status bar gone).
-       D = -26 = NUMERO OPTIMO Compromiso NumPy (SUMA cortes = 0 px):
-         (a) TAPITA superior 0 JPG → VP = 0 - (-26) = 26 vp. MARGEN ARRIBA = 26 px.
-             RELLENO COMPLETO PARTE ARRIBA. NUNCA CORTA TAPITA.
-         (b) LOGOS inf der BASE 738 JPG → VP = 738 - (-26) = 764 vp.
-             TOP LEGAL BAR = 800 - 36 = 764. BANNER LEGAL = EXACTAMENTE alineado con
-             FINAL logos 1921 ILV + MAS DE 100 AÑOS. Ajuste pedido user.
-       TITULO EL SABOR: Y_JPG [181..375] → VP [207..401]. Todo visible.
+     CORRECCION 1 TCL (SOLO FULLSCREEN): Bg-position D = -22.
+       SHA anterior 136c18d D = -26.
+       ERROR EN FOTO REAL USUARIO: logo MAS DE 100 AÑOS (esq inf der) FUE CORTADO/TAPADO
+       por BARRA LEGAL BLANCA. Se veia la mitad superior del logo 1921 ILV y letras
+       "MAS DE 100" sobresaliendo por ARRIBA de la legal bar (resto TAPADO).
+       Causa: D=-26 → VP_logo_bottom = 738 - (-26) = 764. Legal bar ocupa [764..800].
+       Logo INICIA en el pixel MISMO que el banner legal → se introduce el logo 36 px
+       DENTRO del banner legal y se ve CORTADO por la mitad.
+       SOL D=-22: VP_logo_bottom = 738 - (-22) = 760. Top legal = 764. MARGEN = 4 px.
+         Logos 1921 + MAS DE 100 AÑOS ENTEROS, 4 px POR ENCIMA de legal bar.
+         NUNCA cortados. Cumple pedido user "cuadrar banner con final logos" (margen 4px
+         minimo, no 0). Visualmente banners/logos quedan alineados + mini separacion.
+       D=-22 relleno SUP: TAPITA AZUL VP = 0 - (-22) = 22. Relleno 22 px.
+         Anterior D=-26 daba 26. Reduccion NETA relleno sup = 4 px. Insignificante visual.
+         Tapita sigue ENTERA. No se corta. Relleno OK.
 
-     CORRECCION 2 CRITICA TCL FOTO REAL. Login pisaba titulo nos une.
-       Solucion INAMOVIBLE: bottom 190px. top auto. translate -50 0.
-       Login PIE boton = 800-190 = 610 vp. Legal bar top=764. MARGEN INF 154 ✅.
-       Login rango ~ [490..610]. Titulo acaba ~401. MARGEN SUP 89 ✅.
+     CORRECCION 2 GRAVE (FOTO REAL): Login checkbox+boton PISABA "que nos une" (ultima
+       linea titulo). Overlay blur se ve A TRAVES de la palabra une blanca del JPG.
+       Causa RAIZ: SHA anterior login bottom:190 position: absolute (no fixed).
+       Espec CSS absolute bottom = medido desde PADDING EDGE contenedor padre relativo
+       (.screen-content .bienvenida-content). Ese padre tiene padding-bottom = var(--legal-h)
+       = 40 px. Padding edge padre = VP 800 - 40 = 760. bottom 190 = 760 - 190 = 570 VP.
+       Yo habia calculado teoricamente PIE boton = 800 - 190 = 610 VP.
+       Realidad = 570 VP (40 px MAS ARRIBA de lo esperado). 40 px diferencia = exactamente
+       el padding-bottom del padre. Por eso pisa el titulo que acaba ~400 vp.
+       SOLUCION INAMOVIBLE ROMPER desvio: position: fixed.
+         position: fixed bottom: 190px left: 50% translate(-50%, 0).
+         Fixed bottom = SIEMPRE medido desde VIEWPORT BORDER (viewport 800x1280 real).
+         NUNCA depende de padding/margin/header del contenedor padre.
+         Resultado NUMERICO EXACTO: PIE boton = 800 - 190 = 610 VP (lo que queria).
+         Login rango = [610 - 120 .. 610] = [490 .. 610]. Titulo acaba ~401.
+         MARGEN SUP = 490 - 401 = 89 px. NUNCA pisan ✅.
   */
   .fondo-pieza-ganadores,
   .bienvenida-bg {
-    background-position: center calc(100% - -26px) !important;
+    background-position: center calc(100% - -22px) !important;
   }
 
   .login-zone-med-centro {
+    position: fixed !important;  /* NUNCA mas absolute. Rompe dependencia padding padre 40 */
     width: 360px;
     bottom: 190px;
     top: auto !important;
     left: 50%;
     transform: translate(-50%, 0);
     gap: 12px;
+    z-index: calc(var(--z-content) + 10) !important;
   }
 
   .check-tyc-wrap {

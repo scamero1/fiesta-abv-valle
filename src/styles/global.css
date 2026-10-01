@@ -750,21 +750,21 @@ img {
 
   /* OVERRIDE TCL FULLSCREEN background-position JPG.
      Usuario LOGRO fullscreen 1280x800 SIN status bar SIN barra gestual.
-     VALOR OPTIMO D = -26 (compromiso NumPy 0 cortes, SUMA=0 px):
-       - TAPITA AZUL BOTELLA izq ENTERA: Y_JPG=0 → VP = 0 - (-26) = 26 vp.
-         RELLENO PARTE SUPERIOR = 26 px (era 18 vp con D=-18). NUNCA corta tapita.
-         Margen superior status-bar-gone = 26 px holgado, relleno visible.
-       - LOGOS 1921 ILV + MAS DE 100 AÑOS esq inf der BASE EXACTA: Y_JPG=738 → VP = 738-(-26)=764.
-         Legal bar EMPIEZA en VP = 800-36 = 764. 👉 BANNER LEGAL ALINEADO EXACTO FINAL LOGOS.
-         Base logos = Top legal bar. Sin margen 0, sin corte. Cumple pedido user.
-       - TITULO EL SABOR VP Y = [181-(-26)=207 .. 375-(-26)=401]. Status bar gone → todo visible.
-       - LOGIN bottom 190px (bienvenida.css) NUNCA modificado. Checkbox empieza Y=490 vp.
-         Titulo acaba ~401. Margen sup ~89 px. Perfecto.
+     SHA anterior 136c18d D=-26 → ERROR LOGOS CORTADOS.
+     D=-26 puso logo MAS DE 100 AÑOS a 764 VP = MISMO pixel que banner legal (764).
+     Logo 36 px de alto introducido EN el banner legal → cortado por la mitad.
+     SOLUCION D=-22:
+       Logo bottom VP = 738 - (-22) = 760. Top legal = 764. Margen = 4 px.
+       Logos 1921 + MAS DE 100 ANOS ENTEROS POR ENCIMA del banner blanco legal.
+       NUNCA cortados. Visualmente alineacion perfecta.
+       TAPITA AZUL superior VP = 0 - (-22) = 22 vp. Relleno superior 22 px.
+         Reduccion neta vs D=-26 = 4 px. Tapita sigue entera. Relleno suficiente.
+       TITULO EL SABOR VP = [203..397]. ENTERO.
   */
   .screen-bg,
   .camara-bg-dark,
   .bg-pantone-2728 {
-    background-position: center calc(100% - -26px) !important;
+    background-position: center calc(100% - -22px) !important;
   }
 }
 

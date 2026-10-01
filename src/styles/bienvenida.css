@@ -148,36 +148,43 @@
   and (min-width: 1200px) and (max-width: 1320px)
   and (min-height: 620px) and (max-height: 900px) {
 
-  /* TCL Tab 10L Gen 3 1280×800 landscape GESTOS Android PWA standalone.
-     AJUSTE TERCERA FOTO REAL user enviada:
-       ERROR CRITICO NUEVO: BOTON+CHECK VOLVIERON A PISAR TITULO 'EL SABOR que nos une'
-         (overlay encima palabra 'nos'). Causa probada: En PWA STANDALONE Chrome Android
-         con status bar 36px visible + barra gestual Android, la ALTURA REAL sobre la
-         cual se calculan los porcentajes top% NO es 800 ni 760. ~= 724 px (viewport
-         reducido). Con top:72% → 72*724/100 ≈ 521 px, pero como screen-content tiene
-         padding-bottom 40 de --legal-h, area util ~= 684 px. 72%*684 = 492 px: PISA el
-         titulo que acaba aprox en Y=440.
-       SOLUCION INAMOVIBLE EN TCL: HARDCODEAR top EN PIXELES 550, NO EN %. Asi altura
-         viewport reducida no desplaza el centro. top 550 es 72% * 760 (valor teórico
-         sin status bar calculado numéricamente). Pone el login 20px MAS ABAJO que la
-         versión anterior 72% sobre área real reducida.
-       ERROR MENOR: Cuello botella BLANCO DEL VALLE se aproximaba demasiado/cortaba por
-         status bar Android azul 36 px (con D=-18 global PC). Override D_TCL_ESPECIFICO =
-         -5 (subimos el JPG 13 px respecto al valor global D=-18). Numerico: cuello
-         etiqueta Y=97 JPG. VP=97-(-5)=102. Status bar VP 0..36. Margen 102-36=66 px.
-         Perfecto. Alineacion logos +100: Y_JPG=738. VP=738-(-5)=743. Top legal bar
-         764. Margen=21 px. Logos enteros por encima legal bar. OK. */
-  .fondo-pieza-ganadores,
-  .bienvenida-bg {
-    background-position: center calc(100% - -5px) !important;
-  }
+  /* TCL Tab 10L Gen 3 1280×800 landscape GESTOS Android PWA FULLSCREEN.
+     USUARIO LOGRO FULLSCREEN NATIVO. Ya NO HAY status bar 36, NO HAY barra gestual.
+     Viewport util EXACTO = W1280 × H800 nativo. Valores GLOBALES PC ahora son PERFECTOS
+     para TCL tambien.
 
+     CORRECCION 1 CRITICA FOTO REAL: Login (checkbox+boton) PISABA TITULO "nos une".
+       Error: Anclaje top:550px era ambiguo por screen-content padding y position:absolute
+       respecto al relative-container (calculos de top% no sobre el 800 nativo sino
+       sobre el area util padding-bottom 40 = 760). Solucion INAMOVIBLE: anclar LOGIN
+       POR EL BOTTOM en px (no por top). Distancia fija desde borde_inferior_viewport
+       hasta el PIE del boton. No depende de nada mas.
+       Login altura total aprox = 64 (boton) + 12 (gap) + 44 (checkbox) = 120 px.
+       PIE boton objetivo = 800 - 190 = 610 vp.
+       Legal bar top empieza en 764. MARGEN INFERIOR = 764 - 610 = 154 px (ideal).
+       Checkbox EMPIEZA en 610 - 120 = 490 vp.
+       Titulo "EL SABOR que nos une" TERMINA aprox en 375 vp.
+       MARGEN SUPERIOR TITULO vs CHECKBOX = 490 - 375 = 115 px (NUNCA se pisan ✅).
+
+     CORRECCION 2: Quitar override background-position D=-5 de SHA anterior.
+       SHA 2202019 habia puesto D=-5 (background-position center calc(100% - -5px))
+       porque en ese momento STATUS BAR 36 px visible recortaba arriba.
+       Ahora fullscreen STATUS BAR OCULTO. GLOBAL D=-18 es el PERFECTO.
+       D=-18: cuello botella VP=Y=115 (OK, visible sin status bar).
+       D=-18: logos 1921/100 bottom VP=756. top legal VP=764. margen 8 ✅.
+       Por tanto, BORRAMOS el override anterior D=-5 del breakpoint TCL. Hereda global.
+  */
   .login-zone-med-centro {
     width: 360px;
-    top: 550px;        /* HARD 550 px. NUNCA mas 72% por redondeo viewport PWA */
+    bottom: 190px;          /* ANCLAJE POR EL BOTTOM. Distancia PIE_boton - borde_inf_VP */
+    top: auto !important;   /* NUNCA mas top:%. NUNCA top:550. Anclaje inmune a padding */
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, 0);  /* sin translateY, por que? porque bottom=190 significa
+                                       posiciona el bottom del elemento a 190px del bottom del
+                                       contenedor. Con translate -50 0: centrado horizontal solo.
+                                       Centrado vertical NO HACE FALTA. */
     gap: 12px;
+    align-self: flex-end;
   }
 
   .check-tyc-wrap {

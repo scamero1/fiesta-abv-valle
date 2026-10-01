@@ -748,20 +748,18 @@ img {
   .op { min-height: 92px; padding: 12px; gap: 16px; }
   .op .sw { width: 108px; }
 
-  /* OVERRIDE TCL ESPECÍFICO background-position JPG (no PC).
-     Valor global PC OK = center calc(100% - -18px) = D=-18 baja el JPG 18 para alinear
-     logos 1921/100 con banner legal. En TCL PWA Android el status bar azul 36px ocupa
-     la franja superior, asi que cuello botella BLANCO DEL VALLE (Y_JPG=97) se ve muy
-     cerca/corta por arriba con D=-18. Override a D=-5: subimos el JPG 13 px moderadamente.
-     Verificacion: cuello_botella_VP = 97 - (-5) = 102. Status bar = 0..36.
-     Margen = 102 - 36 = 66 px. NUNCA se corta cuello/tapa botella.
-     Alineacion logos 1921/100: LOGO_BOTTOM_VP = 738 - (-5) = 743. Top legal bar = 764.
-     Margen = 21 px. Logos enteros, sin solapar banner. Valor consistente con
-     bienvenida.css breakpoint TCL. */
+  /* OVERRIDE TCL FULLSCREEN background-position JPG.
+     SHA anterior 2202019 habia puesto D=-5 para compensar status bar 36 visible.
+     Ahora usuario LOGRO fullscreen nativo SIN status bar SIN gestural → D=-5
+     ya NO sirve. Volvemos a D=-18 que es el GLOBAL PERFECTO.
+     D=-18 en 1280x800 fullscreen: cuello botella VP=115 (OK), logos 1921/100
+     VP=756, top legal bar VP=764, margen 8px alineado exacto.
+     Dejamos el override explicitamente por si en el futuro se vuelve a perder
+     el fullscreen: mantener consistencia con bienvenida.css. */
   .screen-bg,
   .camara-bg-dark,
   .bg-pantone-2728 {
-    background-position: center calc(100% - -5px) !important;
+    background-position: center calc(100% - -18px) !important;
   }
 }
 

@@ -55,8 +55,8 @@
    ============================================================ */
 .login-zone-med-centro {
   position: relative;
-  width: 30%;
-  max-width: 360px;
+  width: 28%;
+  max-width: 340px;
   min-width: 260px;
   display: flex;
   flex-direction: column;
@@ -64,7 +64,7 @@
   justify-content: center;
   gap: 12px;
   padding: 0;
-  margin: 0;
+  margin: 0 0 0 30px;
   box-sizing: border-box;
   z-index: var(--z-content);
   contain: layout;
@@ -185,12 +185,14 @@
   }
   .login-zone-med-centro {
     position: relative !important;
-    width: 360px;
+    width: 340px;
+    max-width: 340px !important;
     left: auto;
     top: auto;
     bottom: auto;
     transform: none;
     gap: 12px;
+    margin: 0 0 0 40px !important;
   }
   .fondo-pieza-ganadores,
   .bienvenida-bg {
@@ -198,7 +200,7 @@
   }
 
   .check-tyc-wrap {
-    max-width: 350px;
+    max-width: 330px;
     padding: 11px 14px;
   }
 
@@ -212,7 +214,7 @@
   }
 
   .btn-iniciar {
-    max-width: 350px;
+    max-width: 330px;
     height: 64px;
     font-size: 22px !important;
   }

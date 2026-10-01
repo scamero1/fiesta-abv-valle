@@ -1,12 +1,18 @@
 /* ============================================================
    CONFIRMAR VISTA PREVIA - Prototipo:
    Foto 16:9 grande, preguntas Te gusta? Confirmar/Cambiar, botón 60px.
+
+   IMPORTANTE: El FONDO REAL DE LA FOTO LO COMPONE EL BACKEND PYTHON.
+   Esta capa HTML preview-bg NUNCA debe mostrar Fondo Horizontal.png
+   (no es parte de la foto). Se pinta color sólido AZUL MARCA opaco.
+   Si la compuesta llega transparente por error → se ve azul marca.
    ============================================================ */
 .preview-bg {
-  background-image: url('../assets/Fondo Horizontal.png') !important;
+  background-image: none !important;
+  background: #002a7a !important;
   background-size: cover !important;
   background-repeat: no-repeat !important;
-  background-position: center calc(100% - 8px) !important;
+  background-position: center calc(100% - 0px) !important;
 }
 
 .preview-header{height:var(--header-h);min-height:var(--header-h);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;justify-items:center;padding:0 var(--screen-pad-x);width:100%;flex:0 0 auto}
@@ -47,7 +53,8 @@
 
 @media (orientation: landscape) and (min-height: 620px) and (max-height: 900px) and (min-width: 1200px) and (max-width: 1399px) {
   .preview-bg {
-    background-image: url('../assets/Fondo Horizontal.png') !important;
-    background-position: center calc(100% - 8px) !important;
+    background-image: none !important;         /* NO Fondo Horizontal */
+    background: #002a7a !important;            /* AZUL MARCA opaco sólido */
+    background-position: center calc(100% - 0px) !important;
   }
 }

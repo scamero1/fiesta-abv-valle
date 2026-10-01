@@ -1,3 +1,14 @@
+/* ============================================================
+   CONFIRMAR VISTA PREVIA - Prototipo:
+   Foto 16:9 grande, preguntas Te gusta? Confirmar/Cambiar, botón 60px.
+   ============================================================ */
+.preview-bg {
+  background-image: url('../assets/Fondo Horizontal.png') !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+  background-position: center calc(100% - 8px) !important;
+}
+
 .preview-header{height:var(--header-h);min-height:var(--header-h);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;justify-items:center;padding:0 var(--screen-pad-x);width:100%;flex:0 0 auto}
 .preview-header .header-left{grid-column:1/2;justify-self:start;width:100%;display:flex;align-items:center}
 .preview-header .header-middle{grid-column:2/3;justify-self:center;width:auto;padding:0;display:flex;align-items:center}
@@ -33,3 +44,10 @@
 .preview-acciones{flex:1 1 auto}}
 .anim-in{animation:in .25s var(--ease) both}
 @keyframes in{from{opacity:0}to{opacity:1}}
+
+@media (orientation: landscape) and (min-height: 620px) and (max-height: 900px) and (min-width: 1200px) and (max-width: 1399px) {
+  .preview-bg {
+    background-image: url('../assets/Fondo Horizontal.png') !important;
+    background-position: center calc(100% - 8px) !important;
+  }
+}

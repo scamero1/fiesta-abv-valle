@@ -5,6 +5,12 @@
    - QR 340x340, fondo blanco padding 16 radio 16px
    - Portrait: 2 rows (foto arriba, QR abajo, QR 300px)
    ============================================================ */
+.resultado-bg {
+  background-image: url('../assets/Fondo Horizontal.png') !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+  background-position: center calc(100% - 8px) !important;
+}
 
 .resultado-header {
   height: var(--header-h);
@@ -376,4 +382,11 @@
 /* Layout seguro: resultados 2 filas TCL landscape (QR no se haga pequeño) */
 @media (orientation: landscape) and (min-width: 1100px) and (max-width: 1440px) and (min-height: 720px) and (max-height: 860px) {
   .res { gap: 16px; }
+}
+
+@media (orientation: landscape) and (min-height: 620px) and (max-height: 900px) and (min-width: 1200px) and (max-width: 1399px) {
+  .resultado-bg {
+    background-image: url('../assets/Fondo Horizontal.png') !important;
+    background-position: center calc(100% - 8px) !important;
+  }
 }

@@ -1,5 +1,12 @@
+/* ============================================================
+   LISTO (Terminar) - Prototipo: Check verde + foto lista + botón terminar.
+   Gradiente azul reemplazado por Fondo Horizontal.png.
+   ============================================================ */
 .listo-bg {
-  background: linear-gradient(165deg, var(--azul2) -30%, var(--azul) 55%);
+  background-image: url('../assets/Fondo Horizontal.png') !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+  background-position: center calc(100% - 8px) !important;
 }
 
 .particles {
@@ -161,4 +168,11 @@
 
 @media (max-width: 520px) {
   .btn-nueva-foto { min-width: 100%; }
+}
+
+@media (orientation: landscape) and (min-height: 620px) and (max-height: 900px) and (min-width: 1200px) and (max-width: 1399px) {
+  .listo-bg {
+    background-image: url('../assets/Fondo Horizontal.png') !important;
+    background-position: center calc(100% - 8px) !important;
+  }
 }

@@ -7,6 +7,12 @@
    - Miniatura 112×63px (16:9) radio 10px
    - Overlay carga: spinner 56px + texto "Creando tu foto…"
    ============================================================ */
+.seleccion-bg {
+  background-image: url('../assets/Fondo Horizontal.png') !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+  background-position: center calc(100% - 8px) !important;
+}
 
 .seleccion-header {
   height: var(--header-h);
@@ -538,4 +544,11 @@
   .op small { font-size: 12px; }
   .ov { font-size: 18px; gap: 10px; left: 8px; right: 8px; padding: 14px; }
   .ov i { width: 44px; height: 44px; border-width: 5px; }
+}
+
+@media (orientation: landscape) and (min-height: 620px) and (max-height: 900px) and (min-width: 1200px) and (max-width: 1399px) {
+  .seleccion-bg {
+    background-image: url('../assets/Fondo Horizontal.png') !important;
+    background-position: center calc(100% - 8px) !important;
+  }
 }

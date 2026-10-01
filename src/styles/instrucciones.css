@@ -2,13 +2,6 @@
    INSTRUCCIONES — Prototipo grid 4 tarjetas (2x2 portrait)
    fondo #ffffff1a, border #ffffff40, radio 18px, padding 20px
    círculo dorado 52px, 28px número 900
-
-   FONDO PERSONALIZADO PARA ESTA PANTALLA (Así de fácil).
-   User: dejemos el inicio quieto, cambia el fondo SOLO a la pantalla
-   que dice ASÍ DE FÁCIL. Usa Fondo Horizontal.png 1280×800.
-   Sobreescribimos .screen-bg que comparten todas, SOLO para esta pantalla
-   mediante la clase única .instrucciones-bg que ya existe en JSX Instrucciones L33:
-   <div class="screen-bg instrucciones-bg bg-pantone-2728" />
    ============================================================ */
 .instrucciones-bg {
   background-image: url('../assets/Fondo Horizontal.png') !important;

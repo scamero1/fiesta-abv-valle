@@ -36,14 +36,31 @@
 .btn-preview-confirmar:active{transform:translateY(2px);box-shadow:0 8px 20px -8px rgba(228,0,43,.55),inset 0 -2px 0 rgba(0,0,0,.18)}
 .btn-preview-cambiar{background:rgba(255,255,255,.08)!important;color:var(--tx)!important;border:3px solid rgba(255,255,255,.42)!important;box-shadow:0 10px 24px -14px rgba(0,0,0,.6)}
 .btn-preview-cambiar:active{transform:translateY(2px)}
-@media (orientation:landscape) and (min-height:500px) and (max-height:900px) and (min-width:800px) and (max-width:1399px){.preview-header{padding:0 28px;height:44px;min-height:44px}
-.preview-titulo{font-size:1.85rem!important}
-.preview-content{padding-bottom:calc(var(--legal-h) + var(--pad-safe-b) + 40px)!important}
-.preview-main{gap:18px;padding:0 24px}
-.preview-foto,.foto-final-frame{min-width:860px;min-height:480px;border-radius:22px;border:none !important;outline:none !important}
-.preview-pregunta-titulo{font-size:1.45rem!important}
-.preview-pregunta-sub{font-size:.95rem!important}
-.btn-preview-confirmar,.btn-preview-cambiar{min-height:58px!important;max-height:58px!important;font-size:1.25rem!important}}
+@media (orientation: landscape) and (min-height: 500px) and (max-height: 900px) and (min-width: 800px) and (max-width: 1399px) {
+  .preview-header{padding:0 28px;height:44px;min-height:44px}
+  .preview-titulo{font-size:1.85rem!important}
+  .preview-content{padding-bottom:calc(var(--legal-h) + var(--pad-safe-b) + 40px)!important}
+  .preview-main{gap:14px;padding:0 18px}
+  .preview-foto-wrap{flex:1.05 1 0%}
+  .preview-acciones{flex:1 1 0%;gap:14px}
+  .preview-foto,.foto-final-frame{
+    width: min(100%, 760px) !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: 760px !important;
+    max-height: 428px !important;  /* 16:9 → 760÷16×9 = 427.5 → 428 px.  100px MÁS PEQUEÑA que antes (528px) */
+    border-radius: 22px !important;
+    border: 3px solid rgba(255,255,255,.25) !important;
+    outline: none !important;
+    box-shadow: 0 18px 42px -20px rgba(0,0,0,.82), 0 0 0 1px rgba(255,255,255,.08) inset;
+  }
+  .preview-pregunta-titulo{font-size:1.4rem!important}
+  .preview-pregunta-sub{font-size:.95rem!important;line-height:1.4}
+  .btn-preview-confirmar,.btn-preview-cambiar{
+    min-height:56px!important;max-height:56px!important;font-size:1.15rem!important;border-radius:18px!important;
+    width: 100% !important;
+  }
+}
 @media (orientation:portrait){.preview-main{flex-direction:column;justify-content:flex-start;gap:16px}
 .preview-foto-wrap{flex:0 0 auto;width:100%}
 .preview-foto,.foto-final-frame{width:100%;min-width:0}
@@ -56,5 +73,55 @@
     background-image: none !important;         /* NO Fondo Horizontal */
     background: #002a7a !important;            /* AZUL MARCA opaco sólido */
     background-position: center calc(100% - 0px) !important;
+  }
+
+  /* TCL 1280x800 HORIZONTAL: Foto grande anterior (860x480 min) = sobreponía botones y
+     ocultaba barra legal inferior del paisaje ("text legal abajo de los esc-cristorey.jpg").
+     REDUCIR FOTO 100 px: 760×428. Deja espacio amplio tanto arriba (header) como abajo
+     (banner legal 34px) y los botones a la derecha NUNCA se superponen. */
+  .preview-main {
+    padding: 0 18px;
+    gap: 16px;
+  }
+  .preview-foto-wrap {
+    flex: 1 1 55%;
+  }
+  .preview-acciones {
+    flex: 1 1 45%;
+    justify-content: center;
+    gap: 14px;
+  }
+  .preview-foto, .foto-final-frame {
+    width: 100% !important;
+    max-width: 760px !important;
+    min-width: 0 !important;
+    max-height: 428px !important;
+    min-height: 0 !important;
+    aspect-ratio: 16/9;
+    border-radius: 22px !important;
+    border: 3px solid rgba(255,255,255,.28) !important;
+    box-shadow: 0 18px 42px -20px rgba(0,0,0,.84), 0 0 0 1px rgba(255,255,255,.1) inset;
+  }
+  .preview-pregunta {
+    padding: 0 4px 4px;
+    gap: 4px;
+  }
+  .preview-pregunta-titulo {
+    font-size: 1.50rem !important;
+    line-height: 1.15;
+  }
+  .preview-pregunta-sub {
+    font-size: 0.98rem !important;
+    line-height: 1.4;
+  }
+  .preview-botones {
+    gap: 12px;
+  }
+  .btn-preview-confirmar, .btn-preview-cambiar {
+    min-height: 58px !important;
+    max-height: 58px !important;
+    font-size: 1.18rem !important;
+    border-radius: 18px !important;
+    width: 100% !important;
   }
 }

@@ -148,24 +148,33 @@
   and (min-width: 1200px) and (max-width: 1320px)
   and (min-height: 620px) and (max-height: 900px) {
 
-  /* TCL Tab 10L Gen 3 1280×800 landscape GESTOS Android.
-     AJUSTE basado en SEGUNDA FOTO REAL user enviada (errores banner + boton):
-       ERROR 1 SOLUCIONADO: Legal bar NUCLEAR FIX bottom=0 (antes 144) porque bottom=144
-         CORTABA LA BOTELLA ABV POR LA MITAD. Legal bar ahora 36x pegada al borde inf.
-         Fondo con background-position center calc(100% - 40px) sube 40px para NO
-         TAPAR etiquetas botella inferiores (Sin Azucar 24, labels legales) ni logos
-         1921 ILV / Mas de 100 años de la esquina inf derecha.
-       ERROR 2 SOLUCIONADO: Boton pisaba TITULO 'EL SABOR que nos une'.
-         Causa real (no era top% alto): --legal-h anterior 144 reducia area util
-         screen content BIENVENIDA de 800 a 656. top:65% * 656 = 426px (muy alto).
-         Ahora --legal-h=40 (TCL breakpoint global.css), area util=760. top=72%*760=547px
-         (mucho MAS ABAJO). Titulo EL SABOR acaba aprox en 55% H = 440 px. Boton EMPIEZA
-         en 72%-6% = 66% = 502 px. NO lo pisan. Gran margen seguridad.
-         Abajo legal bar empieza en top:764px (800-36). Boton acaba en 72%+7% = 596px.
-         764 - 596 = 168 px MARGEN INFERIOR SEGURIDAD. NUNCA se tocan. */
+  /* TCL Tab 10L Gen 3 1280×800 landscape GESTOS Android PWA standalone.
+     AJUSTE TERCERA FOTO REAL user enviada:
+       ERROR CRITICO NUEVO: BOTON+CHECK VOLVIERON A PISAR TITULO 'EL SABOR que nos une'
+         (overlay encima palabra 'nos'). Causa probada: En PWA STANDALONE Chrome Android
+         con status bar 36px visible + barra gestual Android, la ALTURA REAL sobre la
+         cual se calculan los porcentajes top% NO es 800 ni 760. ~= 724 px (viewport
+         reducido). Con top:72% → 72*724/100 ≈ 521 px, pero como screen-content tiene
+         padding-bottom 40 de --legal-h, area util ~= 684 px. 72%*684 = 492 px: PISA el
+         titulo que acaba aprox en Y=440.
+       SOLUCION INAMOVIBLE EN TCL: HARDCODEAR top EN PIXELES 550, NO EN %. Asi altura
+         viewport reducida no desplaza el centro. top 550 es 72% * 760 (valor teórico
+         sin status bar calculado numéricamente). Pone el login 20px MAS ABAJO que la
+         versión anterior 72% sobre área real reducida.
+       ERROR MENOR: Cuello botella BLANCO DEL VALLE se aproximaba demasiado/cortaba por
+         status bar Android azul 36 px (con D=-18 global PC). Override D_TCL_ESPECIFICO =
+         -5 (subimos el JPG 13 px respecto al valor global D=-18). Numerico: cuello
+         etiqueta Y=97 JPG. VP=97-(-5)=102. Status bar VP 0..36. Margen 102-36=66 px.
+         Perfecto. Alineacion logos +100: Y_JPG=738. VP=738-(-5)=743. Top legal bar
+         764. Margen=21 px. Logos enteros por encima legal bar. OK. */
+  .fondo-pieza-ganadores,
+  .bienvenida-bg {
+    background-position: center calc(100% - -5px) !important;
+  }
+
   .login-zone-med-centro {
     width: 360px;
-    top: 72%;
+    top: 550px;        /* HARD 550 px. NUNCA mas 72% por redondeo viewport PWA */
     left: 50%;
     transform: translate(-50%, -50%);
     gap: 12px;

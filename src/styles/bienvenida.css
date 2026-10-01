@@ -34,11 +34,16 @@
 .bienvenida-content {
   padding: 0;
   margin: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  padding-bottom: 130px;
+  padding-bottom: 110px;
   gap: 0;
   position: relative;
 }
@@ -148,21 +153,35 @@
   and (min-height: 620px) and (max-height: 900px) {
 
   /* TCL Tab 10L Gen 3 1280×800 PWA FULLSCREEN. ESTRATEGIA FLEXBOX.
-     ULTIMO AJUSTE FOTO REAL 01/10/26:
-       (a) "sube un poco mas la foto para dejarlo como pantalla completa"
-           => D actual -8 => subir JPG 4 px ARRIBA => D = -4.
-              VP_logo_bottom = 738 - (-4) = 742. Legal top 764. MARGEN 22 px.
-              Logos 1921 + MAS DE 100 enteros, MUY SEPARADOS de banner legal.
-              Tapita margen 4 vp. ENTERA.
-       (b) "ahora no salen los botones arreglalos"
-           SHA anterior padding-bottom TCL = 160 px todavia se salian FUERA por abajo
-           por el padding interno screen-content. REDUCIR +40 px MAS ARRIBA = 120 px.
-           PIE boton = 800 - 120 = 680 VP. Altura login 120 => rango [560 .. 680].
-           Legal top 764. MARGEN INFERIOR = 764 - 680 = 84 px (margen generoso).
-           Botones 40 px mas ARRIBA, IMPOSIBLE que salgan FUERA viewport ahora.
+     ULTIMO FIX CRITICO 01/10/26 5 COMMITS BUG:
+        CAUSA "SIGUE IGUAL NUNCA APARECE BOTON": .bienvenida-content SIN flex:1.
+        SIN flex:1 → padre screen-content es flex-col, pero hijo BIENVENIDA NO crece.
+        Resultado: altura bienvenida-content = 120 px (SOLO login), luego
+        padding-bottom 120 px EMPUJABA todo el login 120 px HACIA ABAJO,
+        COMPLETAMENTE FUERA DEL VIEWPORT. 5 commits seguía IGUAL. ROOT CAUSA OK.
+     SOLUCION 3 LINEAS BASE SELECTOR: flex:1 1 auto; min-height:0; width:100%.
+       Con flex:1, BIENVENIDA-CONTENT toma 100% del alto disponible screen-content
+       (TCL = ~654 px). Ahora justify-content:flex-end + padding-bottom:100 px
+       coloca el login DENTRO del viewport 100%. NO sale por abajo.
+     Calculo TCL 1280x800 EXACTO CON FLEX:1:
+       Screen-content max-height = 800 - 60(header) - 34(legal) - safe = 706 px.
+       Screen-content padding top 4 + bottom 48 (TCL breakpoint) → área útil HIJOS = 654 px.
+       Bienvenida-content = FLEX:1 → 654 px alto COMPLETO.
+       Padding-bottom TCL = 100 px.
+       Login altura = 120 px.
+       Login TOP dentro bienvenida = 654 - 100 - 120 = 434 px.
+       Login BOT dentro bienvenida = 654 - 100 = 554 px.
+       Viewport (si header 48 visible screen-content top = 48+4=52):
+         Login TOP = 52 + 434 = 486 VP.
+         Login BOT = 52 + 554 = 606 VP.
+         Título fin ≈ 400 → MARGEN SUP = 86 px AZUL LIBRE. NUNCA pisa ✅
+         Legal top 766 → MARGEN INF = 160 px ✅ Botones 100% VISIBLES.
+     D=-4: VP_logo_bottom 742. Legal 766. MARGEN 24. Logos MUY separados ✅
   */
   .bienvenida-content {
-    padding-bottom: 120px !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    padding-bottom: 100px !important;
   }
   .login-zone-med-centro {
     position: relative !important;

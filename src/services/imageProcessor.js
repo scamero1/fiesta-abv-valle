@@ -225,15 +225,30 @@ function parseGradient(str) {
 
 const ASSET_CACHE = {}
 
+// BASE_URL safety: Railway Static con subdirectorios != "/" antepone import.meta.env.BASE_URL si la ruta empieza por "/assets/".
+// Fix 404 absurdo que pintaba fondo azul gradiente fallback sin los escenario.
+const BASE_URL = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '') + '/'
+function __resolveAssetSrc(src) {
+  if (!src) return src
+  if (/^https?:/i.test(src) || /^data:/i.test(src) || src.startsWith('blob:')) return src
+  if (src.startsWith(BASE_URL)) return src
+  const rel = src.replace(/^\/+/, '')
+  return BASE_URL + rel
+}
+
 function loadAsset(src) {
-  if (ASSET_CACHE[src] && ASSET_CACHE[src].naturalWidth) return Promise.resolve(ASSET_CACHE[src])
+  const resolved = __resolveAssetSrc(src)
+  if (ASSET_CACHE[resolved] && ASSET_CACHE[resolved].naturalWidth) return Promise.resolve(ASSET_CACHE[resolved])
   return new Promise((resolve, reject) => {
-    if (ASSET_CACHE[src]) return resolve(ASSET_CACHE[src])
+    if (ASSET_CACHE[resolved]) return resolve(ASSET_CACHE[resolved])
     const img = new Image()
     img.crossOrigin = 'anonymous'
-    img.onload = () => { ASSET_CACHE[src] = img; resolve(img) }
-    img.onerror = () => resolve(null)
-    img.src = src
+    img.onload = () => { ASSET_CACHE[resolved] = img; resolve(img) }
+    img.onerror = (e) => {
+      console.warn('[loadAsset] 404 ❌ no resuelto=', resolved, 'original=', src)
+      resolve(null)
+    }
+    img.src = resolved
   })
 }
 

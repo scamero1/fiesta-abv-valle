@@ -1,3 +1,15 @@
+const BASE = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '') + '/'
+
+function asset(p) {
+  if (!p) return p
+  if (/^https?:/i.test(p)) return p
+  if (p.startsWith(BASE)) return p
+  // Si p viene en formato /assets/xxx.png (ruta absoluta dominio):
+  // concatenar BASE + assets/... para Vite/Railway Static base path != "/".
+  const rel = p.replace(/^\/+/, '')
+  return BASE + rel
+}
+
 export const ESCENARIOS = [
   {
     id: 'calle-del-sabor',
@@ -7,9 +19,9 @@ export const ESCENARIOS = [
     acento: '#fb923c',
     icono: '🎶',
     tags: ['Salsa', 'Museo'],
-    botellaImg: '/assets/botella-fiesta-azul.png',
+    botellaImg: asset('/assets/botella-fiesta-azul.png'),
     botellaNombre: 'Fiesta',
-    backgroundImg: '/assets/esc-museosalsa.jpg',
+    backgroundImg: asset('/assets/esc-museosalsa.jpg'),
     imagenPrompt: 'Museo de la Salsa en Santiago de Cali, ambiente cultural y festivo, fotografía profesional de alta calidad',
   },
   {
@@ -20,9 +32,9 @@ export const ESCENARIOS = [
     acento: '#a78bfa',
     icono: '💃',
     tags: ['Salsa', 'Cultura'],
-    botellaImg: '/assets/botella-night.png',
+    botellaImg: asset('/assets/botella-night.png'),
     botellaNombre: 'Night',
-    backgroundImg: '/assets/esc-plazavarela.jpg',
+    backgroundImg: asset('/assets/esc-plazavarela.jpg'),
     imagenPrompt: 'Plaza Varela de Santiago de Cali al atardecer, fuente central, gente bailando salsa, fotografía de alta gama',
   },
   {
@@ -33,9 +45,9 @@ export const ESCENARIOS = [
     acento: '#38bdf8',
     icono: '⛰️',
     tags: ['Panorámica', 'Ícono'],
-    botellaImg: '/assets/botella-sin-azucar.png',
+    botellaImg: asset('/assets/botella-sin-azucar.png'),
     botellaNombre: 'Sin Azúcar',
-    backgroundImg: '/assets/esc-cristorey.jpg',
+    backgroundImg: asset('/assets/esc-cristorey.jpg'),
     imagenPrompt: 'Monumento del Cristo Rey de Santiago de Cali con vista panorámica de toda la ciudad, fotografía profesional 4k',
   },
 ]

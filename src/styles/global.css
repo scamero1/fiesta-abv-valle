@@ -198,7 +198,7 @@ body {
   background: url('../assets/Fondo Pieza Ganadores.jpg.jpeg');
   background-size: cover !important;
   background-repeat: no-repeat !important;
-  background-position: center calc(100% - -4px) !important;
+  background-position: center calc(100% - 0px) !important;
   overflow: hidden;
   z-index: var(--z-bg);
   pointer-events: none;
@@ -210,7 +210,7 @@ body {
   background: url('../assets/Fondo Pieza Ganadores.jpg.jpeg');
   background-size: cover;
   background-repeat: no-repeat;
-  background-position: center calc(100% - -4px);
+  background-position: center calc(100% - 0px);
 }
 
 /* ============================================================
@@ -748,17 +748,18 @@ img {
   .op { min-height: 92px; padding: 12px; gap: 16px; }
   .op .sw { width: 108px; }
 
-  /* OVERRIDE TCL FULLSCREEN background-position JPG D=-4.
-     Valor BASE = D=-4. Misma alineacion. Explicitamente por si acaso.
-     D=-4:
-       VP_logo_bottom = 738 - (-4) = 742. Top legal = 764. Margen = 22 px.
-       Logos MUY SEPARADOS de banner legal. NUNCA cortados. Nunca a medias.
-       VP_tapita_sup = 0 - (-4) = 4 vp. Relleno 4 px. Tapita ENTERA.
+  /* OVERRIDE TCL FULLSCREEN background-position JPG D=0.
+     BASE = D=0. Misma alineacion. Explicitamente por si acaso.
+     D=0 = FOTO FULL SCREEN PANTALLA COMPLETA:
+       VP_logo_bottom = 738 - 0 = 738. Top legal = 766. Margen = 28 px.
+         Logos MAS DE 100 AÑOS + ILV 1921 ENTEROS + margen 28 px generoso.
+       VP_tapita_sup = 0 - 0 = 0 VP. TAPITA AZUL PEGADA ARRIBA. FOTO FULL 100% SIN RELLENO.
+         Cumple user: "hacer en tablet tcl full la foto".
   */
   .screen-bg,
   .camara-bg-dark,
   .bg-pantone-2728 {
-    background-position: center calc(100% - -4px) !important;
+    background-position: center calc(100% - 0px) !important;
   }
 }
 

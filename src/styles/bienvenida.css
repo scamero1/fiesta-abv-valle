@@ -27,7 +27,7 @@
 .bienvenida-bg {
   background-image: url('../assets/Fondo Pieza Ganadores.jpg.jpeg');
   background-size: cover;
-  background-position: center calc(100% - -4px);
+  background-position: center calc(100% - 0px);
   background-repeat: no-repeat;
 }
 
@@ -52,19 +52,18 @@
    ZONA LOGIN — POSITION: FIXED. DIRECTAMENTE AL VIEWPORT.
    MOTIVO ESTRATEGIA NUCLEAR 01/10/26:
      Bienvenida.jsx NO RENDERIZA <screen-header>, PERO screen-content en global.css
-     resta var(--header-h)=60 px de su max-height. Eso hacia que el LOGIN
-     (flex-end + padding-bottom) 100% DE LAS VECES saliera FUERA del viewport
-     60 px hacia abajo = INVISIBLE. User borró SW, PWA, storage, sigue igual.
-     SOLUCION SIN DEPENDENCIAS: position fixed NO depende de ningún padre.
-     Colocamos el login 90 px por ENCIMA del banner legal (Y = 800 - 36 - 90 = 674).
-     Eje X: Centro (640) + 40 px derecha = 680.
-     width 340 px = [510 .. 850] VP. 100% DENTRO DEL VIEWPORT SIEMPRE.
+     resta var(--header-h)=60 px de su max-height. LOGIN SALIA FUERA viewport 60 px ABAJO.
+     Position fixed NO depende NINGUN padre. SIEMPRE visible.
+   ULTIMO AJUSTE USER 01/10:
+     1) FULL FOTO. D=-4→0. Tapita pegada arriba (margen 0). Foto completa.
+     2) BAJA BOTON. Menos separacion al banner legal: 60→20 px.
+     3) MAS A LA DERECHA. Offset centro +40→+60 px.
    ============================================================ */
 .login-zone-med-centro {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--legal-h) + 60px);
-  transform: translateX(calc(-50% + 40px));
+  bottom: calc(var(--legal-h) + 20px);
+  transform: translateX(calc(-50% + 60px));
   width: 340px;
   max-width: 340px;
   min-width: 260px;
@@ -163,23 +162,25 @@
   and (min-height: 620px) and (max-height: 900px) {
 
   /* TCL Tab 10L Gen 3 1280×800 PWA FULLSCREEN. ESTRATEGIA NUCLEAR FIXED DIRECTA.
-     LOGIN position fixed EN SELECTOR BASE. NO depende de flex padres ni screen-content
-     (que restaba 60 px de header-h SIN EXISTIR header = login FUERA viewport).
-     En este breakpoint solo mantenemos DIMENSIONES CHECKBOX/BOTON 330 px internos.
-     La POSICIÓN la da BASE selector con position fixed 100% efectiva.
+     ULTIMOS 3 AJUSTES USER 01/10:
+       1) FULL FOTO = D=-4→0. Tapita pegada al borde superior físico (margen 0).
+          Foto ocupa 100% verticalmente, sin relleno azul arriba. FULL SCREEN.
+       2) BAJA BOTON = separator legal bar bottom: 60 px → 20 px. Botón mucho más
+          abajo, MUY CERCA del banner legal blanco, no a mitad-inferior.
+       3) MAS A LA DERECHA = offset centro: 40 px → 60 px. Botón 20 px más a derecha.
      Calculo EXACTO TCL:
-       bottom = var(--legal-h=34) + 60 = 94 px desde borde inferior.
-       Pie botón = 800 - 94 = 706 VP. Login altura total = 120 px.
-       Login rango = [586 .. 706] VP.
-       Título acaba ~ 400 → MARGEN SUP = 186 px. NUNCA pisa ✅.
-       Legal bar top = 800 - 34 = 766 → MARGEN INF = 60 px ✅.
-       Eje X: left 50% → translate(-50% + 40 px) = centro + 40 = 680 VP. ✅
+       bottom = var(--legal-h=34) + 20 = 54 px desde borde inferior.
+       Pie botón = 800 - 54 = 746 VP. Altura login total = 120 px.
+       Login rango = [626 .. 746] VP.
+       Título acaba ~ 400 → MARGEN SUP = 226 px (azul vacío ✅ Nunca pisa).
+       Legal bar top = 766 → MARGEN INF = 20 px ✅ Muy cerca banner blanco.
+       Eje X: centro 640 + 60 = 700 VP. Rango [530 .. 870].
   */
   .login-zone-med-centro {
     position: fixed !important;
     left: 50% !important;
-    bottom: calc(var(--legal-h) + 60px) !important;
-    transform: translateX(calc(-50% + 40px)) !important;
+    bottom: calc(var(--legal-h) + 20px) !important;
+    transform: translateX(calc(-50% + 60px)) !important;
     width: 340px !important;
     max-width: 340px !important;
     gap: 12px;
@@ -189,7 +190,7 @@
   }
   .fondo-pieza-ganadores,
   .bienvenida-bg {
-    background-position: center calc(100% - -4px) !important;
+    background-position: center calc(100% - 0px) !important;
   }
 
   .check-tyc-wrap {

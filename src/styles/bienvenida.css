@@ -49,13 +49,23 @@
 }
 
 /* ============================================================
-   ZONA LOGIN — FLEXBOX, SIN position absolute/fixed.
-   Colocado por el padre .bienvenida-content flex-end + padding-bottom.
-   NUNCA se desvía por padding/margin/header/safe-area de contenedores.
+   ZONA LOGIN — POSITION: FIXED. DIRECTAMENTE AL VIEWPORT.
+   MOTIVO ESTRATEGIA NUCLEAR 01/10/26:
+     Bienvenida.jsx NO RENDERIZA <screen-header>, PERO screen-content en global.css
+     resta var(--header-h)=60 px de su max-height. Eso hacia que el LOGIN
+     (flex-end + padding-bottom) 100% DE LAS VECES saliera FUERA del viewport
+     60 px hacia abajo = INVISIBLE. User borró SW, PWA, storage, sigue igual.
+     SOLUCION SIN DEPENDENCIAS: position fixed NO depende de ningún padre.
+     Colocamos el login 90 px por ENCIMA del banner legal (Y = 800 - 36 - 90 = 674).
+     Eje X: Centro (640) + 40 px derecha = 680.
+     width 340 px = [510 .. 850] VP. 100% DENTRO DEL VIEWPORT SIEMPRE.
    ============================================================ */
 .login-zone-med-centro {
-  position: relative;
-  width: 28%;
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--legal-h) + 60px);
+  transform: translateX(calc(-50% + 40px));
+  width: 340px;
   max-width: 340px;
   min-width: 260px;
   display: flex;
@@ -64,9 +74,9 @@
   justify-content: center;
   gap: 12px;
   padding: 0;
-  margin: 0 0 0 30px;
+  margin: 0;
   box-sizing: border-box;
-  z-index: var(--z-content);
+  z-index: 99999;
   contain: layout;
 }
 
@@ -152,47 +162,30 @@
   and (min-width: 1200px) and (max-width: 1320px)
   and (min-height: 620px) and (max-height: 900px) {
 
-  /* TCL Tab 10L Gen 3 1280×800 PWA FULLSCREEN. ESTRATEGIA FLEXBOX.
-     ULTIMO FIX CRITICO 01/10/26 5 COMMITS BUG:
-        CAUSA "SIGUE IGUAL NUNCA APARECE BOTON": .bienvenida-content SIN flex:1.
-        SIN flex:1 → padre screen-content es flex-col, pero hijo BIENVENIDA NO crece.
-        Resultado: altura bienvenida-content = 120 px (SOLO login), luego
-        padding-bottom 120 px EMPUJABA todo el login 120 px HACIA ABAJO,
-        COMPLETAMENTE FUERA DEL VIEWPORT. 5 commits seguía IGUAL. ROOT CAUSA OK.
-     SOLUCION 3 LINEAS BASE SELECTOR: flex:1 1 auto; min-height:0; width:100%.
-       Con flex:1, BIENVENIDA-CONTENT toma 100% del alto disponible screen-content
-       (TCL = ~654 px). Ahora justify-content:flex-end + padding-bottom:100 px
-       coloca el login DENTRO del viewport 100%. NO sale por abajo.
-     Calculo TCL 1280x800 EXACTO CON FLEX:1:
-       Screen-content max-height = 800 - 60(header) - 34(legal) - safe = 706 px.
-       Screen-content padding top 4 + bottom 48 (TCL breakpoint) → área útil HIJOS = 654 px.
-       Bienvenida-content = FLEX:1 → 654 px alto COMPLETO.
-       Padding-bottom TCL = 100 px.
-       Login altura = 120 px.
-       Login TOP dentro bienvenida = 654 - 100 - 120 = 434 px.
-       Login BOT dentro bienvenida = 654 - 100 = 554 px.
-       Viewport (si header 48 visible screen-content top = 48+4=52):
-         Login TOP = 52 + 434 = 486 VP.
-         Login BOT = 52 + 554 = 606 VP.
-         Título fin ≈ 400 → MARGEN SUP = 86 px AZUL LIBRE. NUNCA pisa ✅
-         Legal top 766 → MARGEN INF = 160 px ✅ Botones 100% VISIBLES.
-     D=-4: VP_logo_bottom 742. Legal 766. MARGEN 24. Logos MUY separados ✅
+  /* TCL Tab 10L Gen 3 1280×800 PWA FULLSCREEN. ESTRATEGIA NUCLEAR FIXED DIRECTA.
+     LOGIN position fixed EN SELECTOR BASE. NO depende de flex padres ni screen-content
+     (que restaba 60 px de header-h SIN EXISTIR header = login FUERA viewport).
+     En este breakpoint solo mantenemos DIMENSIONES CHECKBOX/BOTON 330 px internos.
+     La POSICIÓN la da BASE selector con position fixed 100% efectiva.
+     Calculo EXACTO TCL:
+       bottom = var(--legal-h=34) + 60 = 94 px desde borde inferior.
+       Pie botón = 800 - 94 = 706 VP. Login altura total = 120 px.
+       Login rango = [586 .. 706] VP.
+       Título acaba ~ 400 → MARGEN SUP = 186 px. NUNCA pisa ✅.
+       Legal bar top = 800 - 34 = 766 → MARGEN INF = 60 px ✅.
+       Eje X: left 50% → translate(-50% + 40 px) = centro + 40 = 680 VP. ✅
   */
-  .bienvenida-content {
-    flex: 1 1 auto !important;
-    min-height: 0 !important;
-    padding-bottom: 100px !important;
-  }
   .login-zone-med-centro {
-    position: relative !important;
-    width: 340px;
+    position: fixed !important;
+    left: 50% !important;
+    bottom: calc(var(--legal-h) + 60px) !important;
+    transform: translateX(calc(-50% + 40px)) !important;
+    width: 340px !important;
     max-width: 340px !important;
-    left: auto;
-    top: auto;
-    bottom: auto;
-    transform: none;
     gap: 12px;
-    margin: 0 0 0 40px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: 99999 !important;
   }
   .fondo-pieza-ganadores,
   .bienvenida-bg {

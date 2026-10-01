@@ -1,0 +1,51 @@
+.ganador-bg {
+  background-image: url('../assets/Fondo Vertical.png') !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+  background-position: center center !important;
+}
+.ganador-content{align-items:center;justify-content:center;text-align:center;gap:clamp(12px,2svh,24px);}
+.ganador-titulo{font-size:clamp(2rem,6svw,2.6rem);font-weight:900;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.3);margin:0;line-height:1.1;}
+.ganador-subtitulo{font-size:clamp(1rem,2.4svw,1.2rem);color:rgba(255,255,255,.9);font-weight:600;margin:0;max-width:600px;line-height:1.4;}
+.ganador-qr-wrap{background:rgba(255,255,255,.95);border-radius:16px;padding:16px;display:inline-flex;box-shadow:0 4px 20px rgba(0,0,0,.2);}
+.ganador-checks{width:100%;max-width:680px;display:flex;flex-direction:column;gap:clamp(10px,1.8svh,18px);}
+.ganador-check-wrap{display:flex;align-items:flex-start;gap:12px;background:rgba(255,255,255,.1);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2);border-radius:14px;padding:clamp(10px,1.6svh,16px) clamp(12px,2svw,18px);text-align:left;}
+.ganador-check-wrap input[type=checkbox]{width:24px;height:24px;min-width:24px;margin-top:2px;accent-color:var(--color-rojo-acento);cursor:pointer;}
+.ganador-check-label{font-size:clamp(.9rem,1.8svw,1rem);color:#fff;font-weight:500;line-height:1.45;cursor:pointer;}
+.ganador-check-label b{font-weight:700;}
+.ganador-check-detalle{font-size:clamp(.72rem,1.3svw,.82rem);color:rgba(255,255,255,.75);margin-top:4px;line-height:1.4;}
+.ganador-aceptado-timestamp{display:block;margin-top:6px;font-size:clamp(.7rem,1.2svw,.8rem);color:#16a34a;font-weight:600;}
+.ganador-btn-continuar{min-height:64px!important;height:64px!important;font-size:clamp(1rem,2.2svw,1.25rem)!important;min-width:min(520px,90vw)!important;}
+.registro-form{width:100%;max-width:780px;display:grid;grid-template-columns:1fr 1fr;gap:clamp(10px,1.6svh,16px) clamp(14px,2.4svw,22px);overflow-y:auto;padding-right:4px;padding-bottom:8px;align-self:center;}
+.registro-form::-webkit-scrollbar{width:6px;}
+.registro-form::-webkit-scrollbar-thumb{background:rgba(255,255,255,.3);border-radius:3px;}
+.registro-campo{display:flex;flex-direction:column;gap:6px;text-align:left;}
+.registro-campo.full{grid-column:1/-1;}
+.registro-campo label{font-size:clamp(.85rem,1.5svw,.95rem);font-weight:600;color:#fff;line-height:1.3;}
+.registro-campo label .req{color:var(--color-rojo-acento);font-weight:700;margin-left:2px;}
+.registro-campo input{width:100%;min-height:46px;padding:10px 14px;border:2px solid rgba(255,255,255,.25);border-radius:12px;background:rgba(255,255,255,.95);color:#111;font-size:clamp(.9rem,1.6svw,1rem);font-family:var(--font-body);font-weight:500;outline:none;transition:border-color .15s var(--ease);box-sizing:border-box;}
+.registro-campo input::placeholder{color:rgba(0,0,0,.4);}
+.registro-campo input:focus{border-color:var(--color-azul-secundario);box-shadow:0 0 0 3px rgba(0,71,186,.2);}
+.registro-error{font-size:.78rem;color:#ffcccb;font-weight:500;margin-top:-2px;}
+.registro-btn-submit{grid-column:1/-1;margin-top:4px;min-height:64px!important;height:64px!important;font-size:clamp(1rem,2.2svw,1.25rem)!important;position:relative;}
+.registro-btn-submit.is-loading{opacity:.75;pointer-events:none;}
+.spinner{width:18px;height:18px;border:3px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;display:inline-block;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.agradecimiento-card{width:100%;max-width:640px;background:rgba(255,255,255,.98);border-radius:24px;padding:clamp(20px,4svh,40px) clamp(20px,4svw,40px);box-shadow:0 12px 40px rgba(0,0,0,.25);color:#111;display:flex;flex-direction:column;align-items:center;text-align:center;gap:clamp(12px,2svh,20px);align-self:center;}
+.agradecimiento-icon{width:clamp(72px,14svh,96px);height:clamp(72px,14svh,96px);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:clamp(40px,8svh,56px);font-weight:900;flex-shrink:0;}
+.agradecimiento-icon.ok{background:linear-gradient(135deg,#16a34a 0%,#15803d 100%);color:#fff;box-shadow:0 6px 20px rgba(22,163,74,.35);}
+.agradecimiento-icon.info{background:linear-gradient(135deg,#0047BA 0%,#002a7a 100%);color:#fff;box-shadow:0 6px 20px rgba(0,71,186,.35);}
+.agradecimiento-card h1{font-size:clamp(1.6rem,4.2svw,2.2rem);color:var(--color-azul-primario);font-weight:900;margin:0;line-height:1.15;}
+.agradecimiento-mensaje{font-size:clamp(.95rem,1.9svw,1.1rem);color:#333;font-weight:500;line-height:1.55;margin:0;max-width:520px;}
+.agradecimiento-mensaje b{color:var(--color-azul-primario);font-weight:700;}
+.agradecimiento-botones{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:4px;width:100%;}
+.agradecimiento-botones .btn-ghost{background:transparent;border:2px solid var(--color-azul-primario);color:var(--color-azul-primario);}
+.agradecimiento-botones .btn-ghost:active{background:rgba(0,42,122,.08);}
+.header-btn-atras{display:inline-flex;align-items:center;gap:4px;background:transparent;border:0;color:#fff;font-family:var(--font-ui);font-weight:700;font-size:clamp(.95rem,1.8svw,1.1rem);cursor:pointer;padding:8px 12px;border-radius:10px;transition:background .15s var(--ease);}
+.header-btn-atras:active{background:rgba(255,255,255,.12);}
+@media (orientation:portrait) and (max-width:760px){
+  .registro-form{grid-template-columns:1fr;gap:12px;}
+  .ganador-btn-continuar,.registro-btn-submit{min-width:100%!important;}
+  .agradecimiento-botones{flex-direction:column;}
+  .agradecimiento-botones>*{width:100%;}
+}

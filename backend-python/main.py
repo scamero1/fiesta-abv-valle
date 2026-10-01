@@ -395,6 +395,12 @@ def startup_init_db_and_model():
         print("[startup] ✅ Modelo IA U2Net precargado OK.")
     except Exception as e:
         print(f"[startup] ⚠️ Falló precarga modelo IA (se cargará al primer request): {str(e)}")
+    # ====== INICIALIZACIÓN TABLAS PROMO / ADMIN (idempotente) ======
+    try:
+        init_promo_db_tables_and_seeds()
+        print(f"[startup] ✅ 6 Tablas promo/admin + seeds OK en {DB_ENGINE}.")
+    except Exception as e:
+        print(f"[startup] ⚠️ Falló init promo/admin DB: {str(e)}")
 
 class BodyB64(BaseModel):
     image: str
@@ -2111,3 +2117,1136 @@ def stats():
     if db_err:
         payload["db_error"] = db_err
     return payload
+
+
+# ============================================================
+# SISTEMA DE PROMOCIÓN / ADMINISTRACIÓN ABV FIESTA
+# ============================================================
+# (Todo el código nuevo se agrega aquí. Nada de L1-L2119 se tocó.)
+# ============================================================
+
+import re as _promo_re
+import string as _promo_string
+import random as _promo_random
+from datetime import timedelta as _promo_timedelta
+from fastapi import Depends as _promo_Depends
+
+# Hash bcrypt 12 rounds de "Fiesta2026!Valle" (hardcodeado, idempotente)
+_PROMO_ILV1921_BCRYPT_HASH = "$2b$12$kNO8n8JLtvG6RULPSAy1nuNraPoWU3E2bTeA6btS7IbqKfyZK6nlW"
+
+_PROMO_SQL_CREATE_POSTGRES = """
+CREATE TABLE IF NOT EXISTS promo_admin_users (
+    id SERIAL PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS promo_config (
+    id INTEGER PRIMARY KEY,
+    max_ganadores INTEGER NOT NULL DEFAULT 1,
+    estado_abierto BOOLEAN NOT NULL DEFAULT TRUE,
+    titulo_premio TEXT DEFAULT 'Botella Aguardiente Blanco del Valle Fiesta',
+    desc_premio TEXT,
+    dir_fuera_bogota TEXT NOT NULL DEFAULT 'Cra. 74a #51a-87, Bogotá',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS promo_qr_codes (
+    id BIGSERIAL PRIMARY KEY,
+    uuid_qr TEXT UNIQUE NOT NULL,
+    id_humano VARCHAR(16) UNIQUE NOT NULL,
+    size_px INTEGER NOT NULL DEFAULT 512,
+    formato TEXT NOT NULL DEFAULT 'png',
+    usado_registro_id BIGINT,
+    usado_at TIMESTAMPTZ,
+    creado_admin_id INTEGER,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_promo_qr_uuid ON promo_qr_codes (uuid_qr);
+CREATE INDEX IF NOT EXISTS idx_promo_qr_usado ON promo_qr_codes (usado_registro_id);
+
+CREATE TABLE IF NOT EXISTS promo_registros (
+    id BIGSERIAL PRIMARY KEY,
+    posicion_orden_ganador BIGINT UNIQUE,
+    qr_id BIGINT NOT NULL REFERENCES promo_qr_codes(id),
+    qr_uuid TEXT NOT NULL,
+    acepta_terminos BOOLEAN NOT NULL,
+    acepta_habeas BOOLEAN NOT NULL,
+    acepta_terminos_at TIMESTAMPTZ NOT NULL,
+    acepta_habeas_at TIMESTAMPTZ NOT NULL,
+    nombres_apellidos TEXT NOT NULL,
+    celular TEXT,
+    telefono_fijo TEXT,
+    celular_confirmacion TEXT,
+    correo_electronico TEXT NOT NULL,
+    direccion TEXT NOT NULL,
+    barrio TEXT,
+    municipio TEXT,
+    ciudad TEXT NOT NULL,
+    es_bogota_direccion BOOLEAN NOT NULL,
+    modalidad_entrega VARCHAR(16) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ip_cliente TEXT,
+    user_agent TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_promo_reg_created ON promo_registros (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_promo_reg_posicion ON promo_registros (posicion_orden_ganador);
+CREATE INDEX IF NOT EXISTS idx_promo_reg_bogota ON promo_registros (es_bogota_direccion);
+CREATE INDEX IF NOT EXISTS idx_promo_reg_qr ON promo_registros (qr_uuid);
+
+CREATE TABLE IF NOT EXISTS promo_auditoria_admin (
+    id BIGSERIAL PRIMARY KEY,
+    admin_id INTEGER NOT NULL,
+    accion VARCHAR(32) NOT NULL,
+    detalles JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_promo_aud_created ON promo_auditoria_admin (created_at DESC);
+
+CREATE TABLE IF NOT EXISTS promo_sorteo_lock (
+    id INTEGER PRIMARY KEY,
+    dummy INTEGER NOT NULL DEFAULT 0
+);
+"""
+
+_PROMO_SQL_CREATE_SQLITE = """
+CREATE TABLE IF NOT EXISTS promo_admin_users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%SZ','now'))
+);
+
+CREATE TABLE IF NOT EXISTS promo_config (
+    id INTEGER PRIMARY KEY,
+    max_ganadores INTEGER NOT NULL DEFAULT 1,
+    estado_abierto INTEGER NOT NULL DEFAULT 1,
+    titulo_premio TEXT DEFAULT 'Botella Aguardiente Blanco del Valle Fiesta',
+    desc_premio TEXT,
+    dir_fuera_bogota TEXT NOT NULL DEFAULT 'Cra. 74a #51a-87, Bogotá',
+    updated_at TEXT NOT NULL DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%SZ','now'))
+);
+
+CREATE TABLE IF NOT EXISTS promo_qr_codes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid_qr TEXT UNIQUE NOT NULL,
+    id_humano TEXT UNIQUE NOT NULL,
+    size_px INTEGER NOT NULL DEFAULT 512,
+    formato TEXT NOT NULL DEFAULT 'png',
+    usado_registro_id INTEGER,
+    usado_at TEXT,
+    creado_admin_id INTEGER,
+    created_at TEXT NOT NULL DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%SZ','now'))
+);
+CREATE INDEX IF NOT EXISTS idx_promo_qr_uuid ON promo_qr_codes (uuid_qr);
+CREATE INDEX IF NOT EXISTS idx_promo_qr_usado ON promo_qr_codes (usado_registro_id);
+
+CREATE TABLE IF NOT EXISTS promo_registros (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    posicion_orden_ganador INTEGER UNIQUE,
+    qr_id INTEGER NOT NULL REFERENCES promo_qr_codes(id),
+    qr_uuid TEXT NOT NULL,
+    acepta_terminos INTEGER NOT NULL,
+    acepta_habeas INTEGER NOT NULL,
+    acepta_terminos_at TEXT NOT NULL,
+    acepta_habeas_at TEXT NOT NULL,
+    nombres_apellidos TEXT NOT NULL,
+    celular TEXT,
+    telefono_fijo TEXT,
+    celular_confirmacion TEXT,
+    correo_electronico TEXT NOT NULL,
+    direccion TEXT NOT NULL,
+    barrio TEXT,
+    municipio TEXT,
+    ciudad TEXT NOT NULL,
+    es_bogota_direccion INTEGER NOT NULL,
+    modalidad_entrega TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%SZ','now')),
+    ip_cliente TEXT,
+    user_agent TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_promo_reg_created ON promo_registros (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_promo_reg_posicion ON promo_registros (posicion_orden_ganador);
+CREATE INDEX IF NOT EXISTS idx_promo_reg_bogota ON promo_registros (es_bogota_direccion);
+CREATE INDEX IF NOT EXISTS idx_promo_reg_qr ON promo_registros (qr_uuid);
+
+CREATE TABLE IF NOT EXISTS promo_auditoria_admin (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    admin_id INTEGER NOT NULL,
+    accion TEXT NOT NULL,
+    detalles TEXT,
+    created_at TEXT NOT NULL DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%SZ','now'))
+);
+CREATE INDEX IF NOT EXISTS idx_promo_aud_created ON promo_auditoria_admin (created_at DESC);
+
+CREATE TABLE IF NOT EXISTS promo_sorteo_lock (
+    id INTEGER PRIMARY KEY,
+    dummy INTEGER NOT NULL DEFAULT 0
+);
+"""
+
+
+def init_promo_db_tables_and_seeds():
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        if DB_ENGINE == "POSTGRES":
+            cur.execute(_PROMO_SQL_CREATE_POSTGRES)
+            conn.commit()
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT INTO promo_admin_users (username, password_hash) "
+                "SELECT %s, %s WHERE NOT EXISTS (SELECT 1 FROM promo_admin_users WHERE username = %s)",
+                ("ilv1921", _PROMO_ILV1921_BCRYPT_HASH, "ilv1921"),
+            )
+            cur.execute(
+                "INSERT INTO promo_config (id, max_ganadores, estado_abierto, titulo_premio, desc_premio, dir_fuera_bogota, updated_at) "
+                "SELECT 1, 1, TRUE, 'Botella Aguardiente Blanco del Valle Fiesta', NULL, 'Cra. 74a #51a-87, Bogotá', NOW() "
+                "WHERE NOT EXISTS (SELECT 1 FROM promo_config WHERE id = 1)"
+            )
+            cur.execute(
+                "INSERT INTO promo_sorteo_lock (id, dummy) SELECT 1, 0 WHERE NOT EXISTS (SELECT 1 FROM promo_sorteo_lock WHERE id = 1)"
+            )
+            conn.commit()
+        else:
+            cur.executescript(_PROMO_SQL_CREATE_SQLITE)
+            conn.commit()
+            cur = conn.cursor()
+            cur.execute(
+                "INSERT OR IGNORE INTO promo_admin_users (username, password_hash) VALUES (?, ?)",
+                ("ilv1921", _PROMO_ILV1921_BCRYPT_HASH),
+            )
+            cur.execute(
+                "INSERT OR IGNORE INTO promo_config (id, max_ganadores, estado_abierto, titulo_premio, desc_premio, dir_fuera_bogota, updated_at) "
+                "VALUES (1, 1, 1, 'Botella Aguardiente Blanco del Valle Fiesta', NULL, 'Cra. 74a #51a-87, Bogotá', STRFTIME('%Y-%m-%dT%H:%M:%SZ','now'))"
+            )
+            cur.execute(
+                "INSERT OR IGNORE INTO promo_sorteo_lock (id, dummy) VALUES (1, 0)"
+            )
+            conn.commit()
+
+
+# ================= AUTENTICACIÓN JWT ADMIN =================
+_JWT_SECRET = os.getenv("JWT_SECRET", os.urandom(32).hex())
+_JWT_ALGORITHM = "HS256"
+_JWT_EXPIRY_HOURS = 24
+
+
+def _promo_hash_password(plain: str) -> str:
+    import bcrypt as _bcrypt
+    return _bcrypt.hashpw(plain.encode("utf-8"), _bcrypt.gensalt(rounds=12)).decode("utf-8")
+
+
+def _promo_verify_password(plain: str, hashed: str) -> bool:
+    import bcrypt as _bcrypt
+    try:
+        return _bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except Exception:
+        return False
+
+
+def _promo_create_access_token(admin_id: int, username: str) -> str:
+    from jose import jwt as _jose_jwt
+    now = datetime.now(timezone.utc)
+    expire = now + _promo_timedelta(hours=_JWT_EXPIRY_HOURS)
+    payload = {
+        "sub": str(admin_id),
+        "username": username,
+        "iat": int(now.timestamp()),
+        "exp": int(expire.timestamp()),
+        "type": "admin_access",
+    }
+    return _jose_jwt.encode(payload, _JWT_SECRET, algorithm=_JWT_ALGORITHM)
+
+
+def _promo_decode_token(token: str) -> dict | None:
+    from jose import jwt as _jose_jwt, JWTError as _JWTError
+    try:
+        return _jose_jwt.decode(token, _JWT_SECRET, algorithms=[_JWT_ALGORITHM])
+    except _JWTError:
+        return None
+
+
+def _promo_get_admin_from_db(username: str) -> dict | None:
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id, username, password_hash FROM promo_admin_users WHERE username = %s" if DB_ENGINE == "POSTGRES" else "SELECT id, username, password_hash FROM promo_admin_users WHERE username = ?", (username,))
+        row = cur.fetchone()
+        if row is None:
+            return None
+        return {"id": row[0], "username": row[1], "password_hash": row[2]}
+
+
+def _promo_insert_auditoria(admin_id: int, accion: str, detalles: dict | None = None):
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        det_json = json.dumps(detalles or {}, ensure_ascii=False)
+        if DB_ENGINE == "POSTGRES":
+            cur.execute(
+                "INSERT INTO promo_auditoria_admin (admin_id, accion, detalles) VALUES (%s, %s, %s::jsonb)",
+                (admin_id, accion, det_json),
+            )
+            conn.commit()
+        else:
+            cur.execute(
+                "INSERT INTO promo_auditoria_admin (admin_id, accion, detalles) VALUES (?, ?, ?)",
+                (admin_id, accion, det_json),
+            )
+            conn.commit()
+
+
+# ================= DEPENDENCY AUTH ADMIN (HTTP Bearer) =================
+def _promo_extract_bearer(request: Request) -> str | None:
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer "):
+        return auth[7:].strip()
+    return None
+
+
+def get_current_admin(request: Request):
+    token = _promo_extract_bearer(request)
+    if not token:
+        raise HTTPException(status_code=401, detail="No autorizado: falta token Bearer")
+    decoded = _promo_decode_token(token)
+    if not decoded:
+        raise HTTPException(status_code=401, detail="Token inválido o expirado")
+    try:
+        admin_id = int(decoded.get("sub", "0"))
+        username = decoded.get("username", "")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Token malformado")
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id, username FROM promo_admin_users WHERE id = %s" if DB_ENGINE == "POSTGRES" else "SELECT id, username FROM promo_admin_users WHERE id = ?", (admin_id,))
+        row = cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=401, detail="Admin no existe en DB")
+        return {"id": row[0], "username": row[1]}
+
+
+# ================= HELPERS VARIOS PROMO =================
+def _promo_es_bogota(ciudad: str, direccion: str) -> bool:
+    ciudad_norm = (ciudad or "").strip().lower()
+    bogota_re = _promo_re.compile(r"bogot[aá]|santaf[eé]\s+de\s+bogot[aá]|sta\s+fe\s+de\s+bogota", _promo_re.IGNORECASE)
+    if bogota_re.search(ciudad_norm):
+        return True
+    dir_norm = (direccion or "").strip().lower()
+    dir_re = _promo_re.compile(r"(cra\.?|carrera|cll\.?|calle|kr\.?)\s*\d", _promo_re.IGNORECASE)
+    if dir_re.search(dir_norm) and bogota_re.search(ciudad_norm):
+        return True
+    if dir_re.search(dir_norm) and ("bogota" in ciudad_norm or "bogotá" in ciudad_norm):
+        return True
+    return False
+
+
+def _promo_row_to_dict(row, columns: list[str]) -> dict:
+    if row is None:
+        return None
+    return {columns[i]: (row[i] if i < len(row) else None) for i in range(len(columns))}
+
+
+def _promo_fetch_all_to_dicts(cur, columns: list[str]) -> list[dict]:
+    rows = cur.fetchall()
+    return [_promo_row_to_dict(r, columns) for r in rows]
+
+
+# ================= PYDANTIC MODELS PARA NUEVOS ENDPOINTS =================
+class PromoQrValidarReq(BaseModel):
+    qr_uuid: str
+
+
+class PromoAceptacionReq(BaseModel):
+    qr_uuid: str
+    acepta_terminos: bool
+    acepta_habeas: bool
+
+
+class PromoRegistroReq(BaseModel):
+    qr_uuid: str
+    nombres_apellidos: str
+    celular: str | None = None
+    telefono_fijo: str | None = None
+    celular_confirmacion: str | None = None
+    correo_electronico: str
+    direccion: str
+    barrio: str | None = None
+    municipio: str | None = None
+    ciudad: str
+    acepta_terminos_at_iso: str
+    acepta_habeas_at_iso: str
+
+
+class AdminLoginReq(BaseModel):
+    username: str
+    password: str
+
+
+class AdminConfigUpdateReq(BaseModel):
+    max_ganadores: int | None = None
+    estado_abierto: bool | None = None
+    titulo_premio: str | None = None
+    desc_premio: str | None = None
+    dir_fuera_bogota: str | None = None
+
+
+class AdminRegistroUpdateReq(BaseModel):
+    nombres_apellidos: str | None = None
+    celular: str | None = None
+    telefono_fijo: str | None = None
+    celular_confirmacion: str | None = None
+    correo_electronico: str | None = None
+    direccion: str | None = None
+    barrio: str | None = None
+    municipio: str | None = None
+    ciudad: str | None = None
+    posicion_orden_ganador: int | None = None
+    modalidad_entrega: str | None = None
+
+
+class AdminQrGenerarReq(BaseModel):
+    cantidad: int
+    size_px: int = 512
+    formato: str = "png"
+
+
+# ================= ENDPOINTS PÚBLICOS DE PROMOCIÓN =================
+
+# A) POST /api/promo/qr/validar
+@app.post("/api/promo/qr/validar")
+def promo_qr_validar(req: PromoQrValidarReq):
+    qr_uuid = (req.qr_uuid or "").strip()
+    if not qr_uuid:
+        raise HTTPException(status_code=400, detail="qr_uuid es requerido")
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        cols = ["id", "uuid_qr", "id_humano", "size_px", "formato", "usado_registro_id"]
+        sql = "SELECT id, uuid_qr, id_humano, size_px, formato, usado_registro_id FROM promo_qr_codes WHERE uuid_qr = %s" if DB_ENGINE == "POSTGRES" else "SELECT id, uuid_qr, id_humano, size_px, formato, usado_registro_id FROM promo_qr_codes WHERE uuid_qr = ?"
+        cur.execute(sql, (qr_uuid,))
+        row = cur.fetchone()
+        if row is None:
+            return {
+                "valido": False,
+                "usado": False,
+                "mensaje": "QR no encontrado en el sistema",
+                "size_px": 0,
+                "id_humano": "",
+            }
+        usado = row[5] is not None
+        return {
+            "valido": True,
+            "usado": usado,
+            "mensaje": ("QR ya utilizado" if usado else "QR válido y listo para usar"),
+            "size_px": int(row[3] or 512),
+            "id_humano": str(row[2] or ""),
+        }
+
+
+# B) POST /api/promo/aceptacion
+@app.post("/api/promo/aceptacion")
+def promo_aceptacion(req: PromoAceptacionReq):
+    server_ts = datetime.now(timezone.utc)
+    return {
+        "ok": True,
+        "server_timestamp_iso": server_ts.isoformat(),
+    }
+
+
+# C) POST /api/promo/registro (TRANSACCIÓN ATÓMICA FIFO)
+@app.post("/api/promo/registro")
+async def promo_registro(req: PromoRegistroReq, request: Request):
+    qr_uuid = (req.qr_uuid or "").strip()
+    if not qr_uuid:
+        raise HTTPException(status_code=400, detail="qr_uuid requerido")
+    if not req.nombres_apellidos or not req.correo_electronico or not req.direccion or not req.ciudad:
+        raise HTTPException(status_code=400, detail="Campos obligatorios faltantes")
+
+    try:
+        ip_cliente = request.headers.get("x-forwarded-for") or request.headers.get("x-real-ip") or getattr(request.client, "host", None)
+        if isinstance(ip_cliente, str) and "," in ip_cliente:
+            ip_cliente = ip_cliente.split(",")[0].strip()
+    except Exception:
+        ip_cliente = None
+    user_agent = (request.headers.get("user-agent") or "")[:1024]
+
+    es_bogota = _promo_es_bogota(req.ciudad, req.direccion)
+    modalidad = "DOMICILIO_BTA" if es_bogota else "RECOGER_CRA74"
+
+    acepta_t_at = datetime.fromisoformat(req.acepta_terminos_at_iso.replace("Z", "+00:00")) if req.acepta_terminos_at_iso else datetime.now(timezone.utc)
+    acepta_h_at = datetime.fromisoformat(req.acepta_habeas_at_iso.replace("Z", "+00:00")) if req.acepta_habeas_at_iso else datetime.now(timezone.utc)
+
+    with get_db_conn() as conn:
+        conn.autocommit = False
+        try:
+            cur = conn.cursor()
+            if DB_ENGINE == "POSTGRES":
+                cur.execute("BEGIN")
+                cur.execute("SELECT id, uuid_qr, id_humano, usado_registro_id FROM promo_qr_codes WHERE uuid_qr = %s", (qr_uuid,))
+            else:
+                cur.execute("BEGIN IMMEDIATE")
+                cur.execute("SELECT id, uuid_qr, id_humano, usado_registro_id FROM promo_qr_codes WHERE uuid_qr = ?", (qr_uuid,))
+            qr_row = cur.fetchone()
+            if qr_row is None:
+                if DB_ENGINE != "POSTGRES":
+                    conn.rollback()
+                raise HTTPException(status_code=404, detail="QR no encontrado")
+            qr_id = qr_row[0]
+            if qr_row[3] is not None:
+                if DB_ENGINE != "POSTGRES":
+                    conn.rollback()
+                raise HTTPException(status_code=409, detail="Este QR ya fue utilizado en un registro")
+
+            if DB_ENGINE == "POSTGRES":
+                cur.execute("SELECT dummy FROM promo_sorteo_lock WHERE id = 1 FOR UPDATE")
+                cur.execute("SELECT id, max_ganadores, estado_abierto, dir_fuera_bogota, titulo_premio FROM promo_config WHERE id = 1 FOR UPDATE")
+            else:
+                cur.execute("SELECT dummy FROM promo_sorteo_lock WHERE id = 1")
+                cur.execute("SELECT id, max_ganadores, estado_abierto, dir_fuera_bogota, titulo_premio FROM promo_config WHERE id = 1")
+            cfg_row = cur.fetchone()
+            if cfg_row is None:
+                if DB_ENGINE != "POSTGRES":
+                    conn.rollback()
+                raise HTTPException(status_code=500, detail="Configuración no inicializada")
+
+            estado_abierto = bool(cfg_row[2]) if DB_ENGINE == "POSTGRES" else (int(cfg_row[2]) == 1)
+            if not estado_abierto:
+                if DB_ENGINE != "POSTGRES":
+                    conn.rollback()
+                raise HTTPException(status_code=423, detail="Promoción cerrada temporalmente")
+
+            max_gan = int(cfg_row[1] or 1)
+            dir_fuera = str(cfg_row[3] or "Cra. 74a #51a-87, Bogotá")
+            titulo_premio = str(cfg_row[4] or "Botella Aguardiente Blanco del Valle Fiesta")
+
+            count_sql = "SELECT COUNT(*) FROM promo_registros WHERE posicion_orden_ganador IS NOT NULL"
+            cur.execute(count_sql)
+            count_gan = int(cur.fetchone()[0] or 0)
+
+            posicion_ganador = None
+            if count_gan < max_gan:
+                posicion_ganador = count_gan + 1
+
+            cols_ins = [
+                "posicion_orden_ganador", "qr_id", "qr_uuid",
+                "acepta_terminos", "acepta_habeas", "acepta_terminos_at", "acepta_habeas_at",
+                "nombres_apellidos", "celular", "telefono_fijo", "celular_confirmacion",
+                "correo_electronico", "direccion", "barrio", "municipio", "ciudad",
+                "es_bogota_direccion", "modalidad_entrega", "ip_cliente", "user_agent",
+            ]
+            if DB_ENGINE == "POSTGRES":
+                placeholders = ", ".join(["%s"] * len(cols_ins))
+                sql_ins = f"INSERT INTO promo_registros ({', '.join(cols_ins)}) VALUES ({placeholders}) RETURNING id"
+            else:
+                placeholders = ", ".join(["?"] * len(cols_ins))
+                sql_ins = f"INSERT INTO promo_registros ({', '.join(cols_ins)}) VALUES ({placeholders})"
+            values = (
+                posicion_ganador, qr_id, qr_uuid,
+                bool(req.acepta_terminos), bool(req.acepta_habeas), acepta_t_at, acepta_h_at,
+                req.nombres_apellidos, req.celular, req.telefono_fijo, req.celular_confirmacion,
+                req.correo_electronico, req.direccion, req.barrio, req.municipio, req.ciudad,
+                es_bogota, modalidad, ip_cliente, user_agent,
+            )
+            cur.execute(sql_ins, values)
+            if DB_ENGINE == "POSTGRES":
+                new_id = cur.fetchone()[0]
+            else:
+                new_id = cur.lastrowid
+
+            if DB_ENGINE == "POSTGRES":
+                cur.execute(
+                    "UPDATE promo_qr_codes SET usado_registro_id = %s, usado_at = NOW() WHERE id = %s AND usado_registro_id IS NULL",
+                    (new_id, qr_id),
+                )
+            else:
+                cur.execute(
+                    "UPDATE promo_qr_codes SET usado_registro_id = ?, usado_at = STRFTIME('%Y-%m-%dT%H:%M:%SZ','now') WHERE id = ? AND usado_registro_id IS NULL",
+                    (new_id, qr_id),
+                )
+            if cur.rowcount != 1:
+                conn.rollback()
+                raise HTTPException(status_code=409, detail="QR concurrentemente utilizado")
+
+            conn.commit()
+
+            ganador = posicion_ganador is not None
+            mensaje_agradecimiento = (
+                f"¡FELICITACIONES! Eres el ganador #{posicion_ganador} de {titulo_premio}. "
+                f"{'Te lo enviaremos a tu domicilio en Bogotá.' if es_bogota else f'Retíralo en {dir_fuera}.'}"
+            ) if ganador else (
+                f"Gracias por participar, {req.nombres_apellidos}. "
+                f"No fuiste ganador esta vez, pero sigue disfrutando Aguardiente Blanco del Valle."
+            )
+            return {
+                "registro_id": int(new_id),
+                "ganador": ganador,
+                "posicion_orden_ganador": posicion_ganador,
+                "es_bogota": es_bogota,
+                "modalidad_entrega": modalidad,
+                "direccion_recoger_cra74": dir_fuera,
+                "mensaje_agradecimiento": mensaje_agradecimiento,
+                "nombres_apellidos": req.nombres_apellidos,
+            }
+        except HTTPException:
+            raise
+        except Exception as e:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            raise HTTPException(status_code=500, detail=f"Error registro: {str(e)}")
+
+
+# D) GET /api/promo/agradecimiento/{registro_id}
+@app.get("/api/promo/agradecimiento/{registro_id}")
+def promo_agradecimiento(registro_id: int):
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        cols = [
+            "id", "posicion_orden_ganador", "qr_uuid", "nombres_apellidos",
+            "celular", "correo_electronico", "direccion", "ciudad",
+            "es_bogota_direccion", "modalidad_entrega", "created_at",
+        ]
+        sql = "SELECT id, posicion_orden_ganador, qr_uuid, nombres_apellidos, celular, correo_electronico, direccion, ciudad, es_bogota_direccion, modalidad_entrega, created_at FROM promo_registros WHERE id = %s" if DB_ENGINE == "POSTGRES" else "SELECT id, posicion_orden_ganador, qr_uuid, nombres_apellidos, celular, correo_electronico, direccion, ciudad, es_bogota_direccion, modalidad_entrega, created_at FROM promo_registros WHERE id = ?"
+        cur.execute(sql, (registro_id,))
+        row = cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Registro no encontrado")
+        d = _promo_row_to_dict(row, cols)
+
+        cur.execute("SELECT dir_fuera_bogota, titulo_premio, max_ganadores FROM promo_config WHERE id = 1")
+        cfg = cur.fetchone()
+        dir_fuera = str(cfg[0] or "Cra. 74a #51a-87, Bogotá")
+        titulo_premio = str(cfg[1] or "Botella Aguardiente Blanco del Valle Fiesta")
+
+        es_bogota = bool(d["es_bogota_direccion"]) if DB_ENGINE == "POSTGRES" else (int(d["es_bogota_direccion"]) == 1)
+        ganador = d["posicion_orden_ganador"] is not None
+        mensaje_agradecimiento = (
+            f"¡FELICITACIONES! Eres el ganador #{d['posicion_orden_ganador']} de {titulo_premio}. "
+            f"{'Te lo enviaremos a tu domicilio en Bogotá.' if es_bogota else f'Retíralo en {dir_fuera}.'}"
+        ) if ganador else (
+            f"Gracias por participar, {d['nombres_apellidos']}. "
+            f"No fuiste ganador esta vez, pero sigue disfrutando Aguardiente Blanco del Valle."
+        )
+        return {
+            "registro_id": int(d["id"]),
+            "ganador": ganador,
+            "posicion_orden_ganador": d["posicion_orden_ganador"],
+            "es_bogota": es_bogota,
+            "modalidad_entrega": d["modalidad_entrega"],
+            "direccion_recoger_cra74": dir_fuera,
+            "mensaje_agradecimiento": mensaje_agradecimiento,
+            "nombres_apellidos": d["nombres_apellidos"],
+            "details": {
+                "qr_uuid": d["qr_uuid"],
+                "celular": d["celular"],
+                "correo_electronico": d["correo_electronico"],
+                "direccion": d["direccion"],
+                "ciudad": d["ciudad"],
+                "created_at": d["created_at"],
+            },
+        }
+
+
+# ================= ENDPOINTS ADMIN =================
+
+# E) POST /api/admin/login
+@app.post("/api/admin/login")
+def admin_login(req: AdminLoginReq):
+    username = (req.username or "").strip()
+    password = req.password or ""
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="username y password requeridos")
+    admin = _promo_get_admin_from_db(username)
+    if admin is None:
+        raise HTTPException(status_code=401, detail="Credenciales inválidas")
+    if not _promo_verify_password(password, admin["password_hash"]):
+        raise HTTPException(status_code=401, detail="Credenciales inválidas")
+    token = _promo_create_access_token(int(admin["id"]), admin["username"])
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "expires_in": 86400,
+        "username": admin["username"],
+    }
+
+
+# F) GET /api/admin/config
+@app.get("/api/admin/config")
+def admin_get_config(admin: dict = _promo_Depends(get_current_admin)):
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id, max_ganadores, estado_abierto, titulo_premio, desc_premio, dir_fuera_bogota, updated_at FROM promo_config WHERE id = 1")
+        row = cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=500, detail="Config no inicializada")
+        cfg = {
+            "id": row[0],
+            "max_ganadores": int(row[1] or 1),
+            "estado_abierto": bool(row[2]) if DB_ENGINE == "POSTGRES" else (int(row[2]) == 1),
+            "titulo_premio": row[3],
+            "desc_premio": row[4],
+            "dir_fuera_bogota": row[5],
+            "updated_at": row[6],
+        }
+        return cfg
+
+
+# G) PUT /api/admin/config
+@app.put("/api/admin/config")
+def admin_update_config(req: AdminConfigUpdateReq, admin: dict = _promo_Depends(get_current_admin)):
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        updates = []
+        params = []
+        if req.max_ganadores is not None:
+            updates.append("max_ganadores = %s" if DB_ENGINE == "POSTGRES" else "max_ganadores = ?")
+            params.append(int(req.max_ganadores))
+        if req.estado_abierto is not None:
+            updates.append("estado_abierto = %s" if DB_ENGINE == "POSTGRES" else "estado_abierto = ?")
+            params.append(req.estado_abierto if DB_ENGINE == "POSTGRES" else (1 if req.estado_abierto else 0))
+        if req.titulo_premio is not None:
+            updates.append("titulo_premio = %s" if DB_ENGINE == "POSTGRES" else "titulo_premio = ?")
+            params.append(req.titulo_premio)
+        if req.desc_premio is not None:
+            updates.append("desc_premio = %s" if DB_ENGINE == "POSTGRES" else "desc_premio = ?")
+            params.append(req.desc_premio)
+        if req.dir_fuera_bogota is not None:
+            updates.append("dir_fuera_bogota = %s" if DB_ENGINE == "POSTGRES" else "dir_fuera_bogota = ?")
+            params.append(req.dir_fuera_bogota)
+        if not updates:
+            return {"ok": True, "updated": False, "mensaje": "Sin cambios"}
+        updates.append("updated_at = NOW()" if DB_ENGINE == "POSTGRES" else "updated_at = STRFTIME('%Y-%m-%dT%H:%M:%SZ','now')")
+        sql = f"UPDATE promo_config SET {', '.join(updates)} WHERE id = 1"
+        if DB_ENGINE == "POSTGRES":
+            cur.execute(sql, tuple(params))
+        else:
+            cur.execute(sql, params)
+        conn.commit()
+    _promo_insert_auditoria(int(admin["id"]), "UPDATE_CONFIG", req.model_dump(exclude_none=True))
+    return {"ok": True, "updated": True}
+
+
+# H) GET /api/admin/registros
+@app.get("/api/admin/registros")
+def admin_list_registros(
+    page: int = 1,
+    per_page: int = 100,
+    sort: str = "created_at_asc",
+    filtro_ciudad: str | None = None,
+    filtro_es_bogota: bool | None = None,
+    filtro_ganador: bool | None = None,
+    admin: dict = _promo_Depends(get_current_admin),
+):
+    page = max(1, int(page or 1))
+    per_page = max(1, min(500, int(per_page or 100)))
+    offset = (page - 1) * per_page
+
+    base_where = []
+    params = []
+    if filtro_ciudad:
+        base_where.append("ciudad ILIKE %s" if DB_ENGINE == "POSTGRES" else "ciudad LIKE ?")
+        params.append(f"%{filtro_ciudad}%")
+    if filtro_es_bogota is not None:
+        v = 1 if filtro_es_bogota else 0
+        base_where.append("es_bogota_direccion = %s" if DB_ENGINE == "POSTGRES" else "es_bogota_direccion = ?")
+        params.append(v if DB_ENGINE == "POSTGRES" else v)
+    if filtro_ganador is not None:
+        if filtro_ganador:
+            base_where.append("posicion_orden_ganador IS NOT NULL")
+        else:
+            base_where.append("posicion_orden_ganador IS NULL")
+
+    where_sql = f" WHERE {' AND '.join(base_where)}" if base_where else ""
+
+    sort_map = {
+        "created_at_asc": "created_at ASC",
+        "created_at_desc": "created_at DESC",
+        "posicion_asc": "posicion_orden_ganador ASC NULLS LAST, created_at DESC" if DB_ENGINE == "POSTGRES" else "CASE WHEN posicion_orden_ganador IS NULL THEN 1 ELSE 0 END, posicion_orden_ganador ASC, created_at DESC",
+        "posicion_desc": "posicion_orden_ganador DESC NULLS LAST, created_at DESC" if DB_ENGINE == "POSTGRES" else "posicion_orden_ganador DESC, created_at DESC",
+        "nombre_asc": "nombres_apellidos ASC",
+    }
+    order_sql = sort_map.get(sort, sort_map["created_at_asc"])
+
+    cols = [
+        "id", "posicion_orden_ganador", "qr_id", "qr_uuid",
+        "acepta_terminos", "acepta_habeas", "acepta_terminos_at", "acepta_habeas_at",
+        "nombres_apellidos", "celular", "telefono_fijo", "celular_confirmacion",
+        "correo_electronico", "direccion", "barrio", "municipio", "ciudad",
+        "es_bogota_direccion", "modalidad_entrega", "created_at", "ip_cliente", "user_agent",
+    ]
+    cols_str = ", ".join(cols)
+
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT COUNT(*) FROM promo_registros{where_sql}", tuple(params) if DB_ENGINE == "POSTGRES" else params)
+        total = int(cur.fetchone()[0] or 0)
+
+        ph = "%s" if DB_ENGINE == "POSTGRES" else "?"
+        limit_sql = f" LIMIT {ph} OFFSET {ph}"
+        qp = list(params) + [per_page, offset]
+        cur.execute(
+            f"SELECT {cols_str} FROM promo_registros{where_sql} ORDER BY {order_sql}{limit_sql}",
+            tuple(qp) if DB_ENGINE == "POSTGRES" else qp,
+        )
+        items = _promo_fetch_all_to_dicts(cur, cols)
+        for it in items:
+            if "es_bogota_direccion" in it:
+                it["es_bogota_direccion"] = bool(it["es_bogota_direccion"]) if DB_ENGINE == "POSTGRES" else (int(it["es_bogota_direccion"] or 0) == 1)
+            if "acepta_terminos" in it:
+                it["acepta_terminos"] = bool(it["acepta_terminos"]) if DB_ENGINE == "POSTGRES" else (int(it["acepta_terminos"] or 0) == 1)
+            if "acepta_habeas" in it:
+                it["acepta_habeas"] = bool(it["acepta_habeas"]) if DB_ENGINE == "POSTGRES" else (int(it["acepta_habeas"] or 0) == 1)
+    return {
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "items": items,
+    }
+
+
+# I) PUT /api/admin/registros/{id}
+@app.put("/api/admin/registros/{id}")
+def admin_update_registro(id: int, req: AdminRegistroUpdateReq, admin: dict = _promo_Depends(get_current_admin)):
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        updates = []
+        params = []
+        ph = "%s" if DB_ENGINE == "POSTGRES" else "?"
+        data = req.model_dump(exclude_none=True)
+        for k, v in data.items():
+            if k == "ciudad":
+                continue
+            if k == "es_bogota_direccion":
+                continue
+            updates.append(f"{k} = {ph}")
+            if isinstance(v, bool) and DB_ENGINE != "POSTGRES":
+                params.append(1 if v else 0)
+            else:
+                params.append(v)
+        if "ciudad" in data or "direccion" in data:
+            cur.execute(f"SELECT ciudad, direccion FROM promo_registros WHERE id = {ph}", (id,) if DB_ENGINE == "POSTGRES" else [id])
+            row = cur.fetchone()
+            if row is None:
+                raise HTTPException(status_code=404, detail="Registro no encontrado")
+            c = data.get("ciudad", row[0])
+            d = data.get("direccion", row[1])
+            es_b = _promo_es_bogota(c or "", d or "")
+            mod = "DOMICILIO_BTA" if es_b else "RECOGER_CRA74"
+            if "modalidad_entrega" not in data:
+                updates.append(f"modalidad_entrega = {ph}")
+                params.append(mod)
+            updates.append(f"es_bogota_direccion = {ph}")
+            params.append(es_b if DB_ENGINE == "POSTGRES" else (1 if es_b else 0))
+        if not updates:
+            return {"ok": True, "updated": False}
+        params.append(id)
+        sql = f"UPDATE promo_registros SET {', '.join(updates)} WHERE id = {ph}"
+        cur.execute(sql, tuple(params) if DB_ENGINE == "POSTGRES" else params)
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Registro no encontrado")
+        conn.commit()
+    _promo_insert_auditoria(int(admin["id"]), "UPDATE_REGISTRO", {"id": id, **data})
+    return {"ok": True, "updated": True, "id": id}
+
+
+# J) DELETE /api/admin/registros/{id} (RENUMERACIÓN ATÓMICA)
+@app.delete("/api/admin/registros/{id}")
+def admin_delete_registro(id: int, admin: dict = _promo_Depends(get_current_admin)):
+    with get_db_conn() as conn:
+        conn.autocommit = False
+        try:
+            cur = conn.cursor()
+            ph = "%s" if DB_ENGINE == "POSTGRES" else "?"
+            if DB_ENGINE == "POSTGRES":
+                cur.execute("BEGIN")
+                cur.execute(f"SELECT id, posicion_orden_ganador FROM promo_registros WHERE id = {ph} FOR UPDATE", (id,))
+            else:
+                cur.execute("BEGIN IMMEDIATE")
+                cur.execute(f"SELECT id, posicion_orden_ganador FROM promo_registros WHERE id = {ph}", (id,))
+            row = cur.fetchone()
+            if row is None:
+                if DB_ENGINE != "POSTGRES":
+                    conn.rollback()
+                raise HTTPException(status_code=404, detail="Registro no encontrado")
+            posicion_eliminado = row[1]
+            cur.execute(f"DELETE FROM promo_registros WHERE id = {ph}", (id,))
+            cur.execute(f"UPDATE promo_qr_codes SET usado_registro_id = NULL, usado_at = NULL WHERE usado_registro_id = {ph}", (id,))
+
+            recalculated = 0
+            if posicion_eliminado is not None:
+                if DB_ENGINE == "POSTGRES":
+                    cur.execute(
+                        f"UPDATE promo_registros SET posicion_orden_ganador = posicion_orden_ganador - 1 WHERE posicion_orden_ganador > {ph} ORDER BY posicion_orden_ganador ASC",
+                        (posicion_eliminado,),
+                    )
+                else:
+                    cur.execute(
+                        f"UPDATE promo_registros SET posicion_orden_ganador = posicion_orden_ganador - 1 WHERE posicion_orden_ganador > {ph}",
+                        (posicion_eliminado,),
+                    )
+                recalculated = cur.rowcount or 0
+            conn.commit()
+        except HTTPException:
+            raise
+        except Exception as e:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            raise HTTPException(status_code=500, detail=f"Error delete: {str(e)}")
+    _promo_insert_auditoria(int(admin["id"]), "DELETE_REGISTRO", {"id": id, "posicion_eliminada": posicion_eliminado})
+    return {
+        "ok": True,
+        "deleted_id": id,
+        "deleted_position": posicion_eliminado,
+        "positions_recalculated_count": int(recalculated or 0),
+    }
+
+
+# K) GET /api/admin/registros/xlsx
+@app.get("/api/admin/registros/xlsx")
+def admin_registros_xlsx(admin: dict = _promo_Depends(get_current_admin)):
+    import openpyxl as _xl
+    from openpyxl.styles import Font as _XlFont
+
+    wb = _xl.Workbook()
+    ws = wb.active
+    ws.title = "Registros Promo"
+    headers = [
+        "Posición", "Fecha Registro", "QR Usado", "Nombres y Apellidos",
+        "Celular", "Teléfono Fijo", "Correo", "Dirección", "Barrio",
+        "Municipio", "Ciudad", "Es Bogotá?", "Modalidad Entrega",
+        "Aceptó Términos?", "Aceptó Habeas Data?", "IP", "User Agent",
+    ]
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.font = _XlFont(bold=True)
+
+    cols = [
+        "posicion_orden_ganador", "created_at", "qr_uuid", "nombres_apellidos",
+        "celular", "telefono_fijo", "correo_electronico", "direccion", "barrio",
+        "municipio", "ciudad", "es_bogota_direccion", "modalidad_entrega",
+        "acepta_terminos", "acepta_habeas", "ip_cliente", "user_agent",
+    ]
+    cols_str = ", ".join(cols)
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT {cols_str} FROM promo_registros ORDER BY COALESCE(posicion_orden_ganador, 999999999) ASC, created_at ASC")
+        rows = cur.fetchall()
+        for r in rows:
+            d = _promo_row_to_dict(r, cols)
+            es_bog = bool(d["es_bogota_direccion"]) if DB_ENGINE == "POSTGRES" else (int(d["es_bogota_direccion"] or 0) == 1)
+            acc_t = bool(d["acepta_terminos"]) if DB_ENGINE == "POSTGRES" else (int(d["acepta_terminos"] or 0) == 1)
+            acc_h = bool(d["acepta_habeas"]) if DB_ENGINE == "POSTGRES" else (int(d["acepta_habeas"] or 0) == 1)
+            ws.append([
+                d["posicion_orden_ganador"] if d["posicion_orden_ganador"] is not None else "",
+                d["created_at"],
+                d["qr_uuid"],
+                d["nombres_apellidos"],
+                d["celular"] or "",
+                d["telefono_fijo"] or "",
+                d["correo_electronico"],
+                d["direccion"],
+                d["barrio"] or "",
+                d["municipio"] or "",
+                d["ciudad"],
+                ("SÍ" if es_bog else "NO"),
+                d["modalidad_entrega"],
+                ("SÍ" if acc_t else "NO"),
+                ("SÍ" if acc_h else "NO"),
+                d["ip_cliente"] or "",
+                (d["user_agent"] or "")[:200],
+            ])
+
+    for col_idx, _ in enumerate(headers, start=1):
+        max_len = 15
+        for row in ws.iter_rows(min_col=col_idx, max_col=col_idx, values_only=True):
+            val = row[0]
+            if val is not None:
+                max_len = max(max_len, min(50, len(str(val)) + 2))
+        ws.column_dimensions[_xl.utils.get_column_letter(col_idx)].width = max_len
+
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    fname = f"abv-fiesta-promocion-{ts}.xlsx"
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    _promo_insert_auditoria(int(admin["id"]), "EXPORT_XLSX", {"filename": fname, "total_rows": len(rows)})
+    return FileResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=fname,
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
+
+
+# L) POST /api/admin/qr/generar
+@app.post("/api/admin/qr/generar")
+async def admin_qr_generar(req: AdminQrGenerarReq, request: Request, admin: dict = _promo_Depends(get_current_admin)):
+    cantidad = int(req.cantidad or 0)
+    if cantidad < 1 or cantidad > 5000:
+        raise HTTPException(status_code=400, detail="cantidad debe estar entre 1 y 5000")
+    size_px = int(req.size_px or 512)
+    if size_px < 256 or size_px > 2048:
+        raise HTTPException(status_code=400, detail="size_px debe estar entre 256 y 2048")
+    formato = (req.formato or "png").lower()
+    if formato not in ("png", "svg"):
+        raise HTTPException(status_code=400, detail="formato debe ser 'png' o 'svg'")
+
+    scheme = request.base_url.scheme
+    host_hdr = request.headers.get("host", "")
+    frontend_base_url = f"{scheme}://{host_hdr}" if host_hdr else str(request.base_url).rstrip("/")
+    if not frontend_base_url.endswith("/"):
+        frontend_base_url += "/"
+
+    import qrcode as _qrcode
+    alphabet = _promo_string.ascii_uppercase + _promo_string.digits
+    created_items = []
+
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        for _ in range(cantidad):
+            while True:
+                qr_uuid = str(uuid.uuid4())
+                cur.execute("SELECT 1 FROM promo_qr_codes WHERE uuid_qr = %s" if DB_ENGINE == "POSTGRES" else "SELECT 1 FROM promo_qr_codes WHERE uuid_qr = ?", (qr_uuid,))
+                if cur.fetchone() is None:
+                    break
+            while True:
+                id_humano = "".join(_promo_random.choices(alphabet, k=9))
+                cur.execute("SELECT 1 FROM promo_qr_codes WHERE id_humano = %s" if DB_ENGINE == "POSTGRES" else "SELECT 1 FROM promo_qr_codes WHERE id_humano = ?", (id_humano,))
+                if cur.fetchone() is None:
+                    break
+            url_full = f"{frontend_base_url}ganador?qr={qr_uuid}"
+            sql = "INSERT INTO promo_qr_codes (uuid_qr, id_humano, size_px, formato, creado_admin_id) VALUES (%s, %s, %s, %s, %s) RETURNING id" if DB_ENGINE == "POSTGRES" else "INSERT INTO promo_qr_codes (uuid_qr, id_humano, size_px, formato, creado_admin_id) VALUES (?, ?, ?, ?, ?)"
+            params = (qr_uuid, id_humano, size_px, formato, int(admin["id"]))
+            cur.execute(sql, params)
+            if DB_ENGINE == "POSTGRES":
+                new_id = cur.fetchone()[0]
+            else:
+                new_id = cur.lastrowid
+
+            if formato == "png":
+                qr = _qrcode.QRCode(
+                    version=None,
+                    error_correction=_qrcode.constants.ERROR_CORRECT_H,
+                    box_size=max(1, size_px // 30),
+                    border=4,
+                )
+                qr.add_data(url_full)
+                qr.make(fit=True)
+                img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+                img = img.resize((size_px, size_px), Image.LANCZOS if hasattr(Image, "LANCZOS") else Image.Resampling.LANCZOS)
+                qbuf = io.BytesIO()
+                img.save(qbuf, format="PNG")
+                qbuf.seek(0)
+                b64 = "data:image/png;base64," + base64.b64encode(qbuf.getvalue()).decode("ascii")
+                created_items.append({
+                    "id": int(new_id),
+                    "qr_uuid": qr_uuid,
+                    "id_humano": id_humano,
+                    "size_px": size_px,
+                    "url": url_full,
+                    "data_url_png_b64": b64,
+                })
+            else:
+                qr = _qrcode.QRCode(
+                    version=None,
+                    error_correction=_qrcode.constants.ERROR_CORRECT_H,
+                    box_size=max(1, size_px // 30),
+                    border=4,
+                )
+                qr.add_data(url_full)
+                qr.make(fit=True)
+                from qrcode.image.svg import SvgPathImage as _SvgPathImage
+                svg_img = qr.make_image(image_factory=_SvgPathImage)
+                import io as _io
+                sbuf = _io.BytesIO()
+                svg_img.save(sbuf)
+                svg_text = sbuf.getvalue().decode("utf-8")
+                created_items.append({
+                    "id": int(new_id),
+                    "qr_uuid": qr_uuid,
+                    "id_humano": id_humano,
+                    "size_px": size_px,
+                    "url": url_full,
+                    "svg_text": svg_text,
+                })
+        conn.commit()
+
+    _promo_insert_auditoria(int(admin["id"]), "GENERAR_QR", {"cantidad": cantidad, "size_px": size_px, "formato": formato})
+    return {
+        "created_count": len(created_items),
+        "items": created_items,
+    }
+
+
+# M) GET /api/admin/qr/list
+@app.get("/api/admin/qr/list")
+def admin_qr_list(
+    usado: bool | None = None,
+    page: int = 1,
+    per_page: int = 100,
+    admin: dict = _promo_Depends(get_current_admin),
+):
+    page = max(1, int(page or 1))
+    per_page = max(1, min(1000, int(per_page or 100)))
+    offset = (page - 1) * per_page
+    where = []
+    params = []
+    ph = "%s" if DB_ENGINE == "POSTGRES" else "?"
+    if usado is not None:
+        if usado:
+            where.append("usado_registro_id IS NOT NULL")
+        else:
+            where.append("usado_registro_id IS NULL")
+    where_sql = f" WHERE {' AND '.join(where)}" if where else ""
+
+    cols = ["id", "uuid_qr", "id_humano", "size_px", "formato", "usado_registro_id", "usado_at", "creado_admin_id", "created_at"]
+    cols_str = ", ".join(cols)
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT COUNT(*) FROM promo_qr_codes{where_sql}", tuple(params) if DB_ENGINE == "POSTGRES" else params)
+        total = int(cur.fetchone()[0] or 0)
+        qp = list(params) + [per_page, offset]
+        cur.execute(
+            f"SELECT {cols_str} FROM promo_qr_codes{where_sql} ORDER BY id DESC LIMIT {ph} OFFSET {ph}",
+            tuple(qp) if DB_ENGINE == "POSTGRES" else qp,
+        )
+        items = _promo_fetch_all_to_dicts(cur, cols)
+    return {"total": total, "page": page, "per_page": per_page, "items": items}
+
+
+# N) GET /api/admin/auditoria
+@app.get("/api/admin/auditoria")
+def admin_auditoria(
+    page: int = 1,
+    per_page: int = 100,
+    admin: dict = _promo_Depends(get_current_admin),
+):
+    page = max(1, int(page or 1))
+    per_page = max(1, min(500, int(per_page or 100)))
+    offset = (page - 1) * per_page
+    ph = "%s" if DB_ENGINE == "POSTGRES" else "?"
+    cols = ["id", "admin_id", "accion", "detalles", "created_at"]
+    cols_str = ", ".join(cols)
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM promo_auditoria_admin")
+        total = int(cur.fetchone()[0] or 0)
+        cur.execute(
+            f"SELECT {cols_str} FROM promo_auditoria_admin ORDER BY created_at DESC, id DESC LIMIT {ph} OFFSET {ph}",
+            (per_page, offset) if DB_ENGINE == "POSTGRES" else [per_page, offset],
+        )
+        rows = cur.fetchall()
+        items = []
+        for r in rows:
+            d = _promo_row_to_dict(r, cols)
+            det = d.get("detalles")
+            if det:
+                try:
+                    if isinstance(det, str):
+                        d["detalles"] = json.loads(det)
+                except Exception:
+                    pass
+            items.append(d)
+    return {"total": total, "page": page, "per_page": per_page, "items": items}
+

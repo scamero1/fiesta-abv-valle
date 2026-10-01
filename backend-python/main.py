@@ -2769,6 +2769,150 @@ def admin_login(req: AdminLoginReq):
     }
 
 
+# =====================================================================
+# E-BIS) ENDPOINTS AUXILIARES DEBUG / HEALTHCHECK PROMOCION (SIN AUTH)
+# Estos SOLO se usan 1 vez en deploy para asegurarse tablas y admin OK.
+# =====================================================================
+
+@app.get("/api/promo/debug/health")
+def promo_debug_health():
+    """Healthcheck simple sistema promocion: estado tablas, admin existe, etc.
+    SOLO para uso deploy diagnosticar 'credenciales invalidas'."""
+    out = {"db_engine": DB_ENGINE, "ok": True, "checks": {}}
+    try:
+        init_promo_db_tables_and_seeds()
+        out["checks"]["init_seeds_idempotent"] = True
+    except Exception as e:
+        out["checks"]["init_seeds_idempotent"] = False
+        out["error_init"] = str(e)
+        out["ok"] = False
+    # contar tablas existen
+    tablas = ["promo_admin_users", "promo_config", "promo_qr_codes",
+              "promo_registros", "promo_auditoria_admin", "promo_sorteo_lock"]
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        for t in tablas:
+            try:
+                if DB_ENGINE == "POSTGRES":
+                    cur.execute(f"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = %s)", (t,))
+                    existe = bool(cur.fetchone()[0])
+                else:
+                    cur.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name = ?", (t,))
+                    existe = cur.fetchone() is not None
+                out["checks"][f"tabla_{t}"] = existe
+                if not existe:
+                    out["ok"] = False
+            except Exception as e:
+                out["checks"][f"tabla_{t}"] = False
+                out[f"error_tabla_{t}"] = str(e)
+                out["ok"] = False
+        # admin ilv1921
+        try:
+            admin = _promo_get_admin_from_db("ilv1921")
+            out["checks"]["admin_ilv1921_exists"] = admin is not None
+            if admin is None:
+                out["ok"] = False
+                out["reseed_url"] = "/api/promo/debug/reseed-admin (GET, solo 1 vez)"
+            else:
+                out["checks"]["admin_bcrypt_len"] = len(admin["password_hash"])
+                out["checks"]["admin_password_verify_Fiesta2026_Valle"] = bool(
+                    _promo_verify_password("Fiesta2026!Valle", admin["password_hash"])
+                )
+        except Exception as e:
+            out["checks"]["admin_ilv1921_exists"] = False
+            out["error_admin"] = str(e)
+            out["ok"] = False
+    # config
+    try:
+        with get_db_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT id, max_ganadores, estado_abierto FROM promo_config WHERE id = 1")
+            r = cur.fetchone()
+            out["checks"]["config_id1_exists"] = r is not None
+            if r is not None:
+                out["config"] = {"max_ganadores": int(r[1]), "estado_abierto": bool(r[2]) if DB_ENGINE=="POSTGRES" else (int(r[2])==1)}
+    except Exception:
+        out["checks"]["config_id1_exists"] = False
+        out["ok"] = False
+    return out
+
+
+@app.get("/api/promo/debug/reseed-admin")
+def promo_debug_reseed_admin():
+    """SOLUCION CREDENCIALES INVALIDAS: se llama UNA VEZ con GET (cualquier navegador).
+    Borra admin ilv1921 si existe y lo vuelve a insertar con hash bcrypt CORRECTO
+    de 'Fiesta2026!Valle'. Tambien reinserta config + lock si se perdieron.
+    IDEMPOTENTE."""
+    acciones = []
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        # Asegurar tablas existan (por si el startup no corrió)
+        try:
+            init_promo_db_tables_and_seeds()
+            acciones.append("init_promo_db_tables_and_seeds OK (idempotente)")
+        except Exception as e:
+            raise HTTPException(500, detail=f"Fallo init: {e}")
+
+        # 1) BORRAR y REINSERTAR admin ilv1921
+        if DB_ENGINE == "POSTGRES":
+            cur.execute("DELETE FROM promo_admin_users WHERE username = %s", ("ilv1921",))
+            cur.execute(
+                "INSERT INTO promo_admin_users (username, password_hash) VALUES (%s, %s)",
+                ("ilv1921", _PROMO_ILV1921_BCRYPT_HASH),
+            )
+        else:
+            cur.execute("DELETE FROM promo_admin_users WHERE username = ?", ("ilv1921",))
+            cur.execute(
+                "INSERT INTO promo_admin_users (username, password_hash) VALUES (?, ?)",
+                ("ilv1921", _PROMO_ILV1921_BCRYPT_HASH),
+            )
+        acciones.append("admin ilv1921 RE-INSERTADO (hash bcrypt correcto Fiesta2026!Valle)")
+
+        # 2) Config si no existe
+        if DB_ENGINE == "POSTGRES":
+            cur.execute("SELECT 1 FROM promo_config WHERE id = 1")
+            if cur.fetchone() is None:
+                cur.execute(
+                    "INSERT INTO promo_config (id, max_ganadores, estado_abierto, titulo_premio, dir_fuera_bogota, updated_at) "
+                    "VALUES (1, 1, TRUE, 'Botella Aguardiente Blanco del Valle Fiesta', 'Cra. 74a #51a-87, Bogotá', NOW())"
+                )
+                acciones.append("promo_config id=1 insertada (sino existía)")
+            cur.execute("SELECT 1 FROM promo_sorteo_lock WHERE id = 1")
+            if cur.fetchone() is None:
+                cur.execute("INSERT INTO promo_sorteo_lock (id, dummy) VALUES (1, 0)")
+                acciones.append("promo_sorteo_lock id=1 insertado")
+        else:
+            cur.execute("SELECT 1 FROM promo_config WHERE id = 1")
+            if cur.fetchone() is None:
+                cur.execute(
+                    "INSERT INTO promo_config (id, max_ganadores, estado_abierto, titulo_premio, dir_fuera_bogota, updated_at) "
+                    "VALUES (1, 1, 1, 'Botella Aguardiente Blanco del Valle Fiesta', 'Cra. 74a #51a-87, Bogotá', STRFTIME('%Y-%m-%dT%H:%M:%SZ','now'))"
+                )
+                acciones.append("promo_config id=1 insertada")
+            cur.execute("SELECT 1 FROM promo_sorteo_lock WHERE id = 1")
+            if cur.fetchone() is None:
+                cur.execute("INSERT INTO promo_sorteo_lock (id, dummy) VALUES (1, 0)")
+                acciones.append("promo_sorteo_lock id=1 insertado")
+        conn.commit()
+
+        # 3) Verificar admin recien insertado y password valido
+        admin = _promo_get_admin_from_db("ilv1921")
+        ok = False
+        if admin is not None:
+            ok = _promo_verify_password("Fiesta2026!Valle", admin["password_hash"])
+    return {
+        "ok": True,
+        "acciones_realizadas": acciones,
+        "login_admin": {
+            "url": "/admin",
+            "username": "ilv1921",
+            "password": "Fiesta2026!Valle",
+            "hash_correcto_verificado": ok,
+        },
+        "proximo_paso": "Cargar /admin en el browser y loguearte. Si falla, revisa Railway redeploy SHA nuevo.",
+    }
+
+
 # F) GET /api/admin/config
 @app.get("/api/admin/config")
 def admin_get_config(admin: dict = _promo_Depends(get_current_admin)):

@@ -150,41 +150,38 @@
 
   /* TCL Tab 10L Gen 3 1280×800 landscape GESTOS Android PWA FULLSCREEN.
      USUARIO LOGRO FULLSCREEN NATIVO. Ya NO HAY status bar 36, NO HAY barra gestual.
-     Viewport util EXACTO = W1280 × H800 nativo. Valores GLOBALES PC ahora son PERFECTOS
-     para TCL tambien.
+     Viewport util EXACTO = W1280 × H800 nativo.
 
-     CORRECCION 1 CRITICA FOTO REAL: Login (checkbox+boton) PISABA TITULO "nos une".
-       Error: Anclaje top:550px era ambiguo por screen-content padding y position:absolute
-       respecto al relative-container (calculos de top% no sobre el 800 nativo sino
-       sobre el area util padding-bottom 40 = 760). Solucion INAMOVIBLE: anclar LOGIN
-       POR EL BOTTOM en px (no por top). Distancia fija desde borde_inferior_viewport
-       hasta el PIE del boton. No depende de nada mas.
-       Login altura total aprox = 64 (boton) + 12 (gap) + 44 (checkbox) = 120 px.
-       PIE boton objetivo = 800 - 190 = 610 vp.
-       Legal bar top empieza en 764. MARGEN INFERIOR = 764 - 610 = 154 px (ideal).
-       Checkbox EMPIEZA en 610 - 120 = 490 vp.
-       Titulo "EL SABOR que nos une" TERMINA aprox en 375 vp.
-       MARGEN SUPERIOR TITULO vs CHECKBOX = 490 - 375 = 115 px (NUNCA se pisan ✅).
+     CORRECCION 1 TCL (SOLO FULLSCREEN): Bg-position D = -26.
+       Valor anterior SHA 04a2f3f = D = -18 era logo-perfecto 8 margen pero
+       TAPITA AZUL BOTELLA SUP IZQ quedaba PEGADA a borde 0 vp (18 vp margen) ya que
+       tapita empieza en Y_JPG = 0. User pide RELLENAR PARTE SUPERIOR (mas espacio
+       entre borde sup viewport y tapita azul plastica botella, status bar gone).
+       D = -26 = NUMERO OPTIMO Compromiso NumPy (SUMA cortes = 0 px):
+         (a) TAPITA superior 0 JPG → VP = 0 - (-26) = 26 vp. MARGEN ARRIBA = 26 px.
+             RELLENO COMPLETO PARTE ARRIBA. NUNCA CORTA TAPITA.
+         (b) LOGOS inf der BASE 738 JPG → VP = 738 - (-26) = 764 vp.
+             TOP LEGAL BAR = 800 - 36 = 764. BANNER LEGAL = EXACTAMENTE alineado con
+             FINAL logos 1921 ILV + MAS DE 100 AÑOS. Ajuste pedido user.
+       TITULO EL SABOR: Y_JPG [181..375] → VP [207..401]. Todo visible.
 
-     CORRECCION 2: Quitar override background-position D=-5 de SHA anterior.
-       SHA 2202019 habia puesto D=-5 (background-position center calc(100% - -5px))
-       porque en ese momento STATUS BAR 36 px visible recortaba arriba.
-       Ahora fullscreen STATUS BAR OCULTO. GLOBAL D=-18 es el PERFECTO.
-       D=-18: cuello botella VP=Y=115 (OK, visible sin status bar).
-       D=-18: logos 1921/100 bottom VP=756. top legal VP=764. margen 8 ✅.
-       Por tanto, BORRAMOS el override anterior D=-5 del breakpoint TCL. Hereda global.
+     CORRECCION 2 CRITICA TCL FOTO REAL. Login pisaba titulo nos une.
+       Solucion INAMOVIBLE: bottom 190px. top auto. translate -50 0.
+       Login PIE boton = 800-190 = 610 vp. Legal bar top=764. MARGEN INF 154 ✅.
+       Login rango ~ [490..610]. Titulo acaba ~401. MARGEN SUP 89 ✅.
   */
+  .fondo-pieza-ganadores,
+  .bienvenida-bg {
+    background-position: center calc(100% - -26px) !important;
+  }
+
   .login-zone-med-centro {
     width: 360px;
-    bottom: 190px;          /* ANCLAJE POR EL BOTTOM. Distancia PIE_boton - borde_inf_VP */
-    top: auto !important;   /* NUNCA mas top:%. NUNCA top:550. Anclaje inmune a padding */
+    bottom: 190px;
+    top: auto !important;
     left: 50%;
-    transform: translate(-50%, 0);  /* sin translateY, por que? porque bottom=190 significa
-                                       posiciona el bottom del elemento a 190px del bottom del
-                                       contenedor. Con translate -50 0: centrado horizontal solo.
-                                       Centrado vertical NO HACE FALTA. */
+    transform: translate(-50%, 0);
     gap: 12px;
-    align-self: flex-end;
   }
 
   .check-tyc-wrap {

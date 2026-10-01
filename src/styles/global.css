@@ -749,17 +749,22 @@ img {
   .op .sw { width: 108px; }
 
   /* OVERRIDE TCL FULLSCREEN background-position JPG.
-     SHA anterior 2202019 habia puesto D=-5 para compensar status bar 36 visible.
-     Ahora usuario LOGRO fullscreen nativo SIN status bar SIN gestural → D=-5
-     ya NO sirve. Volvemos a D=-18 que es el GLOBAL PERFECTO.
-     D=-18 en 1280x800 fullscreen: cuello botella VP=115 (OK), logos 1921/100
-     VP=756, top legal bar VP=764, margen 8px alineado exacto.
-     Dejamos el override explicitamente por si en el futuro se vuelve a perder
-     el fullscreen: mantener consistencia con bienvenida.css. */
+     Usuario LOGRO fullscreen 1280x800 SIN status bar SIN barra gestual.
+     VALOR OPTIMO D = -26 (compromiso NumPy 0 cortes, SUMA=0 px):
+       - TAPITA AZUL BOTELLA izq ENTERA: Y_JPG=0 → VP = 0 - (-26) = 26 vp.
+         RELLENO PARTE SUPERIOR = 26 px (era 18 vp con D=-18). NUNCA corta tapita.
+         Margen superior status-bar-gone = 26 px holgado, relleno visible.
+       - LOGOS 1921 ILV + MAS DE 100 AÑOS esq inf der BASE EXACTA: Y_JPG=738 → VP = 738-(-26)=764.
+         Legal bar EMPIEZA en VP = 800-36 = 764. 👉 BANNER LEGAL ALINEADO EXACTO FINAL LOGOS.
+         Base logos = Top legal bar. Sin margen 0, sin corte. Cumple pedido user.
+       - TITULO EL SABOR VP Y = [181-(-26)=207 .. 375-(-26)=401]. Status bar gone → todo visible.
+       - LOGIN bottom 190px (bienvenida.css) NUNCA modificado. Checkbox empieza Y=490 vp.
+         Titulo acaba ~401. Margen sup ~89 px. Perfecto.
+  */
   .screen-bg,
   .camara-bg-dark,
   .bg-pantone-2728 {
-    background-position: center calc(100% - -18px) !important;
+    background-position: center calc(100% - -26px) !important;
   }
 }
 

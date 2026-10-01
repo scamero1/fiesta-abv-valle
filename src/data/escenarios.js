@@ -1,14 +1,12 @@
-const BASE = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '') + '/'
-
-function asset(p) {
-  if (!p) return p
-  if (/^https?:/i.test(p)) return p
-  if (p.startsWith(BASE)) return p
-  // Si p viene en formato /assets/xxx.png (ruta absoluta dominio):
-  // concatenar BASE + assets/... para Vite/Railway Static base path != "/".
-  const rel = p.replace(/^\/+/, '')
-  return BASE + rel
-}
+// SOLUCION PROFESIONAL: NO hardcodear "/assets/..." (causa 404 con Railway Static + hash Vite).
+// Importar assets COMO MODULOS VITE con sintaxis "?url" → Vite resuelve path + hash al buildear.
+// Funciona 100% tanto en dev (localhost:5173) como en prod Railway Static (hash MD5 en nombre).
+import _bgCristoRey from '../assets/esc-cristorey.jpg?url'
+import _bgPlazaVarela from '../assets/esc-plazavarela.jpg?url'
+import _bgMuseoSalsa from '../assets/esc-museosalsa.jpg?url'
+import _btlFiesta from '../assets/botella-fiesta-azul.png?url'
+import _btlNight from '../assets/botella-night.png?url'
+import _btlSinAzucar from '../assets/botella-sin-azucar.png?url'
 
 export const ESCENARIOS = [
   {
@@ -19,9 +17,9 @@ export const ESCENARIOS = [
     acento: '#fb923c',
     icono: '🎶',
     tags: ['Salsa', 'Museo'],
-    botellaImg: asset('/assets/botella-fiesta-azul.png'),
+    botellaImg: _btlFiesta,
     botellaNombre: 'Fiesta',
-    backgroundImg: asset('/assets/esc-museosalsa.jpg'),
+    backgroundImg: _bgMuseoSalsa,
     imagenPrompt: 'Museo de la Salsa en Santiago de Cali, ambiente cultural y festivo, fotografía profesional de alta calidad',
   },
   {
@@ -32,9 +30,9 @@ export const ESCENARIOS = [
     acento: '#a78bfa',
     icono: '💃',
     tags: ['Salsa', 'Cultura'],
-    botellaImg: asset('/assets/botella-night.png'),
+    botellaImg: _btlNight,
     botellaNombre: 'Night',
-    backgroundImg: asset('/assets/esc-plazavarela.jpg'),
+    backgroundImg: _bgPlazaVarela,
     imagenPrompt: 'Plaza Varela de Santiago de Cali al atardecer, fuente central, gente bailando salsa, fotografía de alta gama',
   },
   {
@@ -45,9 +43,9 @@ export const ESCENARIOS = [
     acento: '#38bdf8',
     icono: '⛰️',
     tags: ['Panorámica', 'Ícono'],
-    botellaImg: asset('/assets/botella-sin-azucar.png'),
+    botellaImg: _btlSinAzucar,
     botellaNombre: 'Sin Azúcar',
-    backgroundImg: asset('/assets/esc-cristorey.jpg'),
+    backgroundImg: _bgCristoRey,
     imagenPrompt: 'Monumento del Cristo Rey de Santiago de Cali con vista panorámica de toda la ciudad, fotografía profesional 4k',
   },
 ]

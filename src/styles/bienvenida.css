@@ -27,7 +27,7 @@
 .bienvenida-bg {
   background-image: url('../assets/Fondo Pieza Ganadores.jpg.jpeg');
   background-size: cover;
-  background-position: center calc(100% - -12px);
+  background-position: center calc(100% - -8px);
   background-repeat: no-repeat;
 }
 
@@ -38,7 +38,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  padding-bottom: 220px;
+  padding-bottom: 170px;
   gap: 0;
   position: relative;
 }
@@ -147,24 +147,22 @@
   and (min-width: 1200px) and (max-width: 1320px)
   and (min-height: 620px) and (max-height: 900px) {
 
-  /* TCL Tab 10L Gen 3 1280×800 PWA FULLSCREEN. ESTRATEGIA NUEVA FLEXBOX.
-     User dice "sigue igual NADA cambia".
-     Problema: overrides position fixed y bg-position en media query NO se aplicaban
-     en TCL real (specificity war perdida o SW cacheado viejo).
-     SOLUCION POR OTRA VIA:
-       1) PADRE bienvenida-content flex justify-content:flex-end + padding-bottom 230px
-          coloca el login SIN absolute SIN fixed. Solo padding. Imposible fallar.
-       2) D=-12 en SELECTOR BASE (fuera media query). TCL y PC mismo valor.
-          Sin override !important en breakpoint. No hay wars.
-     Numerico TCL 1280x800:
-       PIE boton = 800 - padding-bottom(230) = 570. Rango login ~ [450..570].
-       Titulo acaba ~400. MARGEN SUP = 50px. Nunca pisan. ✅
-       Legal bar empieza 764. MARGEN INF = 194px. Nunca se tocan. ✅
-       D=-12: VP_logo_bottom=738-(-12)=750. Top legal=764. Margen=14px. Logos ENTEROS. ✅
-       D=-12: TAPITA VP=0-(-12)=12. Relleno 12. Nunca corta. ✅
+  /* TCL Tab 10L Gen 3 1280×800 PWA FULLSCREEN. ESTRATEGIA FLEXBOX.
+     Ajuste FOTO REAL 20:xx (ultima user envio):
+       ERROR: Boton ¡INICIAR! y checkbox SALIAN POR DEBAJO del viewport (NO SE VEIAN NADA).
+       Causa SHA 56e817e: padding-bottom: 230 px + screen-content --legal-h=40 = acumulado
+       abajo 270 px, todo el login (120 px altura) introducido 76 px FUERA del viewport.
+     SOLUCION: padding-bottom TCL 230 → 160 px. 70 px MAS ARRIBA.
+       PIE boton = 800 - 160 = 640 vp. Altura login 120 → rango [520 .. 640].
+       Titulo acaba ~400. MARGEN SUP = 120 px (AZUL LIBRE GRANDE). Nunca pisan ✅.
+       Legal bar top = 764. MARGEN INF = 764 - 640 = 124 px ✅.
+     Ajuste LOGOS CORTADOS (margen 14 → 18):
+       D=-12 → D=-8. VP_logo_bottom = 738 - (-8) = 746.
+       Top legal = 764. Margen = 18 px. Logos +100 MAS enteros, visiblemente
+       POR ENCIMA del banner blanco legal (no a medias).
   */
   .bienvenida-content {
-    padding-bottom: 230px !important;
+    padding-bottom: 160px !important;
   }
   .login-zone-med-centro {
     position: relative !important;
@@ -177,7 +175,7 @@
   }
   .fondo-pieza-ganadores,
   .bienvenida-bg {
-    background-position: center calc(100% - -12px) !important;
+    background-position: center calc(100% - -8px) !important;
   }
 
   .check-tyc-wrap {

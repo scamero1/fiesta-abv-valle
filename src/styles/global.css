@@ -195,10 +195,10 @@ body {
 .camara-bg-dark {
   position: absolute;
   inset: 0;
-  background: url('../assets/Fondo Horizontal.png');
+  background: url('../assets/Fondo Pieza Ganadores.jpg.jpeg');
   background-size: cover !important;
   background-repeat: no-repeat !important;
-  background-position: center calc(100% - 8px) !important;
+  background-position: center calc(100% - 0px) !important;
   overflow: hidden;
   z-index: var(--z-bg);
   pointer-events: none;
@@ -207,10 +207,10 @@ body {
 }
 
 .bg-pantone-2728 {
-  background: url('../assets/Fondo Horizontal.png');
+  background: url('../assets/Fondo Pieza Ganadores.jpg.jpeg');
   background-size: cover;
   background-repeat: no-repeat;
-  background-position: center calc(100% - 8px);
+  background-position: center calc(100% - 0px);
 }
 
 /* ============================================================
@@ -748,20 +748,18 @@ img {
   .op { min-height: 92px; padding: 12px; gap: 16px; }
   .op .sw { width: 108px; }
 
-  /* OVERRIDE TCL FULLSCREEN Fondo Horizontal.png D=8.
-     BASE = D=8. Misma alineacion. Explicitamente por si acaso.
-     Fondo Horizontal.png = 1280×800 RGB NumPy:
-       Tapita empieza en fila 36. Base logos en fila 659.
-     D=8 (subir JPG 8 px):
-       VP_tapita_top = 36 - 8 = 28. Relleno 28 vp por arriba. Tapita ENTERA ✅
-       VP_logo_bottom = 659 - 8 = 651. Top legal = 766. MARGEN = 115. Generoso ✅
-       NUNCA cortados. Nunca a medias. Visualmente separados mucho de banner.
+  /* OVERRIDE TCL FULLSCREEN background-position JPG D=0.
+     BASE = D=0. Misma alineacion. Explicitamente por si acaso.
+     D=0 = FOTO FULL SCREEN PANTALLA COMPLETA:
+       VP_logo_bottom = 738 - 0 = 738. Top legal = 766. Margen = 28 px.
+         Logos MAS DE 100 AÑOS + ILV 1921 ENTEROS + margen 28 px generoso.
+       VP_tapita_sup = 0 - 0 = 0 VP. TAPITA AZUL PEGADA ARRIBA. FOTO FULL 100% SIN RELLENO.
   */
   .screen-bg,
   .camara-bg-dark,
   .bg-pantone-2728 {
-    background-image: url('../assets/Fondo Horizontal.png') !important;
-    background-position: center calc(100% - 8px) !important;
+    background-image: url('../assets/Fondo Pieza Ganadores.jpg.jpeg') !important;
+    background-position: center calc(100% - 0px) !important;
   }
 }
 

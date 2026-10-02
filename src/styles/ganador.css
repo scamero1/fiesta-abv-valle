@@ -131,7 +131,50 @@
   .registro-form{grid-template-columns:1fr;gap:12px;}
   .ganador-btn-continuar,.registro-btn-submit{min-width:100%!important;}
   .agradecimiento-botones{flex-direction:column;}
-  .agradecimiento-botones>*{width:100%;}
+}
+
+/* ===== NUEVAS: Fondo alternativo TÉRMINOS (Fondo Vertical.png) y Botón Invisible área exacta ===== */
+/* User VERBATIM: "cuando pase a los terminos y condiciones coloca este fondo Fondo Vertical.png" */
+.ganador-bg-fondo-vertical{
+  background-image: url('../assets/fondo-vertical.png') !important;
+  background-size: cover !important;
+  background-repeat: no-repeat !important;
+  background-position: center center !important;
+}
+/* User VERBATIM: "no sirve ese tocar cualquiera parte ya que le tengo que dar a ese botón de abajo este texto arreglao"
+   Posición PROPORCIONAL 0..1 (W 68% | H 13% | bottom=15% | X center)
+   Ajuste responsive: clamp() en móviles portrait/landscape para NO salirse del botón dibujado. */
+.ganador-step0-btn-cta{
+  position: fixed !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  bottom: clamp(10%, 15svh, 18%) !important;
+  width: clamp(52%, 68%, 72%) !important;
+  height: clamp(9%, 13svh, 15%) !important;
+  background: transparent !important;
+  border: 0 !important;
+  outline: 0 !important;
+  cursor: pointer !important;
+  z-index: 9998 !important;
+  touch-action: manipulation !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  -webkit-tap-highlight-color: rgba(0,0,0,0.06) !important;
+}
+/* Modo debug: Toggle preview admin p/validar que el área invisible coincide EXACTAMENTE con botón dibujado en la pieza */
+.ganador-step0-btn-cta.debug-show-btn-area{
+  outline: 4px dashed #facc15 !important;
+  outline-offset: -2px !important;
+  background: rgba(250, 204, 21, 0.08) !important;
+  z-index: 9999 !important;
+}
+@media (orientation:portrait){
+  .ganador-step0-btn-cta{
+    bottom: clamp(14%, 18svh, 22%) !important;
+    width: clamp(62%, 80%, 86%) !important;
+    height: clamp(8%, 11svh, 13%) !important;
+  }
 }
 
 /* ===== Bloqueos QR: inhabilitado / ya_usado / validando / no_existe (idea user: 1 QR = 1 ganador) ===== */

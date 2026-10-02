@@ -131,16 +131,21 @@ export default function AdminPreview() {
   const [step, setStep] = useState(1)
   const [orientation, setOrientation] = useState('auto')
 
-  // Substep para la pantalla FELICITACIONES (flujo nuevo user: click imagen → checks)
-  // 0 = Ver solo imagen (pieza clickeable hint)  /  1 = Ver checks + botón ACEPTAR
+  // Substep para la pantalla FELICITACIONES (flujo nuevo user)
+  // 0 = Ver solo imagen (sobre el botón dibujado en la pieza hay un BOTÓN INVISIBLE clickeable área exacta)
+  // 1 = Ver checks términos + botón ACEPTAR (con Fondo Vertical.png como fondo)
   const [felSubstep, setFelSubstep] = useState(0)
 
-  // Resetear Substep a 0 si cambiamos Step a 1 para que siempre empiece por la imagen
+  // Toggle debug: mostrar el área del botón invisible con borde amarillo dashado
+  // para alinear milimétricamente con el botón dibujado en la Pieza
+  const [debugShowBtnArea, setDebugShowBtnArea] = useState(true)
+
+  // Resetear Substep a 0 si cambiamos Step a 1
   useEffect(() => {
     if (step === 1) setFelSubstep(0)
   }, [step])
 
-  // Forzamos landscape TCL 1280x800 o Portrait móvil 412x915 con un Wrapper CSS
+  // Forzamos TCL o Móvil portrait con Wrapper CSS
   useEffect(() => {
     const el = document.getElementById('preview-device-frame')
     if (!el) return
@@ -172,6 +177,16 @@ export default function AdminPreview() {
 
   const tituloHeaderFrame = () => step === 1 ? '¡FELICIDADES GANASTE!' : step === 2 ? 'Completa tus datos' : '✅ Registro Exitoso'
 
+  // Clase fondo DINÁMICA igual que Ganador.jsx real:
+  // felSubstep 0 = Pieza Ganadores Vertical.jpg (oficial evento)
+  // felSubstep 1 = Fondo Vertical.png (user lo pidió cuando pasan a términos)
+  const claseFondoPreview = (step === 1 && felSubstep >= 1)
+    ? 'screen-bg ganador-bg-fondo-vertical'
+    : 'screen-bg ganador-bg'
+
+  // Clase botón debug: si toggle true agregamos la clase debug-show-btn-area
+  const claseBtnStep0 = 'ganador-step0-btn-cta' + (debugShowBtnArea ? ' debug-show-btn-area' : '')
+
   return (
     <div className="admin-preview-pagina">
       {/* Barra de control preview */}
@@ -181,9 +196,13 @@ export default function AdminPreview() {
           <span className="admin-preview-titulo">👀 Vista previa — Promoción "FIESTA"</span>
           {step === 1 && (
             <span className="admin-preview-subinfo" style={{color:'#475569',fontSize:'.85rem',marginLeft:12}}>
-              Substep actual: <b>{felSubstep === 0 ? '① Solo imagen clickeable' : '② Checks términos + botón'}</b>
-              {felSubstep === 0 && <button type="button" className="admin-btn xs" style={{marginLeft:10}} onClick={() => setFelSubstep(1)}>⏩ Simular click en imagen</button>}
+              Substep actual: <b>{felSubstep === 0 ? '① Solo imagen (botón invisible sobre CTA dibujado)' : '② Fondo Vertical.png + Checks términos + botón ACEPTAR'}</b>
+              {felSubstep === 0 && <button type="button" className="admin-btn xs" style={{marginLeft:10}} onClick={() => setFelSubstep(1)}>⏩ Simular click en botón</button>}
               {felSubstep === 1 && <button type="button" className="admin-btn xs ghost" style={{marginLeft:10}} onClick={() => setFelSubstep(0)}>↩️ Volver a imagen sola</button>}
+              <label style={{display:'inline-flex',alignItems:'center',gap:6,marginLeft:14,color: debugShowBtnArea ? '#b45309' : '#64748b', fontWeight: debugShowBtnArea ? 700 : 500, fontSize: '.85rem', cursor: 'pointer'}}>
+                <input type="checkbox" style={{width:16,height:16,accentColor:'#facc15'}} checked={debugShowBtnArea} onChange={(e) => setDebugShowBtnArea(e.target.checked)} />
+                Mostrar área botón (debug amarillo)
+              </label>
             </span>
           )}
         </div>
@@ -204,17 +223,23 @@ export default function AdminPreview() {
       {/* Frame del dispositivo */}
       <div id="preview-device-frame" className="preview-device-frame">
         <div className="screen ganador-screen">
-          <div className="screen-bg ganador-bg" />
+          <div className={claseFondoPreview} />
 
-          {/* OVERLAY STEP 0 (solo imagen clickeable) — igual que Ganador.jsx real */}
+          {/* BOTÓN INVISIBLE SÓLO SOBRE ÁREA EXACTA DEL BOTÓN DIBUJADO EN LA PIEZA
+              (igual que Ganador.jsx real). Solo visible cuando felSubstep=0 y step=1.
+              Toggle debug: muestra outline dashado amarillo para confirmar posición. */}
           {step === 1 && felSubstep === 0 && (
-            <div className="ganador-step0-overlay" onClick={() => setFelSubstep(1)} role="button" tabIndex={0}
-                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setFelSubstep(1) }}>
-              <div className="ganador-step0-hint">👉 Toca cualquier parte para continuar</div>
-            </div>
+            <button
+              type="button"
+              className={claseBtnStep0}
+              onClick={() => setFelSubstep(1)}
+              aria-label="Continuar (área botón pieza)"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setFelSubstep(1) }}
+            />
           )}
 
-          {/* HEADER: Se oculta solo si Step=Felicitaciones && Substep 0 (solo imagen) */}
+          {/* HEADER: igual condicional que real */}
           {(step !== 1 || felSubstep >= 1) && (
             <div className="screen-header instrucciones-header">
               <div className="header-left" />
@@ -225,7 +250,7 @@ export default function AdminPreview() {
             </div>
           )}
 
-          {/* CONTENIDO: Se oculta solo si Step=Felicitaciones && Substep 0 */}
+          {/* CONTENIDO: igual condicional que real */}
           {(step !== 1 || felSubstep >= 1) && (
             step === 1 ? <PantallaFelicitaciones /> : step === 2 ? <PantallaRegistro /> : <PantallaAgradecimiento />
           )}
@@ -234,9 +259,9 @@ export default function AdminPreview() {
 
       {/* Pie admin preview: info del fondo usado */}
       <div className="admin-preview-footer">
-        Fondo actual: <b>Pieza Ganadores Vertical.jpg</b> (oficial del evento — archivo <code>src/assets/pieza-ganadores-vertical.jpg</code>).
-        &nbsp;|&nbsp; Nuevo flujo: <b>① Click en imagen</b> → <b>② Aceptar términos</b> → <b>③ Registro</b> → <b>④ QR INHABILITADO automático</b>.
-        &nbsp; Responsive portrait móvil: TODO CENTRADO.
+        <b>Step 1 Felicitaciones:</b>&nbsp; Substep① (solo imagen): <code>Pieza Ganadores Vertical.jpg</code> (oficial evento) &nbsp;|&nbsp; Substep② (términos + registro): <code>Fondo Vertical.png</code> (fondo alternativo user).
+        &nbsp;|&nbsp; Botón invisible: <b>W68% × H13%</b>, centrado, bottom 15%. Usa toggle "Mostrar área botón" para alinear.
+        &nbsp; Al terminar registro → <b>QR INHABILITADO AUTOMÁTICO (Capa 3 rowcount atomic)</b>.
       </div>
     </div>
   )

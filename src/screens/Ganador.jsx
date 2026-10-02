@@ -307,21 +307,31 @@ export default function Ganador() {
     }
   }
 
+  // Determinamos clase fondo dinámicamente según stepVisual y estado QR
+  // User VERBATIM (2do pedido): cuando pase a los términos y condiciones → usar Fondo Vertical.png
+  const claseFondo = (qrEstado === 'listo' && stepVisual >= 1)
+    ? 'screen-bg ganador-bg-fondo-vertical'
+    : 'screen-bg ganador-bg'
+
   return (
     <div className="screen ganador-screen">
-      <div className="screen-bg ganador-bg" />
+      <div className={claseFondo} />
 
-      {/* ===== OVERLAY INVISIBLE CLICKEABLE STEP 0 =====
-           Solo se muestra si QR validado OK y aún no han tocado la imagen.
-           Cualquier click en cualquier parte de la pantalla → pasa a Step 1 (checks + botón). */}
+      {/* ===== BOTÓN INVISIBLE SÓLO SOBRE EL ÁREA DEL BOTÓN DIBUJADO EN LA PIEZA =====
+           User VERBATIM (1er pedido): "no sirve ese tocar cualquiera parte ya que le tengo que dar a ese botón de abajo este texto arreglao"
+           Posición proporcional 0..1: width 68% del ancho, height 13% del alto, centrado horizontalmente, bottom=15% desde el fondo del canvas. */}
       {qrEstado === 'listo' && stepVisual === 0 && (
-        <div className="ganador-step0-overlay" onClick={handleClickEnImagen} role="button" tabIndex={0}
-             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClickEnImagen() }}>
-          <div className="ganador-step0-hint">👉 Toca cualquier parte para continuar</div>
-        </div>
+        <button
+          type="button"
+          className="ganador-step0-btn-cta"
+          onClick={handleClickEnImagen}
+          aria-label="Continuar"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClickEnImagen() }}
+        />
       )}
 
-      {/* HEADER: Se oculta solo en Step 0 (cuando queremos que la imagen esté 100% limpia) */}
+      {/* HEADER: Se oculta solo en Step 0 (cuando queremos que la imagen esté 100% limpia y solo se vea el botón dibujado original de la pieza) */}
       {(qrEstado !== 'listo' || stepVisual >= 1) && (
         <div className="screen-header instrucciones-header">
           <div className="header-left" />
@@ -332,7 +342,7 @@ export default function Ganador() {
         </div>
       )}
 
-      {/* CONTENIDO: Se oculta solo en Step 0 (solo imagen) */}
+      {/* CONTENIDO: Se oculta solo en Step 0 (solo imagen + botón invisible sobre botón dibujado) */}
       {(qrEstado !== 'listo' || stepVisual >= 1) && renderContenido()}
     </div>
   )

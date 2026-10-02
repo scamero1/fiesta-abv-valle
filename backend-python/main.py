@@ -123,6 +123,16 @@ def _normalizar_pg_url_con_ssl(raw_url: str) -> str:
         elif es_railway and sslmode_user.lower() in ("disable", "allow", "prefer"):
             # Usuario puso un sslmode incompatible con Railway: sobreescribimos a require
             params["sslmode"] = "require"
+        # RAILWAY ESPECIAL: algunos proxies públicos Railway NO soportan GSS (Kerberos) ni
+        # channel_binding SCRAM-SHA-256-PLUS. Para evitar fallos por handshake extendido
+        # forzamos gssencmode=disable y channel_binding=disable automáticamente en Railway.
+        if es_railway:
+            if not params.get("gssencmode"):
+                params["gssencmode"] = "disable"
+            if not params.get("channel_binding"):
+                params["channel_binding"] = "disable"
+            if not params.get("target_session_attrs"):
+                params["target_session_attrs"] = "read-write"
         # Reconstrir URL
         new_query = urlencode(params)
         rebuilt = parsed._replace(query=new_query)
@@ -211,17 +221,41 @@ def _pg_connect_ssl_fallback(url_base: str, **extra_kwargs):
             print(f"[DB] ✅ Conectado PostgreSQL OK con sslmode={mode!r}.")
             return conn
         except Exception as e:
-            msg = str(e)[:240]
-            attempts.append((mode, type(e).__name__, msg))
+            msg = str(e)
+            attempts.append((mode, type(e).__name__, msg[:240]))
             last_exc = e
-            # Short-circuit rápido si el error NO es SSL (no probar resto)
-            _es_ssl = ("ssl" in msg.lower() or "SSL negotiation" in msg or "sslmode" in msg or "certificate" in msg.lower() or "tlsv" in msg.lower())
-            if not _es_ssl and ("password authentication" in msg.lower() or "role" in msg.lower() or "does not exist" in msg.lower() or "pg_hba" in msg.lower() or "timeout expired" in msg.lower() or "could not translate host" in msg.lower()):
-                # Auth / DNS / timeout falló el 1er intento y no es SSL → no probar más
+            # Short-circuit INTELIGENTE: NO probar resto modos si el error es
+            # "no es un servidor PostgreSQL real responde HTTP / puerto cerrado / auth fail"
+            _msg_low = msg.lower()
+            _es_http_resp = (
+                "received invalid response to ssl negotiation: h" in _msg_low or
+                "expected authentication request from server, but received h" in _msg_low or
+                ("received h" in _msg_low and "ssl" in _msg_low)
+            )
+            if _es_http_resp:
+                print("[DB] 🚨 PROBLEMA DETECTADO: el host:port NO es un PostgreSQL Railway válido "
+                      "(contesta HTTP, no PG protocol). Seguramente el Connection String (DATABASE_URL) es VIEJO. "
+                      "Solución: entra a Railway → Database → Settings → Connect → Copy el Connection URL NUEVO. "
+                      "NO pegues backticks/comillas dentro del valor.")
+                # No tiene sentido probar el resto de sslmodes
+                break
+            _es_ssl = ("ssl" in _msg_low or "SSL negotiation" in msg or "sslmode" in msg or "certificate" in _msg_low or "tlsv" in _msg_low)
+            if not _es_ssl and (
+                "password authentication" in _msg_low or "role" in _msg_low or
+                "does not exist" in _msg_low or "pg_hba" in _msg_low or
+                "timeout expired" in _msg_low or "could not translate host" in _msg_low or
+                "connection refused" in _msg_low or "network is unreachable" in _msg_low
+            ):
+                # Auth / DNS / timeout / cerrado: 1er intento falló resto igual
                 break
     # Si llegamos aquí: todos los intentos fallaron
     err_log = " | ".join([f"[{m}] {t}: {s[:90]}" for (m, t, s) in attempts])
     print(f"[DB] ❌ Falló PostgreSQL en TODOS los sslmode. Intentos: {err_log}")
+    # Aviso final troubleshooting
+    print("[DB] 🧰 Troubleshooting DATABASE_URL Railway: (1) abre la DB en Railway → Settings → Connect → "
+          "Public Network → Copy 'Connection URL' (no el de Private si no tienes Attach DB). "
+          "(2) En Backend Variables → DATABASE_URL → NEW/Edit → PEGA SIN ESPACIOS SIN COMILLAS SIN BACKTICKS. "
+          "(3) Redeploy manual.")
     if last_exc is not None:
         raise last_exc
     raise RuntimeError("No se pudo conectar a PostgreSQL (fallback chain agotada).")

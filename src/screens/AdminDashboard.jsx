@@ -453,58 +453,173 @@ function TabRegistros({ authHeaders, toast }) {
 
 function TabQRCodigos({ authHeaders, toast }) {
   const [cantidad, setCantidad] = useState(1)
-  const [tamano, setTamano] = useState(512)
+  const [tamano, setTamano] = useState(5) // valor segun unidad (512 px ó 5 cm default)
+  const [unidadTamaño, setUnidadTamaño] = useState('centimetros') // 'pixeles' | 'centimetros'
+  const [dpi, setDpi] = useState(300)
   const [formato, setFormato] = useState('PNG')
   const [generando, setGenerando] = useState(false)
-  const [resultados, setResultados] = useState([])
+  const [resultados, setResultados] = useState([]) // Recien generados
+
+  // Listado historial BD
+  const [listadoTodos, setListadoTodos] = useState([])
+  const [cargandoListado, setCargandoListado] = useState(false)
+  const [pagListado, setPagListado] = useState(1)
+  const [totalListado, setTotalListado] = useState(0)
+  const [perPageListado] = useState(50)
+  const [busquedaQR, setBusquedaQR] = useState('')
+  const [filtroHab, setFiltroHab] = useState(null) // null = todos | true | false
+  const [filtroUsado, setFiltroUsado] = useState(null) // null = todos | true (usado) | false (sin usar)
+  const [confirmQR, setConfirmQR] = useState(null) // { tipo: 'INHAB' | 'HAB' | 'DEL', qr: {...} }
+
+  const recalcularPx = (valor, unidad, d, returnString = false) => {
+    if (unidad === 'centimetros') {
+      const cm = parseFloat(valor) || 0
+      const px = Math.max(256, Math.min(2048, Math.round((cm * (parseInt(d) || 300)) / 2.54)))
+      return returnString ? `${px} px` : px
+    } else {
+      const px = Math.max(256, Math.min(2048, Math.round(parseFloat(valor) || 0)))
+      return returnString ? `${px} px` : px
+    }
+  }
+
+  const cargarListadoBD = async (pageOverride = pagListado) => {
+    setCargandoListado(true)
+    try {
+      const params = new URLSearchParams()
+      params.set('page', pageOverride)
+      params.set('per_page', perPageListado)
+      if (busquedaQR && busquedaQR.trim()) params.set('q', busquedaQR.trim())
+      if (filtroHab !== null) params.set('habilitado', filtroHab ? 'true' : 'false')
+      if (filtroUsado !== null) params.set('usado', filtroUsado ? 'true' : 'false')
+      const res = await fetch(apiUrl(`/api/admin/qr/list?${params.toString()}`), {
+        method: 'GET',
+        headers: authHeaders(),
+      })
+      if (res.ok) {
+        const d = await res.json().catch(() => ({}))
+        setListadoTodos(d.items || [])
+        setTotalListado(d.total || 0)
+        setPagListado(pageOverride)
+      }
+    } finally {
+      setCargandoListado(false)
+    }
+  }
+
+  // Cargar listado cuando cambian los filtros (con debounce simple)
+  useEffect(() => {
+    const t = setTimeout(() => cargarListadoBD(1), 300)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busquedaQR, filtroHab, filtroUsado])
 
   const handleGenerar = async () => {
     if (!cantidad || cantidad < 1 || cantidad > 5000) {
       toast('❌ Cantidad debe ser 1-5000', 'err')
       return
     }
-    if (tamano < 256 || tamano > 2048) {
-      toast('❌ Tamaño debe ser 256-2048', 'err')
-      return
-    }
+    const sizePxFinal = recalcularPx(tamano, unidadTamaño, dpi)
     setGenerando(true)
     try {
+      const body = {
+        cantidad,
+        unidad: unidadTamaño,
+        tamano_valor: parseFloat(tamano) || 0,
+        dpi: parseInt(dpi) || 300,
+        size_px: sizePxFinal,
+        formato: formato.toLowerCase(),
+      }
       const res = await fetch(apiUrl('/api/admin/qr/generar'), {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ cantidad, tamano_pixeles: tamano, formato }),
+        body: JSON.stringify(body),
       })
       if (res.ok) {
         const d = await res.json().catch(() => ({}))
-        const lista = Array.isArray(d) ? d : (d.codigos || d.qrs || d.data || [])
-        setResultados(lista)
-        toast(`✅ ${lista.length} código(s) QR generados`, 'ok')
+        const itemsGenerados = d.items || []
+        setResultados(itemsGenerados)
+        toast(
+          `✅ ${d.created_count || itemsGenerados.length} QR(s) generados correctamente. Tamaño final: ${d.size_px_final || sizePxFinal} px` +
+          (d.tamano_cm_final ? ` (${d.tamano_cm_final} cm @ ${d.dpi_final || 300} dpi)` : ''),
+          'ok'
+        )
+        // Refrescar listado
+        cargarListadoBD(1)
       } else {
-        const fallback = Array.from({ length: cantidad }).map((_, i) => ({
-          id: `QR-${Date.now()}-${i + 1}`,
-          id_humano: `FIESTA-${String(i + 1).padStart(6, '0')}`,
-          status: 'SIN USAR',
-          uuid: `${Date.now()}-${i}`,
-        }))
-        setResultados(fallback)
-        toast(`⚠ API no disponible, ${fallback.length} QR locales`, 'err')
+        const d = await res.json().catch(() => ({}))
+        toast(`❌ ${d.detail || d.message || 'No se pudieron generar los QR'}`, 'err')
       }
     } catch {
-      const fallback = Array.from({ length: cantidad }).map((_, i) => ({
-        id: `QR-${Date.now()}-${i + 1}`,
-        id_humano: `FIESTA-${String(i + 1).padStart(6, '0')}`,
-        status: 'SIN USAR',
-        uuid: `${Date.now()}-${i}`,
-      }))
-      setResultados(fallback)
-      toast(`⚠ Modo offline: ${fallback.length} QR locales`, 'err')
+      toast('❌ Error de conexión con el servidor', 'err')
     } finally {
       setGenerando(false)
     }
   }
 
+  const ejecutarPatchQR = async (qr, nuevoHabilitado) => {
+    const id = qr.id || qr.qr_uuid || qr.uuid_qr
+    try {
+      const res = await fetch(apiUrl(`/api/admin/qr/${encodeURIComponent(id)}`), {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ habilitado: nuevoHabilitado }),
+      })
+      if (res.ok) {
+        toast(nuevoHabilitado ? '✅ QR HABILITADO' : '🚫 QR INHABILITADO', 'ok')
+        cargarListadoBD(pagListado)
+        setResultados(prev => prev.map(r => {
+          const match = (r.id === qr.id) || (r.qr_uuid && (r.qr_uuid === (qr.qr_uuid || qr.uuid_qr)))
+          if (!match) return r
+          return {
+            ...r,
+            habilitado: nuevoHabilitado,
+            usado: (r.usado_registro_id != null) || (r.usado === true),
+          }
+        }))
+      } else {
+        const d = await res.json().catch(() => ({}))
+        toast(`❌ ${d.detail || d.message || 'Error'}`, 'err')
+      }
+    } catch {
+      toast('❌ Error de conexión', 'err')
+    } finally {
+      setConfirmQR(null)
+    }
+  }
+
+  const ejecutarDeleteQR = async (qr) => {
+    const id = qr.id || qr.qr_uuid || qr.uuid_qr
+    try {
+      const res = await fetch(apiUrl(`/api/admin/qr/${encodeURIComponent(id)}`), {
+        method: 'DELETE',
+        headers: authHeaders(),
+      })
+      if (res.ok) {
+        toast('🗑 QR eliminado de la base de datos', 'ok')
+        cargarListadoBD(pagListado)
+        setResultados(prev => prev.filter(r => !(r.id === qr.id || (r.qr_uuid && r.qr_uuid === qr.uuid_qr))))
+      } else {
+        const d = await res.json().catch(() => ({}))
+        toast(`❌ ${d.detail || d.message || 'Error eliminando'}`, 'err')
+      }
+    } catch {
+      toast('❌ Error de conexión', 'err')
+    } finally {
+      setConfirmQR(null)
+    }
+  }
+
   const descargarIndividual = (qr, idx) => {
     try {
+      if (qr.data_url_png_b64 && typeof qr.data_url_png_b64 === 'string' && qr.data_url_png_b64.startsWith('data:image')) {
+        const a = document.createElement('a')
+        a.href = qr.data_url_png_b64
+        a.download = `QR_${qr.id_humano || qr.id || 'qr'}.png`
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        return
+      }
       const canvas = document.querySelector(`#qr-canvas-${idx} canvas`)
       if (!canvas) {
         toast('❌ Canvas no disponible', 'err')
@@ -523,18 +638,28 @@ function TabQRCodigos({ authHeaders, toast }) {
   }
 
   const descargarTodosZipFront = () => {
-    toast('ℹ Descarga ZIP requiere backend o librería JSZip', 'err')
+    toast('ℹ Descarga ZIP requiere backend; usa descarga individual', 'err')
   }
 
   return (
     <div className="admin-panel">
       <div className="admin-panel-header">
         <h2 className="admin-panel-title">🔲 Códigos QR Promoción</h2>
-        {resultados.length > 0 && (
-          <button type="button" className="admin-btn primary" onClick={descargarTodosZipFront}>
-            ⬇ Descargar TODOS ZIP (front)
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            type="button"
+            className="admin-btn ghost"
+            onClick={() => cargarListadoBD(pagListado)}
+            disabled={cargandoListado}
+          >
+            {cargandoListado ? '⏳ Cargando...' : '🔄 Recargar listado BD'}
           </button>
-        )}
+          {resultados.length > 0 && (
+            <button type="button" className="admin-btn primary" onClick={descargarTodosZipFront}>
+              ⬇ Descargar TODOS ZIP (front)
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="admin-form-grid" style={{ marginBottom: 20 }}>
@@ -549,14 +674,39 @@ function TabQRCodigos({ authHeaders, toast }) {
           />
         </div>
         <div className="admin-campo">
-          <label>Tamaño en píxeles (256-2048)</label>
+          <label>Unidad de tamaño</label>
+          <select value={unidadTamaño} onChange={(e) => setUnidadTamaño(e.target.value)}>
+            <option value="centimetros">Centímetros (cm)</option>
+            <option value="pixeles">Píxeles (px)</option>
+          </select>
+        </div>
+        <div className="admin-campo">
+          <label>
+            Tamaño ({unidadTamaño === 'centimetros' ? 'cm' : 'píxeles'})
+          </label>
           <input
             type="number"
-            min={256}
-            max={2048}
-            step={256}
+            step={unidadTamaño === 'centimetros' ? 0.5 : 256}
+            min={unidadTamaño === 'centimetros' ? 2 : 256}
+            max={unidadTamaño === 'centimetros' ? 18 : 2048}
             value={tamano}
-            onChange={(e) => setTamano(Math.max(256, Math.min(2048, Number(e.target.value) || 256)))}
+            onChange={(e) => setTamano(Number(e.target.value) || 0)}
+          />
+          <div style={{ marginTop: 4, fontSize: 11.5, color: '#64748b', lineHeight: 1.4 }}>
+            Equivale ≈ <b style={{ color: '#1e293b' }}>{recalcularPx(tamano, unidadTamaño, dpi, true)}</b>
+            {unidadTamaño === 'centimetros' && <span> (DPI {dpi})</span>}
+          </div>
+        </div>
+        <div className="admin-campo" style={{ opacity: unidadTamaño === 'centimetros' ? 1 : 0.45 }}>
+          <label>DPI (solo para cm — 300 estándar impresión)</label>
+          <input
+            type="number"
+            min={72}
+            max={1200}
+            step={12}
+            value={dpi}
+            disabled={unidadTamaño !== 'centimetros'}
+            onChange={(e) => setDpi(Math.max(72, Math.min(1200, Number(e.target.value) || 300)))}
           />
         </div>
         <div className="admin-campo">
@@ -574,7 +724,7 @@ function TabQRCodigos({ authHeaders, toast }) {
             onClick={handleGenerar}
             disabled={generando}
           >
-            {generando ? '⏳ Generando...' : '✨ GENERAR'}
+            {generando ? '⏳ Generando...' : '✨ GENERAR QR(S)'}
           </button>
         </div>
       </div>
@@ -584,34 +734,265 @@ function TabQRCodigos({ authHeaders, toast }) {
           Configura los parámetros y pulsa GENERAR para crear códigos QR.
         </p>
       ) : (
-        <div className="admin-qr-grid">
-          {resultados.slice(0, 100).map((qr, i) => {
-            const val = qr.qr_value || qr.uuid || qr.id_humano || qr.id || `QR-${i}`
-            return (
-              <div key={qr.id || qr.uuid || i} className="admin-qr-item">
-                <div className="admin-qr-canvas-wrap" id={`qr-canvas-${i}`}>
-                  <QRCodeCanvas
-                    value={val}
-                    size={128}
-                    level="H"
-                    includeMargin={true}
-                  />
+        <>
+          <h3 style={{ margin: '8px 0 14px', color: '#0f172a' }}>
+            🆕 Últimos {resultados.length} QR(s) recién generados
+          </h3>
+          <div className="admin-qr-grid">
+            {resultados.slice(0, 100).map((qr, i) => {
+              const val = qr.url || qr.qr_value || (BACKEND_URL ? `${BACKEND_URL.replace(/\/+$/, '')}/ganador?qr=${qr.qr_uuid || qr.uuid}` : '')
+              const hab = typeof qr.habilitado === 'boolean' ? qr.habilitado : true
+              return (
+                <div key={qr.id || qr.uuid || i} className="admin-qr-item" style={{ opacity: hab ? 1 : 0.5 }}>
+                  <div className="admin-qr-canvas-wrap" id={`qr-canvas-${i}`}>
+                    <QRCodeCanvas
+                      value={val}
+                      size={128}
+                      level="H"
+                      includeMargin={true}
+                    />
+                  </div>
+                  <div className="admin-qr-id">{qr.id_humano || qr.id || `QR-${i + 1}`}</div>
+                  <div style={{ fontSize: 11, color: '#475569', margin: '4px 0' }}>
+                    {qr.size_px ? `${qr.size_px} px` : ''}
+                    {qr.tamano_cm ? ` · ${qr.tamano_cm} cm` : ''}
+                    {qr.unidad && qr.unidad !== 'pixeles' ? ` · ${qr.unidad}` : ''}
+                  </div>
+                  <span className={`admin-qr-status ${qr.usado ? 'usado' : (hab ? 'sin-usar' : 'invalido')}`}>
+                    {qr.usado ? 'USADO' : (hab ? 'SIN USAR' : 'INHABILITADO')}
+                  </span>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, width: '100%', marginTop: 6 }}>
+                    <button type="button" className="admin-btn sm primary" onClick={() => descargarIndividual(qr, i)}>
+                      ⬇ Descargar
+                    </button>
+                    {hab ? (
+                      <button type="button" className="admin-btn sm ghost" onClick={() => setConfirmQR({ tipo: 'INHAB', qr })}>
+                        🚫 Inhab
+                      </button>
+                    ) : (
+                      <button type="button" className="admin-btn sm ghost" onClick={() => setConfirmQR({ tipo: 'HAB', qr })}>
+                        ✅ Hab
+                      </button>
+                    )}
+                    <button type="button" className="admin-btn sm danger" style={{ gridColumn: '1 / -1' }} onClick={() => setConfirmQR({ tipo: 'DEL', qr })}>
+                      🗑 Eliminar
+                    </button>
+                  </div>
                 </div>
-                <div className="admin-qr-id">{qr.id_humano || qr.id_humano || qr.id || `QR-${i + 1}`}</div>
-                <span className="admin-qr-status sin-usar">
-                  {qr.status || qr.estado || 'SIN USAR'}
-                </span>
-                <button type="button" className="admin-btn sm primary" onClick={() => descargarIndividual(qr, i)}>
-                  ⬇ Descargar
-                </button>
+              )
+            })}
+            {resultados.length > 100 && (
+              <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 16, color: '#64748b' }}>
+                Mostrando 100 de {resultados.length} códigos generados.
               </div>
-            )
-          })}
-          {resultados.length > 100 && (
-            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 16, color: '#64748b' }}>
-              Mostrando 100 de {resultados.length} códigos generados.
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ============================ LISTADO HISTORIAL BD ============================ */}
+      <div style={{ borderTop: '1px solid #e2e8f0', marginTop: 24, paddingTop: 16 }}>
+        <h3 style={{ margin: '0 0 12px', color: '#0f172a' }}>
+          📚 Historial completo ({totalListado} QRs en base de datos)
+        </h3>
+
+        <div className="admin-form-grid" style={{ marginBottom: 14 }}>
+          <div className="admin-campo" style={{ gridColumn: 'span 2' }}>
+            <label>🔎 Buscar QR (ID, UUID, código humano)</label>
+            <input
+              type="text"
+              value={busquedaQR}
+              placeholder="Ej: ID 123, FIESTA-ABC, 550e8400-e29b..."
+              onChange={(e) => setBusquedaQR(e.target.value)}
+            />
+          </div>
+          <div className="admin-campo">
+            <label>Estado habilitación</label>
+            <select value={filtroHab === null ? '' : filtroHab ? '1' : '0'} onChange={(e) => {
+              const v = e.target.value
+              setFiltroHab(v === '' ? null : v === '1')
+            }}>
+              <option value="">Todos</option>
+              <option value="1">✅ Sólo Habilitados</option>
+              <option value="0">🚫 Sólo Inhabilitados</option>
+            </select>
+          </div>
+          <div className="admin-campo">
+            <label>Estado de uso</label>
+            <select value={filtroUsado === null ? '' : filtroUsado ? '1' : '0'} onChange={(e) => {
+              const v = e.target.value
+              setFiltroUsado(v === '' ? null : v === '1')
+            }}>
+              <option value="">Todos</option>
+              <option value="1">✔ Sólo Usados</option>
+              <option value="0">🕒 Sólo Sin Usar</option>
+            </select>
+          </div>
+        </div>
+
+        {cargandoListado ? (
+          <p style={{ textAlign: 'center', color: '#94a3b8' }}>⏳ Cargando listado QR desde base de datos...</p>
+        ) : listadoTodos.length === 0 ? (
+          <p style={{ textAlign: 'center', color: '#94a3b8' }}>
+            No hay códigos QR generados todavía en la base de datos. Usa el botón GENERAR arriba.
+          </p>
+        ) : (
+          <div style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid #e2e8f0' }}>
+            <table className="admin-table" style={{ width: '100%', minWidth: 900 }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: 'left' }}>ID</th>
+                  <th style={{ textAlign: 'left' }}>Código Humano</th>
+                  <th style={{ textAlign: 'left' }}>Vista Previa</th>
+                  <th style={{ textAlign: 'left' }}>Tamaño</th>
+                  <th style={{ textAlign: 'left' }}>Formato</th>
+                  <th style={{ textAlign: 'left' }}>Estado</th>
+                  <th style={{ textAlign: 'left' }}>Creado</th>
+                  <th style={{ textAlign: 'center' }}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {listadoTodos.map((qr) => {
+                  const hab = !!qr.habilitado
+                  const usado = !!qr.usado
+                  const previewUrl = (BACKEND_URL ? `${BACKEND_URL.replace(/\/+$/, '')}/ganador?qr=${qr.uuid_qr}` : '')
+                  return (
+                    <tr key={qr.id} style={{ opacity: hab ? 1 : 0.52 }}>
+                      <td style={{ color: '#475569', fontFamily: 'monospace', fontSize: 12 }}>{qr.id}</td>
+                      <td style={{ fontWeight: 700, color: '#0f172a' }}>{qr.id_humano}</td>
+                      <td>
+                        <div style={{ width: 72, height: 72, background: 'white', padding: 6, border: '1px solid #cbd5e1', borderRadius: 8 }}>
+                          <QRCodeCanvas value={previewUrl || qr.uuid_qr} size={60} level="H" includeMargin={false} />
+                        </div>
+                      </td>
+                      <td style={{ fontSize: 12.5, lineHeight: 1.4 }}>
+                        <div>{qr.size_px} <span style={{ color: '#64748b' }}>px</span></div>
+                        {qr.tamano_cm && (
+                          <div style={{ color: '#475569' }}>
+                            {qr.tamano_cm} <span style={{ color: '#64748b' }}>cm</span>
+                            {qr.dpi && <span style={{ color: '#64748b' }}> · {qr.dpi} dpi</span>}
+                          </div>
+                        )}
+                        {qr.unidad && qr.unidad !== 'pixeles' && <div style={{ color: '#0284c7' }}>{qr.unidad}</div>}
+                      </td>
+                      <td style={{ textTransform: 'uppercase', fontWeight: 600, color: '#475569' }}>{qr.formato}</td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <span className={`admin-qr-status ${hab ? 'sin-usar' : 'invalido'}`}>
+                            {hab ? 'HABILITADO' : 'INHABILITADO'}
+                          </span>
+                          <span className={`admin-qr-status ${usado ? 'usado' : 'sin-usar'}`}>
+                            {usado ? 'USADO' : 'SIN USAR'}
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{ fontSize: 12, color: '#64748b', fontFamily: 'monospace' }}>
+                        <div>{(qr.created_at || '').slice(0, 10)}</div>
+                        <div>{(qr.created_at || '').slice(11, 19)}</div>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
+                          <button type="button" className="admin-btn sm primary" onClick={() => descargarIndividual({
+                            ...qr,
+                            url: previewUrl,
+                            uuid: qr.uuid_qr,
+                          }, listadoTodos.findIndex(x => x.id === qr.id) + 1000)}>
+                            ⬇
+                          </button>
+                          {hab ? (
+                            <button type="button" className="admin-btn sm ghost" title="Inhabilitar QR" onClick={() => setConfirmQR({ tipo: 'INHAB', qr })}>
+                              🚫
+                            </button>
+                          ) : (
+                            <button type="button" className="admin-btn sm ghost" title="Rehabilitar QR" onClick={() => setConfirmQR({ tipo: 'HAB', qr })}>
+                              ✅
+                            </button>
+                          )}
+                          <button type="button" className="admin-btn sm danger" title="Eliminar QR de la base de datos" onClick={() => setConfirmQR({ tipo: 'DEL', qr })}>
+                            🗑
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {totalListado > perPageListado && !cargandoListado && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, color: '#475569', fontSize: 13 }}>
+            <div>
+              Página {pagListado} de {Math.ceil(totalListado / perPageListado)}
             </div>
-          )}
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                type="button"
+                className="admin-btn sm ghost"
+                disabled={pagListado <= 1}
+                onClick={() => cargarListadoBD(pagListado - 1)}
+              >
+                ← Anterior
+              </button>
+              <button
+                type="button"
+                className="admin-btn sm ghost"
+                disabled={pagListado >= Math.ceil(totalListado / perPageListado)}
+                onClick={() => cargarListadoBD(pagListado + 1)}
+              >
+                Siguiente →
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Modal confirmación acciones QR (INHABILITAR / HABILITAR / ELIMINAR) */}
+      {confirmQR && (
+        <div className="admin-modal-backdrop" onClick={() => setConfirmQR(null)}>
+          <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+            {confirmQR.tipo === 'INHAB' && (
+              <>
+                <h3 style={{ color: '#ca8a04' }}>🚫 Confirmar Inhabilitar QR</h3>
+                <p style={{ color: '#475569', lineHeight: 1.5 }}>
+                  Al inhabilitar el QR <b>{confirmQR.qr.id_humano || confirmQR.qr.id}</b>, cualquier persona que lo escanee recibirá "QR inhabilitado por el administrador" y NO podrá registrarse con él.
+                </p>
+                <p style={{ color: '#64748b', fontSize: 12.5 }}>⚠ Se puede rehabilitar más tarde (no es permanente).</p>
+                <div className="admin-modal-actions">
+                  <button type="button" className="admin-btn ghost" onClick={() => setConfirmQR(null)}>Cancelar</button>
+                  <button type="button" className="admin-btn ghost" style={{ background: '#854d0e', color: 'white' }} onClick={() => ejecutarPatchQR(confirmQR.qr, false)}>🚫 Sí, INHABILITAR</button>
+                </div>
+              </>
+            )}
+            {confirmQR.tipo === 'HAB' && (
+              <>
+                <h3 style={{ color: '#047857' }}>✅ Confirmar Rehabilitar QR</h3>
+                <p style={{ color: '#475569', lineHeight: 1.5 }}>
+                  El QR <b>{confirmQR.qr.id_humano || confirmQR.qr.id}</b> volverá a estar habilitado para escanear y registrar personas.
+                </p>
+                <div className="admin-modal-actions">
+                  <button type="button" className="admin-btn ghost" onClick={() => setConfirmQR(null)}>Cancelar</button>
+                  <button type="button" className="admin-btn primary" onClick={() => ejecutarPatchQR(confirmQR.qr, true)}>✅ Sí, HABILITAR</button>
+                </div>
+              </>
+            )}
+            {confirmQR.tipo === 'DEL' && (
+              <>
+                <h3 style={{ color: 'var(--color-rojo-acento)' }}>🗑 Confirmar Eliminación QR</h3>
+                <p style={{ color: '#475569', lineHeight: 1.5 }}>
+                  Se eliminará el QR <b>{confirmQR.qr.id_humano || confirmQR.qr.id}</b> de la tabla <code>promo_qr_codes</code> PERMANENTEMENTE. Esta operación NO se puede deshacer.
+                </p>
+                <p style={{ color: '#64748b', fontSize: 12.5 }}>
+                  Si el QR ya fue usado, se desasocia de los registros existentes para no romperlos.
+                </p>
+                <div className="admin-modal-actions">
+                  <button type="button" className="admin-btn ghost" onClick={() => setConfirmQR(null)}>Cancelar</button>
+                  <button type="button" className="admin-btn danger" onClick={() => ejecutarDeleteQR(confirmQR.qr)}>🗑 Sí, ELIMINAR PERMANENTEMENTE</button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>

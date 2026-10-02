@@ -2199,7 +2199,13 @@ CREATE TABLE IF NOT EXISTS promo_qr_codes (
     uuid_qr TEXT UNIQUE NOT NULL,
     id_humano VARCHAR(16) UNIQUE NOT NULL,
     size_px INTEGER NOT NULL DEFAULT 512,
+    tamano_cm REAL,
+    dpi INTEGER DEFAULT 300,
+    unidad VARCHAR(16) DEFAULT 'pixeles',
     formato TEXT NOT NULL DEFAULT 'png',
+    habilitado BOOLEAN NOT NULL DEFAULT TRUE,
+    inhabilitado_por_id INTEGER,
+    inhabilitado_at TIMESTAMPTZ,
     usado_registro_id BIGINT,
     usado_at TIMESTAMPTZ,
     creado_admin_id INTEGER,
@@ -2207,6 +2213,7 @@ CREATE TABLE IF NOT EXISTS promo_qr_codes (
 );
 CREATE INDEX IF NOT EXISTS idx_promo_qr_uuid ON promo_qr_codes (uuid_qr);
 CREATE INDEX IF NOT EXISTS idx_promo_qr_usado ON promo_qr_codes (usado_registro_id);
+CREATE INDEX IF NOT EXISTS idx_promo_qr_habilitado ON promo_qr_codes (habilitado);
 
 CREATE TABLE IF NOT EXISTS promo_registros (
     id BIGSERIAL PRIMARY KEY,
@@ -2275,7 +2282,13 @@ CREATE TABLE IF NOT EXISTS promo_qr_codes (
     uuid_qr TEXT UNIQUE NOT NULL,
     id_humano TEXT UNIQUE NOT NULL,
     size_px INTEGER NOT NULL DEFAULT 512,
+    tamano_cm REAL,
+    dpi INTEGER DEFAULT 300,
+    unidad TEXT DEFAULT 'pixeles',
     formato TEXT NOT NULL DEFAULT 'png',
+    habilitado INTEGER NOT NULL DEFAULT 1,
+    inhabilitado_por_id INTEGER,
+    inhabilitado_at TEXT,
     usado_registro_id INTEGER,
     usado_at TEXT,
     creado_admin_id INTEGER,
@@ -2283,6 +2296,7 @@ CREATE TABLE IF NOT EXISTS promo_qr_codes (
 );
 CREATE INDEX IF NOT EXISTS idx_promo_qr_uuid ON promo_qr_codes (uuid_qr);
 CREATE INDEX IF NOT EXISTS idx_promo_qr_usado ON promo_qr_codes (usado_registro_id);
+CREATE INDEX IF NOT EXISTS idx_promo_qr_habilitado ON promo_qr_codes (habilitado);
 
 CREATE TABLE IF NOT EXISTS promo_registros (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2335,6 +2349,21 @@ def init_promo_db_tables_and_seeds():
         if DB_ENGINE == "POSTGRES":
             cur.execute(_PROMO_SQL_CREATE_POSTGRES)
             conn.commit()
+            # ALTER TABLE idempotentes para deploys EXISTENTES (antes no estaban estas cols)
+            # En Postgres IF NOT EXISTS ADD COLUMN existe desde PG 9.6+, Railway 14/15/16 OK.
+            _alter_cols_pg = [
+                "ALTER TABLE promo_qr_codes ADD COLUMN IF NOT EXISTS tamano_cm REAL",
+                "ALTER TABLE promo_qr_codes ADD COLUMN IF NOT EXISTS dpi INTEGER DEFAULT 300",
+                "ALTER TABLE promo_qr_codes ADD COLUMN IF NOT EXISTS unidad VARCHAR(16) DEFAULT 'pixeles'",
+                "ALTER TABLE promo_qr_codes ADD COLUMN IF NOT EXISTS habilitado BOOLEAN NOT NULL DEFAULT TRUE",
+                "ALTER TABLE promo_qr_codes ADD COLUMN IF NOT EXISTS inhabilitado_por_id INTEGER",
+                "ALTER TABLE promo_qr_codes ADD COLUMN IF NOT EXISTS inhabilitado_at TIMESTAMPTZ",
+            ]
+            for alter in _alter_cols_pg:
+                try:
+                    cur = conn.cursor(); cur.execute(alter); conn.commit()
+                except Exception:
+                    pass
             cur = conn.cursor()
             cur.execute(
                 "INSERT INTO promo_admin_users (username, password_hash) "
@@ -2353,6 +2382,21 @@ def init_promo_db_tables_and_seeds():
         else:
             cur.executescript(_PROMO_SQL_CREATE_SQLITE)
             conn.commit()
+            # SQLite ALTER TABLE ADD COLUMN (no hay IF NOT EXISTS pre-3.35; así que try/except por columna)
+            _alter_cols_sqlite = [
+                ("tamano_cm", "REAL"),
+                ("dpi", "INTEGER DEFAULT 300"),
+                ("unidad", "TEXT DEFAULT 'pixeles'"),
+                ("habilitado", "INTEGER NOT NULL DEFAULT 1"),
+                ("inhabilitado_por_id", "INTEGER"),
+                ("inhabilitado_at", "TEXT"),
+            ]
+            for col, defn in _alter_cols_sqlite:
+                try:
+                    cur = conn.cursor(); cur.execute(f"ALTER TABLE promo_qr_codes ADD COLUMN {col} {defn}"); conn.commit()
+                except Exception:
+                    # columna ya existia, ignorar
+                    pass
             cur = conn.cursor()
             cur.execute(
                 "INSERT OR IGNORE INTO promo_admin_users (username, password_hash) VALUES (?, ?)",
@@ -2547,7 +2591,15 @@ class AdminRegistroUpdateReq(BaseModel):
 
 class AdminQrGenerarReq(BaseModel):
     cantidad: int
-    size_px: int = 512
+    # Modo LEGACY (compatible con viejos frontends): si `size_px` > 0,
+    # se usa directamente en pixeles (como era antes).
+    size_px: int | None = None
+    # Modo NUEVO: unidad = 'pixeles' o 'centimetros' ('cm' tambien valido)
+    unidad: str = "pixeles"
+    # Valor decimal. Si unidad='centimetros' → cm, si 'pixeles' → px (entero)
+    tamano_valor: float | None = None
+    # DPI a usar cuando unidad=cm. 300 default = calidad impresora normal/fotografia.
+    dpi: int = 300
     formato: str = "png"
 
 
@@ -2561,22 +2613,42 @@ def promo_qr_validar(req: PromoQrValidarReq):
         raise HTTPException(status_code=400, detail="qr_uuid es requerido")
     with get_db_conn() as conn:
         cur = conn.cursor()
-        cols = ["id", "uuid_qr", "id_humano", "size_px", "formato", "usado_registro_id"]
-        sql = "SELECT id, uuid_qr, id_humano, size_px, formato, usado_registro_id FROM promo_qr_codes WHERE uuid_qr = %s" if DB_ENGINE == "POSTGRES" else "SELECT id, uuid_qr, id_humano, size_px, formato, usado_registro_id FROM promo_qr_codes WHERE uuid_qr = ?"
+        sql = (
+            "SELECT id, uuid_qr, id_humano, size_px, formato, usado_registro_id, habilitado "
+            "FROM promo_qr_codes WHERE uuid_qr = %s"
+            if DB_ENGINE == "POSTGRES"
+            else "SELECT id, uuid_qr, id_humano, size_px, formato, usado_registro_id, habilitado "
+                 "FROM promo_qr_codes WHERE uuid_qr = ?"
+        )
         cur.execute(sql, (qr_uuid,))
         row = cur.fetchone()
         if row is None:
             return {
                 "valido": False,
                 "usado": False,
+                "habilitado": False,
                 "mensaje": "QR no encontrado en el sistema",
                 "size_px": 0,
                 "id_humano": "",
             }
         usado = row[5] is not None
+        habil_blob = row[6]
+        habilitado = (
+            bool(habil_blob) if DB_ENGINE == "POSTGRES" else (int(habil_blob) == 1 if habil_blob is not None else True)
+        )
+        if not habilitado:
+            return {
+                "valido": False,
+                "usado": usado,
+                "habilitado": False,
+                "mensaje": "QR inhabilitado por el administrador del evento",
+                "size_px": int(row[3] or 512),
+                "id_humano": str(row[2] or ""),
+            }
         return {
             "valido": True,
             "usado": usado,
+            "habilitado": True,
             "mensaje": ("QR ya utilizado" if usado else "QR válido y listo para usar"),
             "size_px": int(row[3] or 512),
             "id_humano": str(row[2] or ""),
@@ -2622,10 +2694,10 @@ async def promo_registro(req: PromoRegistroReq, request: Request):
             cur = conn.cursor()
             if DB_ENGINE == "POSTGRES":
                 cur.execute("BEGIN")
-                cur.execute("SELECT id, uuid_qr, id_humano, usado_registro_id FROM promo_qr_codes WHERE uuid_qr = %s", (qr_uuid,))
+                cur.execute("SELECT id, uuid_qr, id_humano, usado_registro_id, habilitado FROM promo_qr_codes WHERE uuid_qr = %s", (qr_uuid,))
             else:
                 cur.execute("BEGIN IMMEDIATE")
-                cur.execute("SELECT id, uuid_qr, id_humano, usado_registro_id FROM promo_qr_codes WHERE uuid_qr = ?", (qr_uuid,))
+                cur.execute("SELECT id, uuid_qr, id_humano, usado_registro_id, habilitado FROM promo_qr_codes WHERE uuid_qr = ?", (qr_uuid,))
             qr_row = cur.fetchone()
             if qr_row is None:
                 if DB_ENGINE != "POSTGRES":
@@ -2636,6 +2708,18 @@ async def promo_registro(req: PromoRegistroReq, request: Request):
                 if DB_ENGINE != "POSTGRES":
                     conn.rollback()
                 raise HTTPException(status_code=409, detail="Este QR ya fue utilizado en un registro")
+            # Validar habilitado
+            qr_hab_raw = qr_row[4]
+            qr_habilitado = (
+                bool(qr_hab_raw) if DB_ENGINE == "POSTGRES" else (int(qr_hab_raw) == 1 if qr_hab_raw is not None else True)
+            )
+            if not qr_habilitado:
+                if DB_ENGINE != "POSTGRES":
+                    conn.rollback()
+                raise HTTPException(
+                    status_code=410,
+                    detail="Este QR fue inhabilitado por el administrador. Por favor solicita un código nuevo en el puesto del evento.",
+                )
 
             if DB_ENGINE == "POSTGRES":
                 cur.execute("SELECT dummy FROM promo_sorteo_lock WHERE id = 1 FOR UPDATE")
@@ -3271,12 +3355,51 @@ async def admin_qr_generar(req: AdminQrGenerarReq, request: Request, admin: dict
     cantidad = int(req.cantidad or 0)
     if cantidad < 1 or cantidad > 5000:
         raise HTTPException(status_code=400, detail="cantidad debe estar entre 1 y 5000")
-    size_px = int(req.size_px or 512)
-    if size_px < 256 or size_px > 2048:
-        raise HTTPException(status_code=400, detail="size_px debe estar entre 256 y 2048")
     formato = (req.formato or "png").lower()
     if formato not in ("png", "svg"):
         raise HTTPException(status_code=400, detail="formato debe ser 'png' o 'svg'")
+
+    # ============ CALCULAR SIZE_PX =============
+    unidad_entrada = (req.unidad or "pixeles").strip().lower()
+    if unidad_entrada in ("cm", "centimetros", "centímetros", "centimetro", "centímetro"):
+        unidad = "centimetros"
+    elif unidad_entrada in ("px", "pixeles", "píxeles", "pixel", "píxel"):
+        unidad = "pixeles"
+    else:
+        # Modo legacy para frontends antiguos:
+        if req.tamano_valor is None and req.size_px is not None:
+            unidad = "pixeles"
+        else:
+            unidad = unidad_entrada if unidad_entrada else "pixeles"
+
+    dpi = int(req.dpi or 300)
+    dpi = max(72, min(1200, dpi))
+
+    tamano_cm_guardar = None
+    tamano_valor_float = None
+    if req.tamano_valor is not None:
+        try:
+            tamano_valor_float = float(req.tamano_valor)
+        except Exception:
+            tamano_valor_float = None
+
+    size_px = None
+    if req.size_px is not None:
+        size_px = int(req.size_px)
+
+    if size_px is None and tamano_valor_float is not None and tamano_valor_float > 0:
+        if unidad == "centimetros":
+            # FÓRMULA OFICIAL: px = (cm * dpi) / 2.54 (1 inch = 2.54 cm)
+            size_px = int(round((tamano_valor_float * dpi) / 2.54))
+            tamano_cm_guardar = float(tamano_valor_float)
+        else:
+            # unidad = pixeles, tamano_valor es el tamaño en pixeles (puede ser decimal, lo redondeamos)
+            size_px = int(round(tamano_valor_float))
+            tamano_cm_guardar = None
+    if size_px is None:
+        size_px = 512
+    # Clamp
+    size_px = max(256, min(2048, int(size_px)))
 
     scheme = request.base_url.scheme
     host_hdr = request.headers.get("host", "")
@@ -3302,12 +3425,31 @@ async def admin_qr_generar(req: AdminQrGenerarReq, request: Request, admin: dict
                 if cur.fetchone() is None:
                     break
             url_full = f"{frontend_base_url}ganador?qr={qr_uuid}"
-            sql = "INSERT INTO promo_qr_codes (uuid_qr, id_humano, size_px, formato, creado_admin_id) VALUES (%s, %s, %s, %s, %s) RETURNING id" if DB_ENGINE == "POSTGRES" else "INSERT INTO promo_qr_codes (uuid_qr, id_humano, size_px, formato, creado_admin_id) VALUES (?, ?, ?, ?, ?)"
-            params = (qr_uuid, id_humano, size_px, formato, int(admin["id"]))
-            cur.execute(sql, params)
             if DB_ENGINE == "POSTGRES":
+                sql = (
+                    "INSERT INTO promo_qr_codes "
+                    "(uuid_qr, id_humano, size_px, tamano_cm, dpi, unidad, formato, "
+                    "habilitado, creado_admin_id) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id"
+                )
+                params = (
+                    qr_uuid, id_humano, size_px, tamano_cm_guardar, dpi, unidad, formato,
+                    True, int(admin["id"]),
+                )
+                cur.execute(sql, params)
                 new_id = cur.fetchone()[0]
             else:
+                sql = (
+                    "INSERT INTO promo_qr_codes "
+                    "(uuid_qr, id_humano, size_px, tamano_cm, dpi, unidad, formato, "
+                    "habilitado, creado_admin_id) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                )
+                params = (
+                    qr_uuid, id_humano, size_px, tamano_cm_guardar, dpi, unidad, formato,
+                    1, int(admin["id"]),
+                )
+                cur.execute(sql, params)
                 new_id = cur.lastrowid
 
             if formato == "png":
@@ -3330,6 +3472,9 @@ async def admin_qr_generar(req: AdminQrGenerarReq, request: Request, admin: dict
                     "qr_uuid": qr_uuid,
                     "id_humano": id_humano,
                     "size_px": size_px,
+                    "tamano_cm": tamano_cm_guardar,
+                    "dpi": dpi,
+                    "unidad": unidad,
                     "url": url_full,
                     "data_url_png_b64": b64,
                 })
@@ -3353,14 +3498,28 @@ async def admin_qr_generar(req: AdminQrGenerarReq, request: Request, admin: dict
                     "qr_uuid": qr_uuid,
                     "id_humano": id_humano,
                     "size_px": size_px,
+                    "tamano_cm": tamano_cm_guardar,
+                    "dpi": dpi,
+                    "unidad": unidad,
                     "url": url_full,
                     "svg_text": svg_text,
                 })
         conn.commit()
 
-    _promo_insert_auditoria(int(admin["id"]), "GENERAR_QR", {"cantidad": cantidad, "size_px": size_px, "formato": formato})
+    _promo_insert_auditoria(int(admin["id"]), "GENERAR_QR", {
+        "cantidad": cantidad,
+        "size_px": size_px,
+        "tamano_cm": tamano_cm_guardar,
+        "dpi": dpi,
+        "unidad": unidad,
+        "formato": formato,
+    })
     return {
         "created_count": len(created_items),
+        "size_px_final": size_px,
+        "tamano_cm_final": tamano_cm_guardar,
+        "dpi_final": dpi,
+        "unidad_final": unidad,
         "items": created_items,
     }
 
@@ -3369,6 +3528,8 @@ async def admin_qr_generar(req: AdminQrGenerarReq, request: Request, admin: dict
 @app.get("/api/admin/qr/list")
 def admin_qr_list(
     usado: bool | None = None,
+    habilitado: bool | None = None,
+    q: str | None = None,
     page: int = 1,
     per_page: int = 100,
     admin: dict = _promo_Depends(get_current_admin),
@@ -3380,13 +3541,27 @@ def admin_qr_list(
     params = []
     ph = "%s" if DB_ENGINE == "POSTGRES" else "?"
     if usado is not None:
-        if usado:
-            where.append("usado_registro_id IS NOT NULL")
+        where.append("usado_registro_id IS NOT NULL" if usado else "usado_registro_id IS NULL")
+    if habilitado is not None:
+        if DB_ENGINE == "POSTGRES":
+            where.append(f"habilitado = {ph}")
+            params.append(bool(habilitado))
         else:
-            where.append("usado_registro_id IS NULL")
+            where.append(f"habilitado = {ph}")
+            params.append(1 if habilitado else 0)
+    if q:
+        q = (q or "").strip()
+        if q:
+            where.append(f"(uuid_qr LIKE {ph} OR id_humano LIKE {ph} OR COALESCE(CAST(id AS TEXT), '') LIKE {ph})")
+            like = f"%{q}%"
+            params += [like, like, like]
     where_sql = f" WHERE {' AND '.join(where)}" if where else ""
 
-    cols = ["id", "uuid_qr", "id_humano", "size_px", "formato", "usado_registro_id", "usado_at", "creado_admin_id", "created_at"]
+    cols = [
+        "id", "uuid_qr", "id_humano", "size_px", "tamano_cm", "dpi", "unidad",
+        "formato", "habilitado", "inhabilitado_por_id", "inhabilitado_at",
+        "usado_registro_id", "usado_at", "creado_admin_id", "created_at",
+    ]
     cols_str = ", ".join(cols)
     with get_db_conn() as conn:
         cur = conn.cursor()
@@ -3398,7 +3573,202 @@ def admin_qr_list(
             tuple(qp) if DB_ENGINE == "POSTGRES" else qp,
         )
         items = _promo_fetch_all_to_dicts(cur, cols)
+        # Normalizar booleano habilitado para SQLite (1/0)
+        for it in items:
+            if DB_ENGINE == "POSTGRES":
+                it["habilitado"] = bool(it.get("habilitado", True))
+            else:
+                raw = it.get("habilitado")
+                it["habilitado"] = True if raw is None else (int(raw) == 1)
+            if it.get("usado_registro_id") is None:
+                it["usado"] = False
+            else:
+                it["usado"] = True
+            if it.get("tamano_cm"):
+                try:
+                    it["tamano_cm"] = float(it["tamano_cm"])
+                except Exception:
+                    pass
+            if it.get("dpi"):
+                try:
+                    it["dpi"] = int(it["dpi"])
+                except Exception:
+                    pass
     return {"total": total, "page": page, "per_page": per_page, "items": items}
+
+
+class AdminQrPatchReq(BaseModel):
+    """PATCH /api/admin/qr/:id_or_uuid — para habilitar/inhabilitar/edit individual."""
+    habilitado: bool | None = None
+    # Opcionalmente el admin puede cambiar el tamaño de un QR generado (si no fue usado):
+    tamano_cm: float | None = None
+    size_px: int | None = None
+    dpi: int | None = None
+    unidad: str | None = None
+    nota: str | None = None  # solo auditoria
+
+
+def _promo_resolver_qr_identifier(cur, ph, id_or_uuid):
+    """Dado un 'id_or_uuid' (integer id OR uuid_qr OR id_humano) devuelve row completa QR o None."""
+    cols = [
+        "id", "uuid_qr", "id_humano", "size_px", "tamano_cm", "dpi", "unidad",
+        "formato", "habilitado", "inhabilitado_por_id", "inhabilitado_at",
+        "usado_registro_id", "usado_at", "creado_admin_id", "created_at",
+    ]
+    cols_str = ", ".join(cols)
+    # Primero intentar como integer id
+    qr_id_int = None
+    try:
+        qr_id_int = int(id_or_uuid)
+    except Exception:
+        qr_id_int = None
+    if qr_id_int is not None:
+        cur.execute(f"SELECT {cols_str} FROM promo_qr_codes WHERE id = {ph}", (qr_id_int,))
+        row = cur.fetchone()
+        if row is not None:
+            return _promo_row_to_dict(row, cols)
+    # Luego intentar por uuid_qr exacto o id_humano exacto
+    s = str(id_or_uuid).strip()
+    cur.execute(f"SELECT {cols_str} FROM promo_qr_codes WHERE uuid_qr = {ph} OR id_humano = {ph}", (s, s))
+    row = cur.fetchone()
+    if row is not None:
+        return _promo_row_to_dict(row, cols)
+    return None
+
+
+# M)bis PATCH /api/admin/qr/{id_or_uuid}  (inhabilitar / rehabilitar / editar tamaño)
+@app.patch("/api/admin/qr/{id_or_uuid}")
+def admin_qr_patch(id_or_uuid, req: AdminQrPatchReq, admin: dict = _promo_Depends(get_current_admin)):
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        ph = "%s" if DB_ENGINE == "POSTGRES" else "?"
+        qr = _promo_resolver_qr_identifier(cur, ph, id_or_uuid)
+        if qr is None:
+            raise HTTPException(status_code=404, detail="QR no encontrado")
+        usado = qr.get("usado_registro_id") is not None
+        # Actualizaciones posibles
+        set_clauses = []
+        params = []
+        # ============ 1) HABILITAR / INHABILITAR ============
+        if req.habilitado is not None:
+            hab_new = bool(req.habilitado)
+            hab_prev = bool(qr.get("habilitado", True)) if DB_ENGINE == "POSTGRES" else (int(qr.get("habilitado", 1)) == 1)
+            if hab_new != hab_prev:
+                if DB_ENGINE == "POSTGRES":
+                    set_clauses.append("habilitado = %s")
+                    params.append(hab_new)
+                    if not hab_new:
+                        set_clauses.append("inhabilitado_por_id = %s")
+                        params.append(int(admin["id"]))
+                        set_clauses.append("inhabilitado_at = NOW()")
+                    else:
+                        set_clauses.append("inhabilitado_por_id = NULL")
+                        set_clauses.append("inhabilitado_at = NULL")
+                else:
+                    set_clauses.append("habilitado = ?")
+                    params.append(1 if hab_new else 0)
+                    if not hab_new:
+                        set_clauses.append("inhabilitado_por_id = ?")
+                        params.append(int(admin["id"]))
+                        set_clauses.append("inhabilitado_at = ?")
+                        params.append(datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"))
+                    else:
+                        set_clauses.append("inhabilitado_por_id = NULL")
+                        set_clauses.append("inhabilitado_at = NULL")
+        # ============ 2) TAMAÑO (solo si NO fue usado) ============
+        if not usado and (req.size_px is not None or req.tamano_cm is not None or req.dpi is not None or req.unidad is not None):
+            # Recalcular size_px final
+            unidad = (req.unidad or qr.get("unidad") or "pixeles").lower()
+            if unidad in ("cm", "centimetros", "centímetros", "centimetro", "centímetro"):
+                unidad = "centimetros"
+            else:
+                unidad = "pixeles"
+            dpi = qr.get("dpi") or 300
+            if req.dpi is not None:
+                dpi = int(req.dpi)
+            dpi = max(72, min(1200, dpi))
+            tamano_cm = qr.get("tamano_cm")
+            if req.tamano_cm is not None:
+                tamano_cm = float(req.tamano_cm)
+            # Calcular size_px
+            if req.size_px is not None:
+                size_px_new = int(req.size_px)
+                # Si la unidad era cm y no me pasaron tamano_cm + pasaron size_px, cambiar a pixeles modo legacy
+                if tamano_cm is None:
+                    unidad = "pixeles"
+                    tamano_cm = None
+            elif tamano_cm is not None and unidad == "centimetros":
+                size_px_new = int(round((float(tamano_cm) * dpi) / 2.54))
+            else:
+                size_px_new = int(qr.get("size_px") or 512)
+            size_px_new = max(256, min(2048, size_px_new))
+            if DB_ENGINE == "POSTGRES":
+                set_clauses += ["unidad = %s", "dpi = %s", "tamano_cm = %s", "size_px = %s"]
+                params += [unidad, dpi, tamano_cm, size_px_new]
+            else:
+                set_clauses += ["unidad = ?", "dpi = ?", "tamano_cm = ?", "size_px = ?"]
+                params += [unidad, dpi, tamano_cm, size_px_new]
+        if not set_clauses:
+            # No hay nada que actualizar
+            with get_db_conn() as conn2:
+                cur2 = conn2.cursor()
+                qr = _promo_resolver_qr_identifier(cur2, ph, id_or_uuid) or qr
+            return {"ok": True, "actualizado": False, "qr": qr}
+        # ======== EJECUTAR UPDATE ========
+        if DB_ENGINE == "POSTGRES":
+            set_clauses.append("id = %s")
+            params.append(int(qr["id"]))
+            sql = f"UPDATE promo_qr_codes SET {', '.join(set_clauses[:-1])} WHERE id = %s"
+            cur.execute(sql, params)
+        else:
+            sql = f"UPDATE promo_qr_codes SET {', '.join(set_clauses)} WHERE id = {ph}"
+            params.append(int(qr["id"]))
+            cur.execute(sql, params)
+        conn.commit()
+        # Auditoria
+        _promo_insert_auditoria(int(admin["id"]), "PATCH_QR", {
+            "qr_id": qr.get("id"),
+            "qr_uuid": qr.get("uuid_qr"),
+            "cambios_solicitados": req.model_dump(),
+            "nota": req.nota,
+        })
+        # Devolver QR actualizado
+        cur2 = conn.cursor()
+        qr2 = _promo_resolver_qr_identifier(cur2, ph, id_or_uuid)
+    return {"ok": True, "actualizado": True, "qr": qr2}
+
+
+# M)ter DELETE /api/admin/qr/{id_or_uuid}  (eliminar QR de la base, incluso usado)
+@app.delete("/api/admin/qr/{id_or_uuid}")
+def admin_qr_delete(id_or_uuid, admin: dict = _promo_Depends(get_current_admin)):
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        ph = "%s" if DB_ENGINE == "POSTGRES" else "?"
+        qr = _promo_resolver_qr_identifier(cur, ph, id_or_uuid)
+        if qr is None:
+            raise HTTPException(status_code=404, detail="QR no encontrado")
+        qr_id = int(qr["id"])
+        # Si el QR fue usado, poner en NULL el usado_registro_id del registro para mantener
+        # integridad (no queremos FK dangling si algun registro lo referencia, aunque no haya FK constraint en SQLite).
+        try:
+            if DB_ENGINE == "POSTGRES":
+                cur.execute("UPDATE promo_registros SET qr_id = NULL, qr_uuid = %s WHERE qr_id = %s AND (qr_id IS NOT NULL OR qr_uuid = %s)",
+                            (qr.get("uuid_qr"), qr_id, qr.get("uuid_qr")))
+                cur.execute("DELETE FROM promo_qr_codes WHERE id = %s", (qr_id,))
+            else:
+                cur.execute("UPDATE promo_registros SET qr_id = NULL WHERE qr_id = ?", (qr_id,))
+                cur.execute("DELETE FROM promo_qr_codes WHERE id = ?", (qr_id,))
+        except Exception:
+            conn.rollback()
+            raise
+        conn.commit()
+        _promo_insert_auditoria(int(admin["id"]), "DELETE_QR", {
+            "qr_id": qr_id,
+            "qr_uuid": qr.get("uuid_qr"),
+            "id_humano": qr.get("id_humano"),
+            "usado": bool(qr.get("usado_registro_id")),
+        })
+    return {"ok": True, "eliminado": True, "qr_eliminado": qr}
 
 
 # N) GET /api/admin/auditoria

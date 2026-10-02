@@ -170,7 +170,7 @@ export default function RegistroGanador() {
 
   return (
     <div className="screen ganador-screen">
-      <div className="screen-bg ganador-bg" />
+      <div className="screen-bg ganador-bg-fondo-vertical" />
 
       <div className="screen-header instrucciones-header">
         <div className="header-left" />

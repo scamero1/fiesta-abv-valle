@@ -1,25 +1,38 @@
+// 🔐 LIMPIEZA ANTI-BACKTICKS / COMILLAS / ESPACIOS (igual que AdminLogin.jsx)
+// Railway NO limpia variables copiadas de bloques de código Markdown.
+const _cleanEnvUrl = (raw) => {
+  const v = String(raw == null ? '' : raw)
+    .replace(/^[\s`"'\u00A0]+/g, '')
+    .replace(/[\s`"'\u00A0]+$/g, '')
+  return v
+}
+
+const _envBackendBase = () =>
+  _cleanEnvUrl(
+    import.meta.env.VITE_BACKEND_URL ||
+    import.meta.env.VITE_PROCESS_URL ||
+    import.meta.env.VITE_RAILWAY_URL ||
+    ''
+  )
+
 const API_CONFIG = {
   // PRIORIDAD 1: VITE_BACKEND_URL  (la que configuras en el Dashboard del Frontend Railway)
   // PRIORIDAD 2: VITE_PROCESS_URL   (legacy Fase2)
   // PRIORIDAD 3: VITE_RAILWAY_URL   (legacy)
-  PROCESS_FULL_ENDPOINT:
-    import.meta.env.VITE_BACKEND_URL ||
-    import.meta.env.VITE_PROCESS_URL ||
-    import.meta.env.VITE_RAILWAY_URL ||
-    '',
+  PROCESS_FULL_ENDPOINT: _envBackendBase(),
   // Background removal endpoint: si no hay uno específico, intenta deducirlo desde BACKEND_URL
   // (así solo con configurar VITE_BACKEND_URL ya funciona todo, sin 3 variables distintas)
   BACKGROUND_REMOVAL_ENDPOINT:
-    import.meta.env.VITE_BG_REMOVAL_URL ||
+    _cleanEnvUrl(import.meta.env.VITE_BG_REMOVAL_URL || '') ||
     (() => {
-      const base = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_PROCESS_URL || import.meta.env.VITE_RAILWAY_URL || ''
+      const base = _envBackendBase()
       if (!base) return ''
       return base.replace(/\/+$/, '') + '/api/remove-bg-b64'
     })(),
-  BACKGROUND_REMOVAL_API_KEY: import.meta.env.VITE_BG_REMOVAL_KEY || '',
-  COMPOSITION_ENDPOINT: import.meta.env.VITE_COMPOSITION_URL || '',
-  UPLOAD_ENDPOINT: import.meta.env.VITE_UPLOAD_URL || '',
-  LOCAL_SERVER_URL: import.meta.env.VITE_LOCAL_SERVER_URL || '',
+  BACKGROUND_REMOVAL_API_KEY: _cleanEnvUrl(import.meta.env.VITE_BG_REMOVAL_KEY || ''),
+  COMPOSITION_ENDPOINT: _cleanEnvUrl(import.meta.env.VITE_COMPOSITION_URL || ''),
+  UPLOAD_ENDPOINT: _cleanEnvUrl(import.meta.env.VITE_UPLOAD_URL || ''),
+  LOCAL_SERVER_URL: _cleanEnvUrl(import.meta.env.VITE_LOCAL_SERVER_URL || ''),
   USE_MOCK: import.meta.env.VITE_USE_BG_MOCK === 'true',
 }
 

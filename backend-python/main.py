@@ -81,8 +81,32 @@ PUBLIC_ASSETS = _resolve_public_assets()
 STORAGE_DIR = os.environ.get("STORAGE_DIR", os.path.join(BASE_DIR, "public-fotos"))
 os.makedirs(STORAGE_DIR, exist_ok=True)
 
+
+def _clean_env_str(raw, *, strip_slash_end=False, is_url_like=False):
+    """Limpiador UNIVERSAL anti-backticks / comillas / espacios para Railway env vars.
+
+    Railway NO limpia los valores de variables al copiar/pegar desde Markdown.
+    Si el usuario pega `https://dominio` con backticks incluidos, el valor
+    queda con el backtick como LITERAL parte del dominio → DNS falla instantáneo.
+
+    Limpia AUTOMÁTICAMENTE:
+      - backticks ` , comillas dobles " , comillas simples ' , espacios, tabs,
+        non-break-space (U+00A0) al INICIO y al FIN del valor.
+      - si strip_slash_end=True: quita slashes / finales duplicados.
+      - is_url_like=True: hace trim de ambos extremos y strip slash.
+    """
+    if raw is None:
+        return ""
+    s = str(raw)
+    s = s.lstrip(" \t\r\n\f\v\u00A0`\"'")
+    s = s.rstrip(" \t\r\n\f\v\u00A0`\"'")
+    if strip_slash_end or is_url_like:
+        s = s.rstrip("/")
+    return s
+
+
 # ====== DATABASE (PostgreSQL vía Private Network / fallback SQLite) ======
-DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+DATABASE_URL = _clean_env_str(os.environ.get("DATABASE_URL", ""))
 # ⚠️ Railway inyecta DATABASE_URL automáticamente AL ATTACHAR LA DB VÍA PRIVATE NETWORKING.
 # El host público proxy.rlwy.net es válido (egress costs billable), pero si el usuario NO tiene
 # opción "Attach Database" en Railway UI (solo dispone del URL público), lo aceptamos igualmente.
@@ -566,24 +590,26 @@ def _cors_allow_list_from_env():
     """Return a set[str] with ALL allowed origins normalized (scheme+netloc only)."""
     origins = set()
     # 1. FRONTEND_URL principal (si existe)
-    fu = (os.environ.get("FRONTEND_URL") or "").strip()
+    fu = _clean_env_str(os.environ.get("FRONTEND_URL") or "", strip_slash_end=True)
     if fu:
         origins.add(fu)
     # 1-BIS: VITE_PUBLIC_URL (seteado automáticamente por Railway en servicio Frontend.
     # Si el user se confundió y lo copió/pegó también al servicio Backend, lo usamos.)
-    vpu = (os.environ.get("VITE_PUBLIC_URL") or "").strip()
+    vpu = _clean_env_str(os.environ.get("VITE_PUBLIC_URL") or "", strip_slash_end=True)
     if vpu:
         origins.add(vpu)
     # 1-TER: VITE_BACKEND_URL pegado en backend por error user (no usamos valor como
     # origin frontend PERO si contiene .railway.app lo agregamos igual fallback 0 errores).
-    vbu = (os.environ.get("VITE_BACKEND_URL") or "").strip()
+    vbu = _clean_env_str(os.environ.get("VITE_BACKEND_URL") or "", strip_slash_end=True)
     if vbu and ("up.railway.app" in vbu.lower() or ".railway.app" in vbu.lower()):
         origins.add(vbu)
     # 2. Allowlist configurable por Railway Variables:
-    al_env = (os.environ.get("CORS_ALLOW_ORIGINS") or os.environ.get("VITE_ALLOW_ORIGINS") or "").strip()
+    al_env = _clean_env_str(
+        os.environ.get("CORS_ALLOW_ORIGINS") or os.environ.get("VITE_ALLOW_ORIGINS") or ""
+    )
     if al_env:
         for part in al_env.split(","):
-            p = part.strip().rstrip("/")
+            p = _clean_env_str(part, strip_slash_end=True)
             if p:
                 origins.add(p)
     # 3. Known dev domains (localhost 5173/4173/3000 + mobile webviews):
@@ -594,7 +620,10 @@ def _cors_allow_list_from_env():
     ]:
         origins.add(dev)
     # 4. Backend mismo dominio (por si algún endpoint es llamado same-origin):
-    be_own = (os.environ.get("BACKEND_PUBLIC_URL") or os.environ.get("RAILWAY_PUBLIC_DOMAIN") or "").strip()
+    be_own = _clean_env_str(
+        os.environ.get("BACKEND_PUBLIC_URL") or os.environ.get("RAILWAY_PUBLIC_DOMAIN") or "",
+        strip_slash_end=True,
+    )
     if be_own:
         origins.add(be_own)
     # Normalizar todo a scheme://netloc minúsculas sin trailing slash
@@ -856,7 +885,15 @@ def cors_test_simple(request: Request):
         "request_origin_permitido": bool(allow_ok),
         "request_origin_echo": echo,
         "cors_allow_list": sorted(list(CORS_ALLOW_SET))[:50],
-        "FRONTEND_URL_config": os.environ.get("FRONTEND_URL") or "",
+        "FRONTEND_URL_config_raw": os.environ.get("FRONTEND_URL") or "",
+        "FRONTEND_URL_config_USADO_EFECTIVAMENTE": _clean_env_str(
+            os.environ.get("FRONTEND_URL") or "", strip_slash_end=True
+        ),
+        "backticks_limpiados_automaticamente": (
+            (os.environ.get("FRONTEND_URL") or "")
+            !=
+            _clean_env_str(os.environ.get("FRONTEND_URL") or "", strip_slash_end=True)
+        ),
         "CORS_ALLOW_ORIGINS_env": os.environ.get("CORS_ALLOW_ORIGINS") or "",
         "request_user_agent": (request.headers.get("user-agent") or "")[:120],
         "server_time_utc": datetime.now(timezone.utc).isoformat(),
@@ -904,14 +941,23 @@ def startup_init_db_and_model():
     if DB_ENGINE == "POSTGRES":
         _pg_note = f" | PublicProxy={_pg_is_public_proxy} (egress billable · recomendado .railway.internal si UI Attach DB disponible)"
     print(f"[startup] engine={DB_ENGINE} (DATABASE_URL_set={bool(DATABASE_URL)}){_pg_note} | IA model={MODEL_NAME} | CPU only")
+    _fu_raw = os.environ.get("FRONTEND_URL") or ""
+    _fu_clean = _clean_env_str(_fu_raw, strip_slash_end=True)
+    _fu_limpio = bool(_fu_raw != _fu_clean)
     print(
         f"[startup-CONFIG-VARS] "
-        f"FRONTEND_URL_env={ (os.environ.get('FRONTEND_URL') or '')[:90]!r} | "
+        f"FRONTEND_URL_env_raw={_fu_raw[:90]!r} | "
+        f"FRONTEND_URL_USADO={_fu_clean[:90]!r} | "
+        f"backticks_limpiados_auto={_fu_limpio} | "
         f"CORS_ALLOW_ORIGINS_env={ (os.environ.get('CORS_ALLOW_ORIGINS') or '')[:120]!r} | "
         f"JWT_SECRET_set={bool(os.environ.get('JWT_SECRET'))} | "
         f"BACKEND_PUBLIC_URL_env={ (os.environ.get('BACKEND_PUBLIC_URL') or '')[:80]!r} | "
         f"STORAGE_DIR={STORAGE_DIR}"
     )
+    if _fu_limpio:
+        print("[startup-ADVERTENCIA ⚠️] 🚨 FRONTEND_URL contenía backticks/comillas al pegar desde Markdown. "
+              "El CÓDIGO lo limpió AUTOMÁTICAMENTE, pero ARRÉGLALO en Railway Variables para evitar futuros problemas: "
+              "edita la variable FRONTEND_URL y borra los backticks ` y comillas que la envuelven.")
     # ====== ADVERTENCIA CRÍTICA SI ESTAMOS EN SQLITE SIN VOLUMEN PERSISTENTE EN RAILWAY ======
     if DB_ENGINE == "SQLITE":
         print("=" * 78)
@@ -3868,9 +3914,15 @@ def promo_debug_health(request: Request):
     """Healthcheck simple sistema promocion: estado tablas, admin existe, + CONTEOS filas para diagnosticar QRs perdidos."""
     out = {"db_engine": DB_ENGINE, "ok": True, "checks": {}, "counts": {}}
     # Variables entorno mostradas sin secrets (para diagnosticar CORS)
+    _fu_raw = os.environ.get("FRONTEND_URL") or ""
+    _fu_clean = _clean_env_str(_fu_raw, strip_slash_end=True)
     out["env"] = {
-        "FRONTEND_URL_config": (os.environ.get("FRONTEND_URL") or "")[:120],
-        "CORS_ALLOW_ORIGINS_env": (os.environ.get("CORS_ALLOW_ORIGINS") or "")[:160],
+        "FRONTEND_URL_config_raw": _fu_raw[:120],
+        "FRONTEND_URL_config_USADO_EFECTIVAMENTE": _fu_clean[:120],
+        "backticks_limpiados_automaticamente": bool(_fu_raw != _fu_clean),
+        "CORS_ALLOW_ORIGINS_env_raw": (os.environ.get("CORS_ALLOW_ORIGINS") or "")[:160],
+        "CORS_ALLOW_ORIGINS_env_USADO_EFECTIVAMENTE":
+            _clean_env_str(os.environ.get("CORS_ALLOW_ORIGINS") or "")[:160],
         "JWT_SECRET_SET": bool(os.environ.get("JWT_SECRET")),
         "BACKEND_PUBLIC_URL_env": (os.environ.get("BACKEND_PUBLIC_URL") or "")[:80],
     }
@@ -4531,13 +4583,8 @@ async def admin_qr_generar(req: AdminQrGenerarReq, request: Request, admin: dict
 
     scheme = request.base_url.scheme
     host_hdr = request.headers.get("host", "")
-    origin_hdr = (request.headers.get("origin") or "").strip()
-    frontend_url_env = (os.environ.get("FRONTEND_URL") or "").strip().rstrip("/")
-
-    # PRIORIDAD para armar frontend_base_url (el QR lleva al USUARIO FINAL al REACT, NO al fastapi backend):
-    #   1) Railway var FRONTEND_URL = la más segura, permanente, user la configura 1 vez.
-    #   2) ORIGIN header del request admin = el navegador/admin lo envia SIEMPRE desde el FRONTEND.
-    #   3) Fallback legacy = scheme + host (solo si es 1 solo dominio backend+frontend, caso RARO).
+    origin_hdr = _clean_env_str(request.headers.get("origin") or "")
+    frontend_url_env = _clean_env_str(os.environ.get("FRONTEND_URL") or "", strip_slash_end=True)
     frontend_base_url = None
     if frontend_url_env:
         # Acepta valor con o sin barra final, con o sin /ganador/registro etc.
@@ -4927,8 +4974,8 @@ def _promo_qr_compute_frontend_base_url(request):
     """
     scheme = request.base_url.scheme
     host_hdr = request.headers.get("host", "")
-    origin_hdr = (request.headers.get("origin") or "").strip()
-    frontend_url_env = (os.environ.get("FRONTEND_URL") or "").strip().rstrip("/")
+    origin_hdr = _clean_env_str(request.headers.get("origin") or "")
+    frontend_url_env = _clean_env_str(os.environ.get("FRONTEND_URL") or "", strip_slash_end=True)
     base = None
     if frontend_url_env:
         base = frontend_url_env

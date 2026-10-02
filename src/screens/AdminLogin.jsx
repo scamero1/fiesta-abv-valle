@@ -15,7 +15,18 @@ const LS_EXP = 'abv_admin_jwt_exp'
 // PRIORIDAD 4: string vacío = localhost proxy (dev) o mismo dominio producción SI
 //             hay rewrite rules.
 // =================================================================
-export const BACKEND_URL = (
+// 🔐 LIMPIEZA ANTI-BACKTICKS / COMILLAS / ESPACIOS:
+// Railway NO limpia variables copiadas de bloques de código Markdown.
+// Si usuario pega `https://...` con backticks dentro, el DNS falla = Failed to fetch HTTP 0.
+// Limpiamos AUTOMÁTICAMENTE: backticks `, comillas dobles ", comillas simples ',
+// espacios/tabulaciones al inicio/fin, y slashes finales duplicados.
+const _cleanEnvUrl = (raw) => {
+  const v = String(raw == null ? '' : raw)
+    .replace(/^[\s`"'\u00A0]+/g, '')
+    .replace(/[\s`"'\u00A0]+$/g, '')
+  return v
+}
+export const BACKEND_URL = _cleanEnvUrl(
   import.meta.env.VITE_BACKEND_URL ||
   import.meta.env.VITE_PROCESS_URL ||
   import.meta.env.VITE_RAILWAY_URL ||

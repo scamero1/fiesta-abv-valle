@@ -35,7 +35,8 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Request, sta
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator, model_validator
+from typing import Any
 from rembg import remove, new_session
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import io
@@ -476,6 +477,53 @@ app.add_middleware(
     expose_headers=["*"],
     max_age=86400,
 )
+
+from fastapi.exceptions import RequestValidationError
+from fastapi.encoders import jsonable_encoder
+
+
+@app.exception_handler(RequestValidationError)
+async def _handler_validation_error_legible(request: Request, exc: RequestValidationError):
+    """Intercepta el HTTP 422 nativo de Pydantic/FastAPI.
+    Pydantic envía por defecto {"detail": [ {loc,msg,type}, ... ]} — array de objetos.
+    El front a veces hace `${data.detail}` directamente → "[object Object],[object Object]" ilegible.
+
+    Solución: convertimos detail a UNA SOLA LÍNEA DE TEXTO concatenada (máx 800 chars)
+    + guardamos los errores completos en key `validation_errors` (array original) para
+    debug avanzado si el front lo necesita."""
+    errs = list(exc.errors() or [])
+    # Construir detalle legible:
+    lineas = []
+    for i, er in enumerate(errs[:8]):
+        try:
+            loc = er.get("loc")
+            if isinstance(loc, (list, tuple)):
+                loc_str = ".".join(str(x) for x in loc if str(x) != "body")
+            else:
+                loc_str = str(loc or "")
+            msg = str(er.get("msg") or er or "error")
+            ty = str(er.get("type") or "")
+            lineas.append(f"[{i+1}] {loc_str or ty}: {msg}")
+        except Exception:
+            lineas.append(str(er))
+    detalle_corto = " · ".join(lineas)
+    if len(detalle_corto) > 900:
+        detalle_corto = detalle_corto[:896] + " ..."
+    try:
+        path = request.url.path
+        origin = request.headers.get("origin") or ""
+        print(f"[REQ-422] POST {path} | origin={origin!r} | n_errors={len(errs)} | detalle={detalle_corto[:160]!r}")
+    except Exception:
+        pass
+    content = jsonable_encoder({
+        "detail": detalle_corto or "Validación fallida (revisa los campos)",
+        "validation_errors": errs,
+        "campo_primer_error": (
+            ".".join(str(x) for x in (errs[0].get("loc") or []) if str(x) != "body")
+            if errs else None
+        ),
+    })
+    return JSONResponse(status_code=422, content=content)
 
 
 @app.middleware("http")
@@ -2813,6 +2861,8 @@ class PromoAceptacionReq(BaseModel):
 
 
 class PromoRegistroReq(BaseModel):
+    model_config = {"extra": "allow"}  # permitir campos extra por si el front manda nombres legacy
+
     qr_uuid: str
     nombres_apellidos: str
     celular: str | None = None
@@ -2823,8 +2873,120 @@ class PromoRegistroReq(BaseModel):
     barrio: str | None = None
     municipio: str | None = None
     ciudad: str
-    acepta_terminos_at_iso: str
-    acepta_habeas_at_iso: str
+    acepta_terminos_at_iso: str = ""
+    acepta_habeas_at_iso: str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _compatibilizar_nombres_campos_front_legacy(cls, data: Any) -> Any:
+        """El front a veces envía nombres antiguos (sin _iso final o confirmar_celular).
+        Renombramos aquí ANTES de que Pydantic valide campos obligatorios, para
+        evitar el HTTP 422 por diferencias de nombres entre versiones."""
+        if not isinstance(data, dict):
+            return data
+        # Clonamos para no mutar el input original
+        d = dict(data)
+        # 1) Timestamp términos y condiciones: acepta_terminos_at (legacy) → acepta_terminos_at_iso
+        if not d.get("acepta_terminos_at_iso") and d.get("acepta_terminos_at"):
+            d["acepta_terminos_at_iso"] = str(d["acepta_terminos_at"])
+        # 2) Timestamp habeas data: acepta_habeas_at (legacy) → acepta_habeas_at_iso
+        if not d.get("acepta_habeas_at_iso") and d.get("acepta_habeas_at"):
+            d["acepta_habeas_at_iso"] = str(d["acepta_habeas_at"])
+        # 3) Confirmación celular: confirmar_celular (front form name) → celular_confirmacion (pydantic)
+        if (not d.get("celular_confirmacion")) and d.get("confirmar_celular"):
+            d["celular_confirmacion"] = str(d["confirmar_celular"])
+        # 4) Si celular_confirmacion sigue None y confirmar_celular tampoco,
+        # pero hay celular, lo duplicamos para evitar errores triviales en usuarios
+        # que NO tienen campo confirmar_celular (registro administrativo rápido).
+        if (not d.get("celular_confirmacion")) and d.get("celular"):
+            d["celular_confirmacion"] = str(d["celular"])
+        # 5) Si acepta_* siguen vacíos, rellenamos con hora actual UTC.
+        if not d.get("acepta_terminos_at_iso"):
+            d["acepta_terminos_at_iso"] = datetime.now(timezone.utc).isoformat()
+        if not d.get("acepta_habeas_at_iso"):
+            d["acepta_habeas_at_iso"] = datetime.now(timezone.utc).isoformat()
+        # 6) Trim de los campos string principales:
+        for k in ("qr_uuid", "nombres_apellidos", "celular", "telefono_fijo",
+                  "celular_confirmacion", "correo_electronico", "direccion",
+                  "barrio", "municipio", "ciudad", "acepta_terminos_at_iso",
+                  "acepta_habeas_at_iso"):
+            if isinstance(d.get(k), str):
+                d[k] = d[k].strip()
+                # Convertir string vacío → None en los opcionales.
+                if d[k] == "" and k in ("celular", "telefono_fijo", "celular_confirmacion", "barrio", "municipio"):
+                    d[k] = None
+        return d
+
+    @field_validator("nombres_apellidos")
+    @classmethod
+    def _v_nombres(cls, v):
+        s = (v or "").strip()
+        if len(s) < 2:
+            raise ValueError("nombres_apellidos minimo 2 caracteres")
+        if len(s) > 160:
+            return s[:160]
+        return s
+
+    @field_validator("correo_electronico")
+    @classmethod
+    def _v_correo(cls, v):
+        s = (v or "").strip().lower()
+        if len(s) < 6 or "@" not in s or "." not in s.split("@")[-1]:
+            raise ValueError("correo_electronico formato invalido (falta @ o .dominio)")
+        if len(s) > 180:
+            return s[:180]
+        return s
+
+    @field_validator("celular", "telefono_fijo", "celular_confirmacion")
+    @classmethod
+    def _v_tel(cls, v, info):
+        if v is None:
+            return None
+        s = "".join(ch for ch in str(v) if ch.isdigit())
+        if info.field_name == "telefono_fijo":
+            if not (7 <= len(s) <= 15):
+                # No levantamos error por telefono_fijo porque es opcional; limpiamos
+                # a None si es inválido para no guardar basura.
+                return None
+            return s[:15]
+        # celular / celular_confirmacion
+        if len(s) < 7:
+            return None  # 10 digits Colombia, pero aceptamos ≥7 internacional
+        if len(s) > 15:
+            return s[:15]
+        return s
+
+    @field_validator("direccion")
+    @classmethod
+    def _v_direccion(cls, v):
+        s = (v or "").strip()
+        if len(s) < 5:
+            raise ValueError("direccion minimo 5 caracteres")
+        if len(s) > 240:
+            return s[:240]
+        return s
+
+    @field_validator("ciudad")
+    @classmethod
+    def _v_ciudad(cls, v):
+        s = (v or "").strip()
+        if len(s) < 2:
+            raise ValueError("ciudad minimo 2 caracteres")
+        if len(s) > 120:
+            return s[:120]
+        return s
+
+    @field_validator("barrio", "municipio")
+    @classmethod
+    def _v_texto_corto(cls, v):
+        if v is None:
+            return None
+        s = (v or "").strip()
+        if s == "":
+            return None
+        if len(s) > 120:
+            return s[:120]
+        return s
 
 
 class AdminLoginReq(BaseModel):

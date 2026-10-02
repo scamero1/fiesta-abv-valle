@@ -101,16 +101,16 @@ export default function RegistroGanador() {
     try {
       const body = {
         qr_uuid,
-        acepta_terminos_at: state.acepta_terminos_at || new Date().toISOString(),
-        acepta_habeas_at: state.acepta_habeas_at || new Date().toISOString(),
+        acepta_terminos_at_iso: state.acepta_terminos_at_iso || state.acepta_terminos_at || new Date().toISOString(),
+        acepta_habeas_at_iso: state.acepta_habeas_at_iso || state.acepta_habeas_at || new Date().toISOString(),
         nombres_apellidos: form.nombres_apellidos.trim(),
-        celular: form.celular,
+        celular: form.celular || null,
         telefono_fijo: form.telefono_fijo || null,
-        confirmar_celular: form.confirmar_celular,
+        celular_confirmacion: form.confirmar_celular || form.celular_confirmacion || null,
         correo_electronico: form.correo_electronico.trim().toLowerCase(),
         direccion: form.direccion.trim(),
-        barrio: form.barrio.trim(),
-        municipio: form.municipio.trim(),
+        barrio: form.barrio ? form.barrio.trim() : null,
+        municipio: form.municipio ? form.municipio.trim() : null,
         ciudad: form.ciudad.trim(),
       }
 
@@ -120,15 +120,43 @@ export default function RegistroGanador() {
         body: JSON.stringify(body),
       })
 
-      const data = await res.json().catch(() => ({}))
+      const textRaw = await res.text().catch(() => '')
+      let data = {}
+      try { data = textRaw ? JSON.parse(textRaw) : {} } catch (_e) { data = { _raw: textRaw.slice(0, 1200) } }
+
+      const formatearErrorPydantic = () => {
+        const arr = (data && Array.isArray(data.detail)) ? data.detail : null
+        if (arr && arr.length) {
+          const lineas = arr.map((er, i) => {
+            try {
+              const loc = Array.isArray(er.loc) ? er.loc.join(' > ') : String(er.loc || '')
+              const msg = String(er.msg || er.message || er || 'error sin mensaje')
+              const ty = String(er.type || '')
+              return `${i+1}) [${loc || ty || 'body'}] ${msg}`.trim()
+            } catch {
+              return String(er)
+            }
+          })
+          return lineas.join(' · ')
+        }
+        if (data && typeof data.detail === 'string') return data.detail
+        if (data && typeof data.message === 'string') return data.message
+        if (data && typeof data.error === 'string') return data.error
+        if (data && data._raw) return String(data._raw).slice(0, 280)
+        return 'No se pudo completar el registro. Intenta nuevamente.'
+      }
 
       if (res.ok && (data.registro_id || data.id)) {
         navigate(`/ganador/gracias/${data.registro_id || data.id}`)
       } else {
+        const txt = formatearErrorPydantic()
         setErrores((prev) => ({
           ...prev,
-          _generico: `HTTP ${res.status} — ${data.detail || data.error || data.message || 'No se pudo completar el registro. Intenta nuevamente.'}`,
+          _generico: `HTTP ${res.status} — ${String(txt).slice(0, 480)}`,
+          _detalleTecnico: data,
         }))
+        // Debug temporal panel F12:
+        try { console.warn('[RegistroGanador] error HTTP '+res.status+':', data, 'body enviado:', body) } catch {}
       }
     } catch (err) {
       setErrores((prev) => ({

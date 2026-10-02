@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { QRCodeCanvas } from 'qrcode.react'
 import { leerJWTValido, borrarJWT, BACKEND_URL, apiUrl } from './AdminLogin.jsx'
+import PdfConfigModal from './PdfConfigModal.jsx'
 import '../styles/adminDashboard.css'
 
 const TABS = ['Configuración', 'Registros', 'Códigos QR']
@@ -500,6 +501,31 @@ function TabQRCodigos({ authHeaders, toast }) {
   const [filtroUsado, setFiltroUsado] = useState(null)
   const [confirmQR, setConfirmQR] = useState(null)
 
+  // === MODAL CONFIGURACIÓN PDF + VISTA PREVIA ======
+  const [pdfModalOpen, setPdfModalOpen] = useState(false)
+  const [pdfModalModo, setPdfModalModo] = useState('recien') // 'recien' | 'historial' | 'disponibles'
+  const [pdfModalExtraInfo, setPdfModalExtraInfo] = useState({ label: '', count: 0 })
+
+  const abrirPdfModal = (modo, extra = {}) => {
+    setPdfModalModo(modo)
+    setPdfModalExtraInfo({ count: Number(extra && extra.count) || 0, label: extra && extra.label ? String(extra.label) : '' })
+    setPdfModalOpen(true)
+  }
+
+  // Contar QRs disponibles (habilitados + no usados) en el historial actual
+  const cantDisponiblesLive = () => {
+    if (Array.isArray(listadoTodos) && listadoTodos.length > 0) {
+      let c = 0
+      for (const qr of listadoTodos) {
+        const hab = qr.habilitado === true || qr.habilitado === 1 || qr.habilitado === '1' || qr.habilitado === 'true'
+        const usado = !!(qr.usado_registro_id != null)
+        if (hab && !usado) c++
+      }
+      return c
+    }
+    return Number(totalListado) || 0
+  }
+
   const recalcularPx = (valor, unidad, d, returnString = false) => {
     if (unidad === 'centimetros') {
       const cm = parseFloat(valor) || 0
@@ -799,6 +825,53 @@ function TabQRCodigos({ authHeaders, toast }) {
     }
   }
 
+  // ===== HANDLER ON-CONFIRM MODAL CONFIG PDF (junta modo + cfg del modal) =====
+  const handlePdfModalConfirm = (cfgFinalDelModal) => {
+    const cfg = cfgFinalDelModal && typeof cfgFinalDelModal === 'object' ? cfgFinalDelModal : {}
+    let body = { ...cfg } // layout / visibilidad / margenes ya vienen del modal
+    let sufijo = 'pdf'
+    let qty = 0
+    switch (pdfModalModo) {
+      case 'recien': {
+        const idsOk = (resultados || [])
+          .map((r) => (r && r.id != null) ? Number(r.id) : null)
+          .filter((x) => Number.isFinite(x) && x > 0)
+        body.ids = idsOk
+        body.max_qrs = Math.max(500, (idsOk.length + 500))
+        sufijo = 'recien-generados'
+        qty = idsOk.length
+        break
+      }
+      case 'disponibles': {
+        // QRs SOLAMENTE HABILITADOS + NO USADOS (exactamente lo que pediste: los que están disponibles para usar)
+        body.habilitado = true
+        body.usado = false
+        body.q = busquedaQR && busquedaQR.trim() ? busquedaQR.trim() : null
+        body.max_qrs = 5000
+        sufijo = 'disponibles-sin-usar'
+        qty = cantDisponiblesLive()
+        break
+      }
+      case 'historial':
+      default: {
+        body.habilitado = filtroHab
+        body.usado = filtroUsado
+        body.q = busquedaQR && busquedaQR.trim() ? busquedaQR.trim() : null
+        body.max_qrs = 1000
+        sufijo = 'historial-completo'
+        qty = Number(totalListado) || 0
+        break
+      }
+    }
+    setPdfModalOpen(false)
+    // Ejecutar la descarga real:
+    setTimeout(() => descargarPDF(body, sufijo), 30)
+    // Feedback leve
+    if (qty > 0) {
+      toast(`⏳ Generando PDF con ~${qty} QR(s)... (${String(sufijo).toUpperCase()})`, 'ok')
+    }
+  }
+
   return (
     <div className="admin-panel">
       <div className="admin-panel-header">
@@ -821,20 +894,44 @@ function TabQRCodigos({ authHeaders, toast }) {
               ⬇ Descargar TODOS ZIP (front)
             </button>
           )}
+          {/* ============ 3 BOTONES PDF CON MODAL CONFIG + VISTA PREVIA ============ */}
           <button
             type="button"
             className="admin-btn success"
-            onClick={() => descargarPDF({
-              ids: (resultados || []).map((r) => (r && r.id != null) ? Number(r.id) : null).filter((x) => Number.isFinite(x) && x > 0),
-              cols: 3,
-              filas_por_pagina: 7,
-              pagina_horizontal: false,
-              qr_id_on_page: true,
-            }, 'recien-generados')}
+            onClick={() => abrirPdfModal('recien', {
+              count: (resultados || []).length || 0,
+              label: (resultados || []).length
+                ? `✅ Exportar los ${(resultados || []).length} QR recién generados (IDs exactos arriba, mismo orden)`
+                : '⚠ Primero genera códigos QR con el botón azul para exportar los recién creados.',
+            })}
             disabled={(resultados || []).length === 0}
-            title={resultados.length ? `Generar PDF con los ${resultados.length} QR recién generados (arriba)` : 'Primero genera códigos QR con el botón azul'}
+            title={(resultados || []).length
+              ? `Abrir configuración PDF con vista previa · ${(resultados || []).length} QR recién generados (IDs exactos)`
+              : '⚠ Primero genera códigos QR con el botón azul'}
           >
             📄 PDF Recién Generados
+          </button>
+          <button
+            type="button"
+            className="admin-btn ghost"
+            style={{
+              background: 'linear-gradient(180deg, #fef9c3 0%, #fde047 100%)',
+              border: '1.5px solid #ca8a04',
+              color: '#713f12',
+              fontWeight: 800,
+            }}
+            onClick={() => {
+              const c = cantDisponiblesLive()
+              abrirPdfModal('disponibles', {
+                count: c,
+                label: c
+                  ? `✅ Exportar los ${c} QR HABILITADOS Y SIN USAR (solo los que ESTÁN DISPONIBLES para repartir)`
+                  : '⚠ No hay QRs disponibles en este momento. Genera códigos primero.',
+              })
+            }}
+            title="Abrir configuración PDF + vista previa · Exporta SOLO los QR HABILITADOS + NO USADOS (los que aún puedes entregar)"
+          >
+            🟨 PDF DISPONIBLES (Solo no usados)
           </button>
           <button
             type="button"
@@ -844,17 +941,15 @@ function TabQRCodigos({ authHeaders, toast }) {
               border: '1.5px solid #fb923c',
               color: '#9a3412',
             }}
-            onClick={() => descargarPDF({
-              habilitado: filtroHab,
-              usado: filtroUsado,
-              q: busquedaQR && busquedaQR.trim() ? busquedaQR.trim() : null,
-              max_qrs: 1000,
-              cols: 3,
-              filas_por_pagina: 7,
-              pagina_horizontal: false,
-              qr_id_on_page: true,
-            }, 'historial-completo')}
-            title="Exportar PDF con todo el HISTORIAL (aplica filtros: busqueda / hab / uso). Límite 1000 QRs por PDF."
+            onClick={() => abrirPdfModal('historial', {
+              count: Number(totalListado) || 0,
+              label: `📚 Exportar TODO el historial de QRs. RESPETA filtros actuales (habilitado: ${
+                filtroHab === null ? 'TODOS' : (filtroHab ? 'SÓLO HABILITADOS' : 'SÓLO INHABILITADOS')
+              } · usado: ${
+                filtroUsado === null ? 'TODOS' : (filtroUsado ? 'SÓLO USADOS' : 'SÓLO SIN USAR')
+              }${busquedaQR && busquedaQR.trim() ? ` · búsqueda "${busquedaQR.trim()}"` : ''})`,
+            })}
+            title="Abrir configuración PDF + vista previa · Historial completo, respeta filtros (busqueda / hab / uso). Límite 1000 QRs."
           >
             📑 PDF Historial (filtros)
           </button>
@@ -1407,7 +1502,17 @@ function TabQRCodigos({ authHeaders, toast }) {
           </div>
         </div>
       )}
+
+      {/* ====== MODAL CONFIGURACIÓN PDF + VISTA PREVIA MINIATURA LIVE ====== */}
+      <PdfConfigModal
+        open={pdfModalOpen}
+        onClose={() => setPdfModalOpen(false)}
+        onConfirm={(cfgFinalDelModal) => handlePdfModalConfirm(cfgFinalDelModal)}
+        modo={pdfModalModo}
+        qtyInfo={pdfModalExtraInfo}
+      />
     </div>
   )
 }
+
 

@@ -4371,11 +4371,9 @@ class AdminQrPdfReq(BaseModel):
     """Body request para generar PDF de QRs. Cualquier combinación permitida:
     - ids: array de integer IDs (ex: recien generados ids). Si envías => ignoras filtros y traes SOLO esos.
     - OPCIONAL filtros mismos de /list (si no envías ids, trae todos los QRs que coincidan, ordenados id DESC, límite max_qrs).
-    - cols / filas_por_pagina: layout cuantos por página.
-    - pagina_horizontal: True = paisaje / False = retrato.
-    - forzar_tamano_cm: si >0 ignora tamano_cm de cada QR y usa un tamaño UNIFORME en toda la hoja.
-    - qr_id_on_page: True → imprime ID HUMANO debajo (default True).
-    - incluir_fecha_titulo: default True.
+    - LAYOUT: cols / filas_por_pagina / pagina_horizontal / margenes mm.
+    - QRs: forzar_tamano_cm uniforme / qr_id_on_page / borde_punteado / mostrar_info_tecnica.
+    - HEADER/FOOTER: incluir_fecha_titulo / incluir_header_azul / incluir_footer_legal.
     """
     ids: list[int] | None = None
     usado: bool | None = None
@@ -4388,6 +4386,28 @@ class AdminQrPdfReq(BaseModel):
     forzar_tamano_cm: float | None = None
     qr_id_on_page: bool = True
     incluir_fecha_titulo: bool = True
+
+    # ========= NUEVOS PARÁMETROS DE CONFIGURACIÓN AVANZADA =========
+    # Visualización celdas:
+    borde_punteado: bool = True   # dibujar borde punteado gris alrededor c/celda (para cortar stickers)
+    mostrar_info_tecnica: bool = True  # línea 2 debajo QR: px·cm·dpi·INHAB (si qr_id_on_page=True)
+    id_humano_font_size_pt: float = 8.5  # tamaño fuente Helvetica-Bold ID humano debajo QR
+    info_font_size_pt: float = 7.0       # tamaño fuente info técnica
+
+    # Márgenes EN MILÍMETROS (mm) para personalizar hoja completa (float decimal permitido):
+    margen_mm_izq: float = 15.0
+    margen_mm_der: float = 15.0
+    margen_mm_sup: float = 22.0
+    margen_mm_inf: float = 16.0
+    gap_mm_entre_celdas: float = 4.0
+
+    # Incluir header / footer completos (si False => layout SIN marcas, solo QRs + ID minimalista para imprenta profesional):
+    incluir_header_azul: bool = True
+    incluir_footer_legal: bool = True
+    # Color header (hex #XXXXXX default azul marca ILV):
+    color_header_hex: str = "#0033A0"
+    # Título customizado arriba (si se envía reemplaza el default):
+    titulo_pdf: str | None = None
 
 
 def _promo_qr_fetch_ids_or_filtered(req: AdminQrPdfReq):
@@ -4486,16 +4506,28 @@ def admin_qr_pdf(req: AdminQrPdfReq, admin: dict = _promo_Depends(get_current_ad
 
     page_w_pt, page_h_pt = page_size
     mm_pt = 2.83464567  # 1mm = 2.8346 pt aprox
-    margen_laterales_mm = 15  # mm
-    margen_arriba_mm = 22     # mm (título y subtítulo)
-    margen_abajo_mm = 16      # mm (legal footer)
-    gap_entre_celdas_mm = 4   # mm entre QR y QR
 
-    margen_l_pt = margen_laterales_mm * mm_pt
-    margen_r_pt = margen_laterales_mm * mm_pt
-    margen_t_pt = margen_arriba_mm * mm_pt
-    margen_b_pt = margen_abajo_mm * mm_pt
-    gap_pt = gap_entre_celdas_mm * mm_pt
+    # ===== NUEVOS MÁRGENES CONFIGURABLES POR EL ADMIN (en mm) =====
+    margen_izq_mm = max(2.0, min(60.0, float(req.margen_mm_izq or 15.0)))
+    margen_der_mm = max(2.0, min(60.0, float(req.margen_mm_der or 15.0)))
+    margen_sup_mm = max(2.0, min(80.0, float(req.margen_mm_sup or 22.0)))
+    margen_inf_mm = max(2.0, min(60.0, float(req.margen_mm_inf or 16.0)))
+    gap_mm = max(0.0, min(20.0, float(req.gap_mm_entre_celdas or 4.0)))
+
+    # Si NO hay header_azul, reducimos el margen superior automático a un valor más pequeño
+    # para aprovechar espacio (excepto si admin puso un margen custom diferente):
+    header_visible = bool(req.incluir_header_azul)
+    footer_visible = bool(req.incluir_footer_legal)
+    if not header_visible and float(req.margen_mm_sup or 22.0) == 22.0:
+        margen_sup_mm = 10.0  # default 10mm cuando no hay header
+    if not footer_visible and float(req.margen_mm_inf or 16.0) == 16.0:
+        margen_inf_mm = 8.0    # default 8mm cuando no hay footer legal
+
+    margen_l_pt = margen_izq_mm * mm_pt
+    margen_r_pt = margen_der_mm * mm_pt
+    margen_t_pt = margen_sup_mm * mm_pt
+    margen_b_pt = margen_inf_mm * mm_pt
+    gap_pt = gap_mm * mm_pt
 
     area_util_w = page_w_pt - margen_l_pt - margen_r_pt
     area_util_h = page_h_pt - margen_t_pt - margen_b_pt
@@ -4513,11 +4545,24 @@ def admin_qr_pdf(req: AdminQrPdfReq, admin: dict = _promo_Depends(get_current_ad
         except Exception:
             forzar_cm = None
 
+    # Opciones visuales nuevas:
+    dibujar_borde_punteado = bool(req.borde_punteado)
+    mostrar_id_humano = bool(req.qr_id_on_page)
+    mostrar_info_tam = bool(req.mostrar_info_tecnica) and mostrar_id_humano
+    id_font_sz = max(5.0, min(16.0, float(req.id_humano_font_size_pt or 8.5)))
+    info_font_sz = max(4.0, min(14.0, float(req.info_font_size_pt or 7.0)))
+    color_header = None
+    try:
+        color_header = _colors.HexColor(str(req.color_header_hex or "#0033A0").strip() or "#0033A0")
+    except Exception:
+        color_header = _colors.HexColor("#0033A0")
+    titulo_custom = (str(req.titulo_pdf).strip() if req.titulo_pdf else None) or None
+
     # Crear PDF en memoria
     import io as _io
     buf = _io.BytesIO()
     c = _pdfcanvas.Canvas(buf, pagesize=page_size)
-    c.setTitle("Códigos QR — Fiesta Aguardiente Blanco del Valle")
+    c.setTitle(titulo_custom or "Códigos QR — Fiesta Aguardiente Blanco del Valle")
     c.setAuthor("ILV 1921 · Admin")
     c.setSubject("QRs promoción Fiesta")
     c.setCreator("Aguardiente Blanco del Valle - FastAPI reportlab")
@@ -4538,35 +4583,38 @@ def admin_qr_pdf(req: AdminQrPdfReq, admin: dict = _promo_Depends(get_current_ad
     def _escribir_header_y_footer(cv, pnum, total_paginas_estimado=None):
         # HEADER zona superior (dentro de los márgenes)
         cv.saveState()
-        cv.setFillColor(_colors.HexColor("#0033A0"))  # Azul ABV
-        cv.rect(0, page_h_pt - (10 * mm_pt), page_w_pt, (10 * mm_pt), stroke=0, fill=1)
-        cv.setFillColor(_colors.white)
-        cv.setFont("Helvetica-Bold", 13)
-        cv.drawString(margen_l_pt, page_h_pt - (7.2 * mm_pt), "ILV 1921 — Aguardiente Blanco del Valle")
-        cv.setFont("Helvetica", 9)
-        cv.drawRightString(page_w_pt - margen_r_pt, page_h_pt - (7.2 * mm_pt),
-                           (f"Página {pnum}" + (f" / {total_paginas_estimado}" if total_paginas_estimado else "")))
-        # Subtítulo antes iniciar grilla
-        if req.incluir_fecha_titulo:
-            cv.setFillColor(_colors.HexColor("#0f172a"))
-            cv.setFont("Helvetica-Bold", 11)
-            cv.drawString(margen_l_pt, page_h_pt - (15.5 * mm_pt), "Códigos QR — Fiesta · ¡Va con todo!")
-            cv.setFillColor(_colors.HexColor("#475569"))
-            cv.setFont("Helvetica", 8.5)
-            cv.drawRightString(page_w_pt - margen_r_pt, page_h_pt - (15.5 * mm_pt),
-                               f"Generado el {ahora.strftime('%d/%m/%Y %I:%M %p')} (Colombia) · Admin #{int(admin.get('id') or 0)}")
+        if header_visible:
+            cv.setFillColor(color_header or _colors.HexColor("#0033A0"))
+            cv.rect(0, page_h_pt - (10 * mm_pt), page_w_pt, (10 * mm_pt), stroke=0, fill=1)
+            cv.setFillColor(_colors.white)
+            cv.setFont("Helvetica-Bold", 13)
+            cv.drawString(margen_l_pt, page_h_pt - (7.2 * mm_pt), "ILV 1921 — Aguardiente Blanco del Valle")
+            cv.setFont("Helvetica", 9)
+            cv.drawRightString(page_w_pt - margen_r_pt, page_h_pt - (7.2 * mm_pt),
+                               (f"Página {pnum}" + (f" / {total_paginas_estimado}" if total_paginas_estimado else "")))
+            # Subtítulo antes iniciar grilla
+            if req.incluir_fecha_titulo:
+                cv.setFillColor(_colors.HexColor("#0f172a"))
+                cv.setFont("Helvetica-Bold", 11)
+                cv.drawString(margen_l_pt, page_h_pt - (15.5 * mm_pt),
+                              titulo_custom or "Códigos QR — Fiesta · ¡Va con todo!")
+                cv.setFillColor(_colors.HexColor("#475569"))
+                cv.setFont("Helvetica", 8.5)
+                cv.drawRightString(page_w_pt - margen_r_pt, page_h_pt - (15.5 * mm_pt),
+                                   f"Generado el {ahora.strftime('%d/%m/%Y %I:%M %p')} (Colombia) · Admin #{int(admin.get('id') or 0)}")
         # FOOTER legal
-        cv.setFillColor(_colors.HexColor("#f1f5f9"))
-        cv.rect(0, 0, page_w_pt, (10 * mm_pt), stroke=0, fill=1)
-        cv.setStrokeColor(_colors.HexColor("#cbd5e1"))
-        cv.setLineWidth(0.6)
-        cv.line(0, 10 * mm_pt, page_w_pt, 10 * mm_pt)
-        cv.setFillColor(_colors.HexColor("#475569"))
-        cv.setFont("Helvetica", 7.5)
-        texto_legal_izq = ("Uso exclusivo evento Fiesta Aguardiente Blanco del Valle · QR 1 solo uso. "
-                           "Cualquier alteración, distribución o comercialización es prohibida.")
-        cv.drawString(margen_l_pt, 4.0 * mm_pt, texto_legal_izq)
-        cv.drawRightString(page_w_pt - margen_r_pt, 4.0 * mm_pt, f"{len(items)} QR(s) · {cols}×{rows}")
+        if footer_visible:
+            cv.setFillColor(_colors.HexColor("#f1f5f9"))
+            cv.rect(0, 0, page_w_pt, (10 * mm_pt), stroke=0, fill=1)
+            cv.setStrokeColor(_colors.HexColor("#cbd5e1"))
+            cv.setLineWidth(0.6)
+            cv.line(0, 10 * mm_pt, page_w_pt, 10 * mm_pt)
+            cv.setFillColor(_colors.HexColor("#475569"))
+            cv.setFont("Helvetica", 7.5)
+            texto_legal_izq = ("Uso exclusivo evento Fiesta Aguardiente Blanco del Valle · QR 1 solo uso. "
+                               "Cualquier alteración, distribución o comercialización es prohibida.")
+            cv.drawString(margen_l_pt, 4.0 * mm_pt, texto_legal_izq)
+            cv.drawRightString(page_w_pt - margen_r_pt, 4.0 * mm_pt, f"{len(items)} QR(s) · {cols}×{rows}")
         cv.restoreState()
 
     # Estimación de páginas (se actualiza al dibujar, al final se hace un show pages count pero no importa)
@@ -4596,7 +4644,7 @@ def admin_qr_pdf(req: AdminQrPdfReq, admin: dict = _promo_Depends(get_current_ad
             cell_y0 = cell_y_top - cell_h_pt
             # Si forzamos tamaño cm o no, calculamos el cuadro del QR DENTRO DE LA CELDA
             # (dejamos espacio vertical para ID humano abajo)
-            id_etiqueta_h_pt = 12.0  # 2 lineas aprox
+            id_etiqueta_h_pt = 14.0 if (mostrar_id_humano and mostrar_info_tam) else (8.0 if mostrar_id_humano else 0.0)
             area_qr_disponible_w = cell_w_pt
             area_qr_disponible_h = cell_h_pt - (id_etiqueta_h_pt + 2 * mm_pt)
             max_side_pt = max(20.0, min(area_qr_disponible_w, area_qr_disponible_h))
@@ -4653,37 +4701,42 @@ def admin_qr_pdf(req: AdminQrPdfReq, admin: dict = _promo_Depends(get_current_ad
                 c.setFillColor(_colors.HexColor("#334155"))
                 c.setFont("Helvetica-Bold", 8)
                 c.drawCentredString(center_x_cell, center_y_qr, "QR")
-            # Borde ligero gris alrededor (cortar stickers a mano)
-            c.setStrokeColor(_colors.HexColor("#cbd5e1"))
-            c.setLineWidth(0.4)
-            c.setDash(1, 1.2)
-            c.rect(cell_x0 + 0.5 * mm_pt, cell_y0 + 0.5 * mm_pt,
-                   cell_w_pt - 1.0 * mm_pt, cell_h_pt - 1.0 * mm_pt,
-                   stroke=1, fill=0)
-            c.setDash()
-            # Etiqueta debajo: ID humano + tamaño
-            if req.qr_id_on_page:
+            # Borde ligero gris alrededor (cortar stickers a mano) — NUEVO configurable
+            if dibujar_borde_punteado:
+                c.setStrokeColor(_colors.HexColor("#cbd5e1"))
+                c.setLineWidth(0.4)
+                c.setDash(1, 1.2)
+                c.rect(cell_x0 + 0.3 * mm_pt, cell_y0 + 0.3 * mm_pt,
+                       cell_w_pt - 0.6 * mm_pt, cell_h_pt - 0.6 * mm_pt,
+                       stroke=1, fill=0)
+                c.setDash()
+            # Etiqueta debajo: ID humano + tamaño (AHORA configurable show ID + info técnica)
+            if mostrar_id_humano:
+                # LINEA 1 - ID HUMANO (font size configurable por admin):
                 c.setFillColor(_colors.HexColor("#0f172a"))
-                c.setFont("Helvetica-Bold", 8.5)
+                c.setFont("Helvetica-Bold", id_font_sz)
                 idh = str(qr.get("id_humano") or f"ID-{qr['id']}")
-                # si idh muy largo achicamos fuente
-                if len(idh) > 14:
-                    c.setFont("Helvetica-Bold", 7.2)
-                c.drawCentredString(center_x_cell, cell_y0 + (id_etiqueta_h_pt - 1.2), idh)
-                # línea 2: información del tamaño (pequeño gris)
-                c.setFillColor(_colors.HexColor("#64748b"))
-                c.setFont("Helvetica", 7.0)
-                sz_info = []
-                if qr.get("size_px"):
-                    sz_info.append(f"{int(qr['size_px'])}px")
-                if cm_target:
-                    sz_info.append(f"{cm_target:g}cm")
-                if qr.get("dpi"):
-                    sz_info.append(f"{int(qr['dpi'])}dpi")
-                if qr.get("habilitado") is False:
-                    sz_info.append("INHAB")
-                info_txt = " · ".join(sz_info) or f"QR #{qr['id']}"
-                c.drawCentredString(center_x_cell, cell_y0 + (id_etiqueta_h_pt - 5.2), info_txt)
+                # si idh muy largo achicamos fuente (dentro del límite):
+                if len(idh) > 14 and id_font_sz > 7:
+                    c.setFont("Helvetica-Bold", max(6.0, id_font_sz - 1.5))
+                id_linea_1_y = cell_y0 + (id_etiqueta_h_pt - 1.2)
+                c.drawCentredString(center_x_cell, id_linea_1_y, idh)
+                # LINEA 2 - información del tamaño (pequeño gris, configurable mostrar)
+                if mostrar_info_tam:
+                    c.setFillColor(_colors.HexColor("#64748b"))
+                    c.setFont("Helvetica", info_font_sz)
+                    sz_info = []
+                    if qr.get("size_px"):
+                        sz_info.append(f"{int(qr['size_px'])}px")
+                    if cm_target:
+                        sz_info.append(f"{cm_target:g}cm")
+                    if qr.get("dpi"):
+                        sz_info.append(f"{int(qr['dpi'])}dpi")
+                    if qr.get("habilitado") is False:
+                        sz_info.append("INHAB")
+                    info_txt = " · ".join(sz_info) or f"QR #{qr['id']}"
+                    info_linea_2_y = id_linea_1_y - (info_font_sz + 1.5)
+                    c.drawCentredString(center_x_cell, info_linea_2_y, info_txt)
             item_idx += 1
         # Fin página
         c.showPage()

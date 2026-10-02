@@ -4613,16 +4613,16 @@ def admin_delete_registro(id: int, admin: dict = _promo_Depends(get_current_admi
 
             recalculated = 0
             if posicion_eliminado is not None:
-                if DB_ENGINE == "POSTGRES":
-                    cur.execute(
-                        f"UPDATE promo_registros SET posicion_orden_ganador = posicion_orden_ganador - 1 WHERE posicion_orden_ganador > {ph} ORDER BY posicion_orden_ganador ASC",
-                        (posicion_eliminado,),
-                    )
-                else:
-                    cur.execute(
-                        f"UPDATE promo_registros SET posicion_orden_ganador = posicion_orden_ganador - 1 WHERE posicion_orden_ganador > {ph}",
-                        (posicion_eliminado,),
-                    )
+                # PostgreSQL NO SOPORTA ORDER BY dentro de UPDATE ... WHERE sin FROM LATERAL.
+                # La resta posicion_orden_ganador = posicion_orden_ganador - 1 es conmutativa:
+                # da EXACTAMENTE el mismo resultado final sin importar el orden de ejecución fila.
+                # Quitar ORDER BY evita el error de sintaxis:
+                #   "syntax error at or near 'ORDER' ... UPDATE promo_registros SET ... WHERE ... > $1 ORDER BY p..."
+                # Mismo código para SQLite/POSTGRES porque ambos aceptan UPDATE sin ORDER BY aquí.
+                cur.execute(
+                    f"UPDATE promo_registros SET posicion_orden_ganador = posicion_orden_ganador - 1 WHERE posicion_orden_ganador > {ph}",
+                    (posicion_eliminado,),
+                )
                 recalculated = cur.rowcount or 0
             conn.commit()
         except HTTPException:
@@ -4724,11 +4724,27 @@ def admin_registros_xlsx(admin: dict = _promo_Depends(get_current_admin)):
     wb.save(buf)
     buf.seek(0)
     _promo_insert_auditoria(int(admin["id"]), "EXPORT_XLSX", {"filename": fname, "total_rows": rows_returned})
-    return FileResponse(
-        buf,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        filename=fname,
-        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    # IMPORTANTE: FastAPI FileResponse() SOLO acepta path=STRING (ruta a archivo FÍSICO en disco).
+    # Si le pasas un io.BytesIO() lanza TypeError: "expected str, bytes or os.PathLike object, not _io.BytesIO".
+    # El error 500 resultante hacía que el frontend mostrara mensaje genérico "Error descargando Excel.
+    # Revisa que el backend Python esté encendido y autenticado".
+    # CORRECTO: usar StreamingResponse(iter([bytes_buf]), media_type, headers) para data en memoria.
+    # Incluimos ambos filename (RFC5987 filename*=UTF-8'' + filename= compat navegadores antiguos).
+    from urllib.parse import quote as _urlquote
+    fname_ascii = fname.encode('ascii', errors='ignore').decode('ascii') or "registros.xlsx"
+    fname_utf8_quoted = _urlquote(fname, safe="")
+    content_disposition = (
+        f'attachment; filename="{fname_ascii}"; filename*=UTF-8\'\'{fname_utf8_quoted}'
+    )
+    media_type_xlsx = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type=media_type_xlsx,
+        headers={
+            "Content-Disposition": content_disposition,
+            "Content-Length": str(len(buf.getvalue())),
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        },
     )
 
 

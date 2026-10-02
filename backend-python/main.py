@@ -2792,6 +2792,22 @@ CREATE TABLE IF NOT EXISTS promo_sorteo_lock (
     id INTEGER PRIMARY KEY,
     dummy INTEGER NOT NULL DEFAULT 0
 );
+
+-- ================= NUEVA TABLA BLOQUEO NUCLEAR ANTI-BORRADO (PostgreSQL) =================
+-- 1 fila (id=1) con UUID única del deploy inicial + MÁXIMO HISTÓRICO QRs/registros
+-- para detectar inmediatamente si hubo una pérdida de datos accidental.
+-- NUNCA se modifica el UUID después de creado. Los counts MAX solo CRECEN.
+CREATE TABLE IF NOT EXISTS promo_permanent_data_guard (
+    id INTEGER PRIMARY KEY,
+    db_uuid TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    max_qr_codes_ever BIGINT NOT NULL DEFAULT 0,
+    max_registros_ever BIGINT NOT NULL DEFAULT 0,
+    max_auditoria_ever BIGINT NOT NULL DEFAULT 0,
+    last_check_at TIMESTAMPTZ,
+    last_check_status TEXT,
+    last_note TEXT
+);
 """
 
 _PROMO_SQL_CREATE_SQLITE = """
@@ -2875,6 +2891,20 @@ CREATE TABLE IF NOT EXISTS promo_sorteo_lock (
     id INTEGER PRIMARY KEY,
     dummy INTEGER NOT NULL DEFAULT 0
 );
+
+-- ================= NUEVA TABLA BLOQUEO NUCLEAR ANTI-BORRADO (SQLite) =================
+-- 1 fila (id=1) con UUID única del deploy inicial + MÁXIMO HISTÓRICO QRs/registros
+CREATE TABLE IF NOT EXISTS promo_permanent_data_guard (
+    id INTEGER PRIMARY KEY,
+    db_uuid TEXT UNIQUE NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%SZ','now')),
+    max_qr_codes_ever INTEGER NOT NULL DEFAULT 0,
+    max_registros_ever INTEGER NOT NULL DEFAULT 0,
+    max_auditoria_ever INTEGER NOT NULL DEFAULT 0,
+    last_check_at TEXT,
+    last_check_status TEXT,
+    last_note TEXT
+);
 """
 
 
@@ -2945,6 +2975,202 @@ def init_promo_db_tables_and_seeds():
                 "INSERT OR IGNORE INTO promo_sorteo_lock (id, dummy) VALUES (1, 0)"
             )
             conn.commit()
+        # ========== BLOQUEO NUCLEAR ANTI-BORRADO (al final de los seeds) ==========
+        # 1. Contar QRs / registros / auditoría ACTUALES
+        cur = conn.cursor()
+        try:
+            if DB_ENGINE == "POSTGRES":
+                cur.execute("SELECT COUNT(*) FROM promo_qr_codes")
+            else:
+                cur.execute("SELECT COUNT(*) FROM promo_qr_codes")
+            _count_qr_now = int(cur.fetchone()[0] or 0)
+            cur.execute(
+                "SELECT COUNT(*) FROM promo_registros" if DB_ENGINE == "POSTGRES" else
+                "SELECT COUNT(*) FROM promo_registros"
+            )
+            _count_reg_now = int(cur.fetchone()[0] or 0)
+            cur.execute(
+                "SELECT COUNT(*) FROM promo_auditoria_admin" if DB_ENGINE == "POSTGRES" else
+                "SELECT COUNT(*) FROM promo_auditoria_admin"
+            )
+            _count_aud_now = int(cur.fetchone()[0] or 0)
+        except Exception as e_count:
+            print(f"[PERMANENCIA] ⚠️ No se pudo conteo inicial: {e_count}")
+            _count_qr_now = _count_reg_now = _count_aud_now = 0
+        # 2. Leer fila guard id=1 si existe
+        try:
+            if DB_ENGINE == "POSTGRES":
+                cur.execute(
+                    "SELECT id, db_uuid, max_qr_codes_ever, max_registros_ever, max_auditoria_ever "
+                    "FROM promo_permanent_data_guard WHERE id = %s", (1,)
+                )
+            else:
+                cur.execute(
+                    "SELECT id, db_uuid, max_qr_codes_ever, max_registros_ever, max_auditoria_ever "
+                    "FROM promo_permanent_data_guard WHERE id = ?", (1,)
+                )
+            _guard_row = cur.fetchone()
+        except Exception as e_g:
+            print(f"[PERMANENCIA] ⚠️ Tabla guard no se leyó: {e_g}")
+            _guard_row = None
+        now_ts_iso = datetime.now(timezone.utc).isoformat()
+        if _guard_row is None:
+            # 3a. PRIMERA VEZ: Crear UUID e inicializar max counts
+            import uuid as _uuid_mod
+            _new_uuid = str(_uuid_mod.uuid4())
+            _new_max_qr = _count_qr_now
+            _new_max_reg = _count_reg_now
+            _new_max_aud = _count_aud_now
+            status_init = f"PRIMER-SEED qrs={_new_max_qr} regs={_new_max_reg}"
+            _bind_init = (
+                1, _new_uuid, _new_max_qr, _new_max_reg, _new_max_aud,
+                now_ts_iso, "OK_INIT", status_init,
+            )
+            try:
+                if DB_ENGINE == "POSTGRES":
+                    cur.execute(
+                        "INSERT INTO promo_permanent_data_guard "
+                        "(id, db_uuid, max_qr_codes_ever, max_registros_ever, max_auditoria_ever, "
+                        " last_check_at, last_check_status, last_note) "
+                        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s) "
+                        "ON CONFLICT (id) DO NOTHING",
+                        _bind_init,
+                    )
+                else:
+                    cur.execute(
+                        "INSERT OR IGNORE INTO promo_permanent_data_guard "
+                        "(id, db_uuid, max_qr_codes_ever, max_registros_ever, max_auditoria_ever, "
+                        " last_check_at, last_check_status, last_note) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        _bind_init,
+                    )
+                conn.commit()
+                print(f"[PERMANENCIA] ✅ Bloqueo Nuclear inicializado NUEVO: db_uuid={_new_uuid[:12]}… max_qr_ever={_new_max_qr} max_reg_ever={_new_max_reg}.")
+            except Exception as e_ins:
+                print(f"[PERMANENCIA] ⚠️ No se pudo crear guard init: {e_ins}")
+        else:
+            # 3b. YA EXISTE EL GUARD: Comparar counts y detectar PÉRDIDA DE DATOS
+            _guard_id = int(_guard_row[0] or 0)
+            _guard_uuid = str(_guard_row[1] or "")
+            _max_qr_ever = int(_guard_row[2] or 0)
+            _max_reg_ever = int(_guard_row[3] or 0)
+            _max_aud_ever = int(_guard_row[4] or 0)
+            _perdida_qr = (_count_qr_now < _max_qr_ever)
+            _perdida_reg = (_count_reg_now < _max_reg_ever)
+            _perdida = _perdida_qr or _perdida_reg
+            if _perdida:
+                # LÍNEA ROJA: PÉRDIDA DETECTADA
+                _detail_parts = []
+                if _perdida_qr:
+                    _detail_parts.append(f"QRs: {_count_qr_now} < {_max_qr_ever} (PERDIDOS {_max_qr_ever-_count_qr_now})")
+                if _perdida_reg:
+                    _detail_parts.append(f"REGS: {_count_reg_now} < {_max_reg_ever} (PERDIDOS {_max_reg_ever-_count_reg_now})")
+                _detalle = " · ".join(_detail_parts)
+                print("=" * 80)
+                print(f"[PERMANENCIA] 🔴🚨🚨 PÉRDIDA DE DATOS DETECTADA ANTES DE SEEDS: {_detalle}")
+                print(f"[PERMANENCIA] 🔴 Guard db_uuid={_guard_uuid[:16]}…")
+                print(f"[PERMANENCIA] 🔴 DB Engine: {DB_ENGINE}. DATABASE_URL_set={bool(DATABASE_URL)}.")
+                if DB_ENGINE == "SQLITE":
+                    print(f"[PERMANENCIA] 🔴 ESTAS EN SQLITE SIN VOLUMEN: Cada redeploy BORRA TODO. "
+                          f"Hay que crear PostgreSQL + Attach Database / volumen Railway (instrucciones).")
+                else:
+                    print(f"[PERMANENCIA] 🔴 ESTAS EN PostgreSQL: Seguramente cambiaste de DATABASE_URL y "
+                          f"perdiste la BD anterior. Revisa Railway Servicio1 → Variables → DATABASE_URL.")
+                print("=" * 80)
+                status_final = "PerdidaDatosDetectada"
+                note_final = (f"WARN {_detalle}")[:250]
+            else:
+                status_final = "OK_Persiste"
+                note_final = f"SIN_PERDIDA qr_now={_count_qr_now}/≥{_max_qr_ever} reg={_count_reg_now}/≥{_max_reg_ever}"
+                print(f"[PERMANENCIA] ✅ NO_HUBO_PÉRDIDA: db_uuid={_guard_uuid[:12]}… | "
+                      f"QRs: {_count_qr_now} (≥max_ever={_max_qr_ever}) | "
+                      f"REGS: {_count_reg_now} (≥max_ever={_max_reg_ever}).")
+            # 4. Actualizar los MAX para que SOLO CREZCAN (nunca decrezcan)
+            new_max_qr = max(_max_qr_ever, _count_qr_now)
+            new_max_reg = max(_max_reg_ever, _count_reg_now)
+            new_max_aud = max(_max_aud_ever, _count_aud_now)
+            try:
+                if DB_ENGINE == "POSTGRES":
+                    cur.execute(
+                        "UPDATE promo_permanent_data_guard SET "
+                        "max_qr_codes_ever = %s, "
+                        "max_registros_ever = %s, "
+                        "max_auditoria_ever = %s, "
+                        "last_check_at = %s, "
+                        "last_check_status = %s, "
+                        "last_note = %s "
+                        "WHERE id = %s",
+                        (new_max_qr, new_max_reg, new_max_aud, now_ts_iso, status_final, note_final, 1),
+                    )
+                else:
+                    cur.execute(
+                        "UPDATE promo_permanent_data_guard SET "
+                        "max_qr_codes_ever = ?, "
+                        "max_registros_ever = ?, "
+                        "max_auditoria_ever = ?, "
+                        "last_check_at = ?, "
+                        "last_check_status = ?, "
+                        "last_note = ? "
+                        "WHERE id = ?",
+                        (new_max_qr, new_max_reg, new_max_aud, now_ts_iso, status_final, note_final, 1),
+                    )
+                conn.commit()
+            except Exception as e_up:
+                print(f"[PERMANENCIA] ⚠️ No se actualizó guard: {e_up}")
+
+
+def _promo_get_permanent_data_guard():
+    """Devuelve dict con estado del bloqueo nuclear anti-borrado (o None si no existe)."""
+    try:
+        with get_db_conn() as conn:
+            cur = conn.cursor()
+            if DB_ENGINE == "POSTGRES":
+                cur.execute(
+                    "SELECT id, db_uuid, created_at, max_qr_codes_ever, max_registros_ever, "
+                    "max_auditoria_ever, last_check_at, last_check_status, last_note "
+                    "FROM promo_permanent_data_guard WHERE id = %s", (1,)
+                )
+            else:
+                cur.execute(
+                    "SELECT id, db_uuid, created_at, max_qr_codes_ever, max_registros_ever, "
+                    "max_auditoria_ever, last_check_at, last_check_status, last_note "
+                    "FROM promo_permanent_data_guard WHERE id = ?", (1,)
+                )
+            row = cur.fetchone()
+            if row is None:
+                return None
+            # Conteos NOW para comparar vs max_ever
+            cur.execute("SELECT COUNT(*) FROM promo_qr_codes")
+            c_qr = int(cur.fetchone()[0] or 0)
+            cur.execute("SELECT COUNT(*) FROM promo_registros")
+            c_reg = int(cur.fetchone()[0] or 0)
+            cur.execute("SELECT COUNT(*) FROM promo_auditoria_admin")
+            c_aud = int(cur.fetchone()[0] or 0)
+            max_qr = int(row[3] or 0)
+            max_reg = int(row[4] or 0)
+            max_aud = int(row[5] or 0)
+            return {
+                "db_uuid": str(row[1] or ""),
+                "created_at": str(row[2] or ""),
+                "max_qr_codes_ever": max_qr,
+                "max_registros_ever": max_reg,
+                "max_auditoria_ever": max_aud,
+                "last_check_at": str(row[6] or ""),
+                "last_check_status": str(row[7] or ""),
+                "last_note": str(row[8] or ""),
+                "counts_now": {
+                    "promo_qr_codes": c_qr,
+                    "promo_registros": c_reg,
+                    "promo_auditoria_admin": c_aud,
+                },
+                "permanencia_ok_qr": c_qr >= max_qr,
+                "permanencia_ok_registros": c_reg >= max_reg,
+                "perdida_detectada": (c_qr < max_qr) or (c_reg < max_reg),
+                "diferencia_qr": (max_qr - c_qr) if (c_qr < max_qr) else 0,
+                "diferencia_registros": (max_reg - c_reg) if (c_reg < max_reg) else 0,
+            }
+    except Exception:
+        return None
 
 
 # ================= AUTENTICACIÓN JWT ADMIN =================
@@ -3735,7 +3961,134 @@ def promo_debug_health(request: Request):
             "promo_qr_codes = 0 filas. Si esperabas códigos: se borraron en redeploy anterior "
             "por SQLite sin persistencia, o es PostgreSQL DB nueva attachada recien."
         )
+    # ===== NUEVO: Informe permanencia BLOQUEO NUCLEAR =====
+    try:
+        guard = _promo_get_permanent_data_guard()
+    except Exception:
+        guard = None
+    if guard is None:
+        out["persistencia"] = {
+            "ok": False,
+            "status": "NO_GUARD_INITIALIZED",
+            "note": "No se ha inicializado tabla promo_permanent_data_guard. Redesplegar o invocar init."
+        }
+    else:
+        out["persistencia"] = {
+            "ok": True,
+            "db_uuid_prefix": (guard["db_uuid"] or "")[:14] + ("…" if guard["db_uuid"] and len(guard["db_uuid"]) > 14 else ""),
+            "guard_created_at": guard["created_at"],
+            "permanencia_qr_vs_max_ever": guard["permanencia_ok_qr"],
+            "permanencia_registros_vs_max_ever": guard["permanencia_ok_registros"],
+            "hubo_perdida_datos_detectada": guard["perdida_detectada"],
+            "perdidos_qr": guard["diferencia_qr"],
+            "perdidos_registros": guard["diferencia_registros"],
+            "last_check_status_guard": guard["last_check_status"],
+            "last_check_guard_at": guard["last_check_at"],
+            "max_ever_registrados": {
+                "qr_codes": guard["max_qr_codes_ever"],
+                "registros": guard["max_registros_ever"],
+            },
+            "actual_registrados": guard["counts_now"],
+        }
     return out
+
+
+@app.get("/api/promo/debug/persistencia")
+def promo_debug_persistencia(request: Request):
+    """VERIFICACIÓN 1 CLIC PERMANENCIA QR/REGISTROS.
+    Devuelve: DB engine actual + estado Bloqueo Nuclear Anti-Borrado (promo_permanent_data_guard) +
+    conteo QRs ahora vs MAX_QUE_TUVIMOS_NUNCA para confirmar NO HUBO PÉRDIDA."""
+    res = {
+        "db_engine": DB_ENGINE,
+        "database_url_set": bool(DATABASE_URL),
+        "database_host_redacted": "",
+        "permanent_guard_exists": False,
+        "permanencia_total_ok": False,
+        "recomendaciones": [],
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+    }
+    # Información DB sin exponer password/URL
+    try:
+        from urllib.parse import urlparse
+        if DATABASE_URL:
+            parsed = urlparse(DATABASE_URL)
+            _host = (parsed.hostname or "")[:40]
+            _port = parsed.port
+            res["database_host_redacted"] = f"{_host}:{_port}" if _port else _host
+            res["database_scheme"] = parsed.scheme or ""
+    except Exception:
+        pass
+    # Ejecutar init una vez (si no se ejecutó startup) para asegurar tabla guard:
+    _init_err = None
+    try:
+        init_promo_db_tables_and_seeds()
+        res["init_tables_ok"] = True
+    except Exception as e_init:
+        res["init_tables_ok"] = False
+        _init_err = f"{type(e_init).__name__}: {str(e_init)[:200]}"
+        res["init_error"] = _init_err
+    # Leer guard y conteos actuales
+    guard = None
+    try:
+        guard = _promo_get_permanent_data_guard()
+    except Exception as e_g:
+        res["guard_read_error"] = f"{type(e_g).__name__}: {str(e_g)[:180]}"
+    if guard is None:
+        res["recomendaciones"].append(
+            "⚠️ Guard NO inicializado. (1) Asegurarse DB_POSTGRES atachada correctamente. "
+            "(2) Volver a dar clic Redeploy. (3) Refresh esta URL."
+        )
+    else:
+        res["permanent_guard_exists"] = True
+        res["guard"] = {
+            "db_uuid": guard["db_uuid"],
+            "created_at": guard["created_at"],
+            "last_check_at": guard["last_check_at"],
+            "last_check_status": guard["last_check_status"],
+            "last_note": guard["last_note"],
+        }
+        res["conteos"] = {
+            "max_ever_qrs": guard["max_qr_codes_ever"],
+            "max_ever_registros": guard["max_registros_ever"],
+            "max_ever_auditoria": guard["max_auditoria_ever"],
+            "actual_qrs": guard["counts_now"]["promo_qr_codes"],
+            "actual_registros": guard["counts_now"]["promo_registros"],
+            "actual_auditoria": guard["counts_now"]["promo_auditoria_admin"],
+        }
+        res["permanencia_qr_vs_max"] = guard["permanencia_ok_qr"]
+        res["permanencia_registros_vs_max"] = guard["permanencia_ok_registros"]
+        res["permanencia_total_ok"] = (not guard["perdida_detectada"])
+        if guard["perdida_detectada"]:
+            res["estado"] = "🚨 PÉRDIDA DE DATOS DETECTADA"
+            res["recomendaciones"].append(
+                f"🔴 QRs PERDIDOS: {guard['diferencia_qr']} · REGISTROS PERDIDOS: {guard['diferencia_registros']}"
+            )
+            if DB_ENGINE == "SQLITE":
+                res["recomendaciones"].append(
+                    "⚠️ ESTAS EN SQLITE SIN VOLUMEN PERSISTENTE. Los datos se BORRAN en cada redeploy Railway. "
+                    "SOLUCIÓN: (A) Railway → NEW → PostgreSQL → Create → Backend Servicio1 → Settings → Attach DB. "
+                    "(B) O Railway Backend → Settings → Volumes → Add Volume → Mount Path=/app/backend-python (≈$0.25/mes)."
+                )
+            else:
+                res["recomendaciones"].append(
+                    "⚠️ ESTAS EN PostgreSQL y hubo pérdida: Seguramente cambiaste de variable DATABASE_URL y atachaste una BD NUEVA. "
+                    "Revisa en Railway Backend → Variables → DATABASE_URL sea el URL de la BD ANTERIOR donde estaban los QRs originales."
+                )
+        else:
+            res["estado"] = "✅ PERMANENCIA TOTAL ASEGURADA (sin pérdida)"
+    # Recomendaciones base según engine
+    if DB_ENGINE == "SQLITE":
+        res["engine_warning"] = (
+            "🛑 ESTAS EN SQLITE LOCAL SIN VOLUMEN: CADA REDEPLOY BORRA TODO. NO PARA EVENTOS."
+        )
+        if not res["database_url_set"]:
+            res["recomendaciones"].append(
+                "1) Crear PostgreSQL en Railway (NEW → Database → PostgreSQL). 2) Copiar Connection URL. "
+                "3) Backend Servicio1 → Variables → NEW → DATABASE_URL = URL pegada. 4) Redeploy."
+            )
+    else:
+        res["engine_note"] = "🟢 PostgreSQL gestionado Railway: datos permanentes por diseño (incluye backups y disco persistente)."
+    return res
 
 
 @app.get("/api/promo/debug/reseed-admin")

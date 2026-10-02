@@ -98,22 +98,41 @@ SQLITE_PATH = os.path.join(BASE_DIR, "fotos-local.sqlite3")
 @contextmanager
 def get_db_conn():
     conn = None
+    commited_or_rollbacked = False
     try:
         if DB_ENGINE == "POSTGRES":
-            conn = psycopg.connect(DATABASE_URL, autocommit=False, connect_timeout=5)
+            # NOTA: psycopg3 autocommit=False inicia una transacción IMPLÍCITA al primer statement.
+            # NUNCA llames cur.execute("BEGIN") manualmente; eso rompe psycopg con "cannot start a
+            # transaction within a transaction". El caller es responsable de llamar conn.commit()
+            # o conn.rollback() para sus transacciones propias SERIALIZABLE / FOR UPDATE.
+            conn = psycopg.connect(DATABASE_URL, autocommit=False, connect_timeout=15)
         else:
-            conn = sqlite3.connect(SQLITE_PATH, isolation_level=None, timeout=10)
+            conn = sqlite3.connect(SQLITE_PATH, isolation_level=None, timeout=30)
             conn.row_factory = sqlite3.Row
         yield conn
-        if DB_ENGINE != "POSTGRES":
-            conn.commit()
-    finally:
-        if conn is not None:
+        # === SALIDA CLEAN SIN EXCEPCIÓN ===
+        # (Solo commit automático si el caller NO lo hizo explícitamente para SQLITE.
+        #  Postgres NO requiere commit aquí si el caller ya hizo commit; pero lo hacemos idempotente en finally.)
+        if DB_ENGINE != "POSTGRES" and not commited_or_rollbacked:
             try:
-                if DB_ENGINE != "POSTGRES":
-                    conn.rollback()
+                conn.commit()
             except Exception:
                 pass
+    finally:
+        if conn is not None:
+            # PostgreSQL: si la conexión sigue con tx abierta (caller olvidó commit/rollback)
+            # hacemos ROLLBACK para evitar idle in transaction en pg_stat_activity y leaks.
+            if DB_ENGINE == "POSTGRES":
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+            else:
+                # SQLite: rollback seguro (commit ya se hizo en yield exit path si no hubo error).
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
             try:
                 conn.close()
             except Exception:
@@ -3120,29 +3139,48 @@ async def promo_registro(req: PromoRegistroReq, request: Request):
         try:
             cur = conn.cursor()
             if DB_ENGINE == "POSTGRES":
-                cur.execute("BEGIN")
+                # PostgreSQL + psycopg autocommit=False YA INICIA TRANSACCIÓN AUTOMÁTICAMENTE.
+                # NUNCA ejecutar BEGIN manual; provoca "cannot start a transaction within a transaction".
+                # Establecemos aislamiento SERIALIZABLE via conn para FIFO estricto.
+                try:
+                    conn.isolation_level = psycopg.IsolationLevel.SERIALIZABLE
+                except Exception:
+                    try:
+                        from psycopg import IsolationLevel as _IL
+                        conn.isolation_level = _IL.SERIALIZABLE
+                    except Exception:
+                        # Fallback: set vía SQL si el attr no está disponible.
+                        try:
+                            cur.execute("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE")
+                        except Exception:
+                            pass
                 cur.execute("SELECT id, uuid_qr, id_humano, usado_registro_id, habilitado FROM promo_qr_codes WHERE uuid_qr = %s", (qr_uuid,))
             else:
                 cur.execute("BEGIN IMMEDIATE")
                 cur.execute("SELECT id, uuid_qr, id_humano, usado_registro_id, habilitado FROM promo_qr_codes WHERE uuid_qr = ?", (qr_uuid,))
             qr_row = cur.fetchone()
             if qr_row is None:
-                if DB_ENGINE != "POSTGRES":
+                try:
                     conn.rollback()
+                except Exception:
+                    pass
                 raise HTTPException(status_code=404, detail="QR no encontrado")
             qr_id = qr_row[0]
             if qr_row[3] is not None:
-                if DB_ENGINE != "POSTGRES":
+                try:
                     conn.rollback()
+                except Exception:
+                    pass
                 raise HTTPException(status_code=409, detail="Este QR ya fue utilizado en un registro")
-            # Validar habilitado
             qr_hab_raw = qr_row[4]
             qr_habilitado = (
                 bool(qr_hab_raw) if DB_ENGINE == "POSTGRES" else (int(qr_hab_raw) == 1 if qr_hab_raw is not None else True)
             )
             if not qr_habilitado:
-                if DB_ENGINE != "POSTGRES":
+                try:
                     conn.rollback()
+                except Exception:
+                    pass
                 raise HTTPException(
                     status_code=410,
                     detail="Este QR fue inhabilitado por el administrador. Por favor solicita un código nuevo en el puesto del evento.",
@@ -3156,14 +3194,18 @@ async def promo_registro(req: PromoRegistroReq, request: Request):
                 cur.execute("SELECT id, max_ganadores, estado_abierto, dir_fuera_bogota, titulo_premio FROM promo_config WHERE id = 1")
             cfg_row = cur.fetchone()
             if cfg_row is None:
-                if DB_ENGINE != "POSTGRES":
+                try:
                     conn.rollback()
+                except Exception:
+                    pass
                 raise HTTPException(status_code=500, detail="Configuración no inicializada")
 
             estado_abierto = bool(cfg_row[2]) if DB_ENGINE == "POSTGRES" else (int(cfg_row[2]) == 1)
             if not estado_abierto:
-                if DB_ENGINE != "POSTGRES":
+                try:
                     conn.rollback()
+                except Exception:
+                    pass
                 raise HTTPException(status_code=423, detail="Promoción cerrada temporalmente")
 
             max_gan = int(cfg_row[1] or 1)
@@ -3215,7 +3257,10 @@ async def promo_registro(req: PromoRegistroReq, request: Request):
                     (new_id, qr_id),
                 )
             if cur.rowcount != 1:
-                conn.rollback()
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
                 raise HTTPException(status_code=409, detail="QR concurrentemente utilizado")
 
             conn.commit()

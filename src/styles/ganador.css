@@ -118,6 +118,15 @@
 .agradecimiento-botones .btn-ghost:active{background:rgba(0,42,122,.08);}
 .header-btn-atras{display:inline-flex;align-items:center;gap:4px;background:transparent;border:0;color:#fff;font-family:var(--font-ui);font-weight:700;font-size:clamp(.95rem,1.8svw,1.1rem);cursor:pointer;padding:8px 12px;border-radius:10px;transition:background .15s var(--ease);}
 .header-btn-atras:active{background:rgba(255,255,255,.12);}
+
+/* ===== FLUJO NUEVO STEP 0: IMAGEN CLICKEABLE ===== */
+.ganador-step0-overlay{position:fixed;inset:0;z-index:9999;background:transparent;cursor:pointer;touch-action:manipulation;display:flex;align-items:flex-end;justify-content:center;padding-bottom:clamp(24px,6svh,48px);}
+.ganador-step0-hint{color:#fff;font-weight:700;font-size:clamp(.95rem,2.3svw,1.1rem);background:rgba(0,0,0,.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:clamp(10px,1.6svh,14px) clamp(18px,3svw,26px);border-radius:999px;box-shadow:0 8px 28px rgba(0,0,0,.4);border:1.5px solid rgba(255,255,255,.25);animation:pulse-opacity 1.6s ease-in-out infinite;}
+@keyframes pulse-opacity{0%,100%{opacity:.85;transform:scale(1);}50%{opacity:1;transform:scale(1.03);}}
+@media (orientation:portrait){
+  .ganador-step0-overlay{padding-bottom:clamp(48px,14svh,88px);}
+  .ganador-step0-hint{font-size:clamp(.9rem,2.4svw,1rem);padding:clamp(12px,1.8svh,16px) clamp(20px,5svw,28px);}
+}
 @media (orientation:portrait) and (max-width:760px){
   .registro-form{grid-template-columns:1fr;gap:12px;}
   .ganador-btn-continuar,.registro-btn-submit{min-width:100%!important;}

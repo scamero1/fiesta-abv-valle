@@ -60,7 +60,7 @@ function PantallaFelicitaciones() {
         </label>
       </div>
       <button type="button" className="btn-primario btn-cta-red ganador-btn-continuar">
-        CONTINUAR AL FORMULARIO →
+        ACEPTAR Y REGISTRARME →
       </button>
     </div>
   )
@@ -131,6 +131,15 @@ export default function AdminPreview() {
   const [step, setStep] = useState(1)
   const [orientation, setOrientation] = useState('auto')
 
+  // Substep para la pantalla FELICITACIONES (flujo nuevo user: click imagen → checks)
+  // 0 = Ver solo imagen (pieza clickeable hint)  /  1 = Ver checks + botón ACEPTAR
+  const [felSubstep, setFelSubstep] = useState(0)
+
+  // Resetear Substep a 0 si cambiamos Step a 1 para que siempre empiece por la imagen
+  useEffect(() => {
+    if (step === 1) setFelSubstep(0)
+  }, [step])
+
   // Forzamos landscape TCL 1280x800 o Portrait móvil 412x915 con un Wrapper CSS
   useEffect(() => {
     const el = document.getElementById('preview-device-frame')
@@ -161,6 +170,8 @@ export default function AdminPreview() {
     }
   }, [orientation])
 
+  const tituloHeaderFrame = () => step === 1 ? '¡FELICIDADES GANASTE!' : step === 2 ? 'Completa tus datos' : '✅ Registro Exitoso'
+
   return (
     <div className="admin-preview-pagina">
       {/* Barra de control preview */}
@@ -168,6 +179,13 @@ export default function AdminPreview() {
         <div className="admin-preview-controls-left">
           <button type="button" className="admin-btn sm ghost" onClick={() => navigate('/admin/dashboard')}>← Volver al Panel</button>
           <span className="admin-preview-titulo">👀 Vista previa — Promoción "FIESTA"</span>
+          {step === 1 && (
+            <span className="admin-preview-subinfo" style={{color:'#475569',fontSize:'.85rem',marginLeft:12}}>
+              Substep actual: <b>{felSubstep === 0 ? '① Solo imagen clickeable' : '② Checks términos + botón'}</b>
+              {felSubstep === 0 && <button type="button" className="admin-btn xs" style={{marginLeft:10}} onClick={() => setFelSubstep(1)}>⏩ Simular click en imagen</button>}
+              {felSubstep === 1 && <button type="button" className="admin-btn xs ghost" style={{marginLeft:10}} onClick={() => setFelSubstep(0)}>↩️ Volver a imagen sola</button>}
+            </span>
+          )}
         </div>
         <div className="admin-preview-controls-right">
           <div className="admin-preview-steps">
@@ -187,23 +205,38 @@ export default function AdminPreview() {
       <div id="preview-device-frame" className="preview-device-frame">
         <div className="screen ganador-screen">
           <div className="screen-bg ganador-bg" />
-          <div className="screen-header instrucciones-header">
-            <div className="header-left" />
-            <div className="header-middle">
-              <h1 className="header-titulo">
-                {step === 1 ? '¡FELICIDADES GANASTE!' : step === 2 ? 'Completa tus datos' : '✅ Registro Exitoso'}
-              </h1>
+
+          {/* OVERLAY STEP 0 (solo imagen clickeable) — igual que Ganador.jsx real */}
+          {step === 1 && felSubstep === 0 && (
+            <div className="ganador-step0-overlay" onClick={() => setFelSubstep(1)} role="button" tabIndex={0}
+                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setFelSubstep(1) }}>
+              <div className="ganador-step0-hint">👉 Toca cualquier parte para continuar</div>
             </div>
-            <div className="header-right" />
-          </div>
-          {step === 1 ? <PantallaFelicitaciones /> : step === 2 ? <PantallaRegistro /> : <PantallaAgradecimiento />}
+          )}
+
+          {/* HEADER: Se oculta solo si Step=Felicitaciones && Substep 0 (solo imagen) */}
+          {(step !== 1 || felSubstep >= 1) && (
+            <div className="screen-header instrucciones-header">
+              <div className="header-left" />
+              <div className="header-middle">
+                <h1 className="header-titulo">{tituloHeaderFrame()}</h1>
+              </div>
+              <div className="header-right" />
+            </div>
+          )}
+
+          {/* CONTENIDO: Se oculta solo si Step=Felicitaciones && Substep 0 */}
+          {(step !== 1 || felSubstep >= 1) && (
+            step === 1 ? <PantallaFelicitaciones /> : step === 2 ? <PantallaRegistro /> : <PantallaAgradecimiento />
+          )}
         </div>
       </div>
 
       {/* Pie admin preview: info del fondo usado */}
       <div className="admin-preview-footer">
         Fondo actual: <b>Pieza Ganadores Vertical.jpg</b> (oficial del evento — archivo <code>src/assets/pieza-ganadores-vertical.jpg</code>).
-        Responsive portrait móvil: TODO CENTRADO.
+        &nbsp;|&nbsp; Nuevo flujo: <b>① Click en imagen</b> → <b>② Aceptar términos</b> → <b>③ Registro</b> → <b>④ QR INHABILITADO automático</b>.
+        &nbsp; Responsive portrait móvil: TODO CENTRADO.
       </div>
     </div>
   )

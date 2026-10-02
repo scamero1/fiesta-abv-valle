@@ -14,6 +14,23 @@ export default function Ganador() {
   const [terminosTs, setTerminosTs] = useState('')
   const [habeasTs, setHabeasTs] = useState('')
 
+  // ===== FLUJO NUEVO: Step Visual 0 = Solo imagen clickeable / Step 1 = checks + botón ACEPTAR =====
+  // User VERBATIM: "le da click en la imagen y pasa a términos acepta y ya pasa a registrarse"
+  const [stepVisual, setStepVisual] = useState(0)
+  const handleClickEnImagen = () => {
+    if (qrEstado !== 'listo') return
+    setStepVisual(1)
+  }
+
+  // Reseteamos stepVisual a 0 si el QR cambia o vuelve a validar
+  useEffect(() => {
+    setStepVisual(0)
+    setAceptaTerminos(false)
+    setAceptaHabeas(false)
+    setTerminosTs('')
+    setHabeasTs('')
+  }, [qr_uuid])
+
   // ===== VALIDACION QR AL ABRIR LINK (ANTES DE MOSTRAR NADA) =====
   // User idea: 1 QR = 1 solo ganador. Si ya fue registrado, link se bloquea.
   // Estados: validando | listo | ya_usado | inhabilitado | no_existe | error_red
@@ -271,7 +288,7 @@ export default function Ganador() {
               onClick={handleContinuar}
               disabled={!puedeContinuar}
             >
-              CONTINUAR AL FORMULARIO →
+              ACEPTAR Y REGISTRARME →
             </button>
           </div>
         )
@@ -294,15 +311,29 @@ export default function Ganador() {
     <div className="screen ganador-screen">
       <div className="screen-bg ganador-bg" />
 
-      <div className="screen-header instrucciones-header">
-        <div className="header-left" />
-        <div className="header-middle">
-          <h1 className="header-titulo">{tituloHeader()}</h1>
+      {/* ===== OVERLAY INVISIBLE CLICKEABLE STEP 0 =====
+           Solo se muestra si QR validado OK y aún no han tocado la imagen.
+           Cualquier click en cualquier parte de la pantalla → pasa a Step 1 (checks + botón). */}
+      {qrEstado === 'listo' && stepVisual === 0 && (
+        <div className="ganador-step0-overlay" onClick={handleClickEnImagen} role="button" tabIndex={0}
+             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClickEnImagen() }}>
+          <div className="ganador-step0-hint">👉 Toca cualquier parte para continuar</div>
         </div>
-        <div className="header-right" />
-      </div>
+      )}
 
-      {renderContenido()}
+      {/* HEADER: Se oculta solo en Step 0 (cuando queremos que la imagen esté 100% limpia) */}
+      {(qrEstado !== 'listo' || stepVisual >= 1) && (
+        <div className="screen-header instrucciones-header">
+          <div className="header-left" />
+          <div className="header-middle">
+            <h1 className="header-titulo">{tituloHeader()}</h1>
+          </div>
+          <div className="header-right" />
+        </div>
+      )}
+
+      {/* CONTENIDO: Se oculta solo en Step 0 (solo imagen) */}
+      {(qrEstado !== 'listo' || stepVisual >= 1) && renderContenido()}
     </div>
   )
 }

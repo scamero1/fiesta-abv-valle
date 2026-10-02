@@ -14,13 +14,43 @@ export default function Ganador() {
   const [terminosTs, setTerminosTs] = useState('')
   const [habeasTs, setHabeasTs] = useState('')
 
-  // ===== FLUJO NUEVO: Step Visual 0 = Solo imagen clickeable / Step 1 = checks + botón ACEPTAR =====
-  // User VERBATIM: "le da click en la imagen y pasa a términos acepta y ya pasa a registrarse"
+  // ===== FLUJO NUEVO: Step Visual 0 = Solo imagen PIEZA (8 segundos AUTO) / Step 1 = checks + botón ACEPTAR =====
+  // User VERBATIM pedido #1 (1er flujo SHA 787034c): "le da click en la imagen y pasa a terminos"
+  // User VERBATIM pedido #2 (SHA 12a7dd7): "NO SIRVE tocar cualquiera parte, SOLO darle al botón dibujado abajo"
+  // User VERBATIM pedido #3 (HOY ACTUAL MÁXIMA PRIORIDAD):
+  //   "donde este este fondo Pieza Ganadores Vertical.jpg que LA PERSONA NO LE DE CLICK
+  //    SI NO QUE SOLO SE MUESTRE POR 8 SEGUNDOS Y LUEGO PASE AL APARTADO DE POLITICAS PARA ACEPTAR"
+  // ==== IMPLEMENTACIÓN ACTUAL (PEDIDO #3): NINGÚN CLICK, SOLO ESPERA 8s ====
+  // El botón invisible click de SHA 12a7dd7 SE ELIMINA COMPLETAMENTE.
+  // Se muestra un contador centrado en la pieza: "Continuando en 8s..." 8→7→6→...→1→PASA AUTOMÁTICO a stepVisual=1.
   const [stepVisual, setStepVisual] = useState(0)
+  const [piezaCountdown, setPiezaCountdown] = useState(null) // 8..1 = mostrando contador; null = no en pieza
   const handleClickEnImagen = () => {
     if (qrEstado !== 'listo') return
+    setPiezaCountdown(null)
     setStepVisual(1)
   }
+  // Countdown auto 8s en Pieza (listo + stepVisual=0).
+  // Cuando llega a 0, llama handleClickEnImagen() → pasa a políticas/aceptar.
+  useEffect(() => {
+    if (qrEstado === 'listo' && stepVisual === 0) {
+      setPiezaCountdown(8)
+      let restantes = 8
+      const idInt = setInterval(() => {
+        restantes = restantes - 1
+        if (restantes <= 0) {
+          clearInterval(idInt)
+          handleClickEnImagen()
+          return
+        }
+        setPiezaCountdown(restantes)
+      }, 1000)
+      return () => clearInterval(idInt)
+    } else {
+      // Si ya no está en pieza step0, resetear contador (para evitar que quede colgado de un intento anterior)
+      setPiezaCountdown(null)
+    }
+  }, [qrEstado, stepVisual, qr_uuid])
 
   // Reseteamos stepVisual a 0 si el QR cambia o vuelve a validar
   useEffect(() => {
@@ -321,18 +351,26 @@ export default function Ganador() {
     <div className="screen ganador-screen">
       <div className={claseFondo} />
 
-      {/* ===== BOTÓN INVISIBLE SÓLO SOBRE EL ÁREA DEL BOTÓN DIBUJADO EN LA PIEZA =====
-           User VERBATIM (1er pedido): "no sirve ese tocar cualquiera parte ya que le tengo que dar a ese botón de abajo este texto arreglao"
-           Posición proporcional 0..1: width 68% del ancho, height 13% del alto, centrado horizontalmente, bottom=15% desde el fondo del canvas. */}
-      {qrEstado === 'listo' && stepVisual === 0 && (
-        <button
-          type="button"
-          className="ganador-step0-btn-cta"
-          onClick={handleClickEnImagen}
-          aria-label="Continuar"
-          tabIndex={0}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClickEnImagen() }}
-        />
+      {/* ===== CONTADOR COUNTDOWN 8 SEGUNDOS (SOLO PIEZA stepVisual=0 / listo) =====
+           User VERBATIM HOY: "que la persona NO LE DE CLICK, solo se muestre 8 segundos y luego pase"
+           NO BOTÓN INVISIBLE. SÓLO contador grande centrado: 8..7..6..5..4..3..2..1 → AUTO step 1. */}
+      {qrEstado === 'listo' && stepVisual === 0 && piezaCountdown !== null && (
+        <div className="ganador-step0-countdown-wrapper">
+          <div className="ganador-step0-countdown-titulo">Continuando en</div>
+          <div className="ganador-step0-countdown-numero">
+            {piezaCountdown}
+            <span className="ganador-step0-countdown-seg">seg</span>
+          </div>
+          <div className="ganador-step0-countdown-barra-fondo">
+            <div
+              className="ganador-step0-countdown-barra-llena"
+              style={{ width: `${((8 - piezaCountdown + 1) / 8) * 100}%` }}
+            />
+          </div>
+          <div className="ganador-step0-countdown-leyenda">
+            Aceptar políticas y completar registro 👇
+          </div>
+        </div>
       )}
 
       {/* HEADER: Se oculta solo en Step 0 (cuando queremos que la imagen esté 100% limpia y solo se vea el botón dibujado original de la pieza) */}

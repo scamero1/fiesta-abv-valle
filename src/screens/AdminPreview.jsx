@@ -135,16 +135,43 @@ export default function AdminPreview() {
 
   // Substep para la pantalla FELICITACIONES
   //   -1 = Estado "Validando código QR..." (mock para preview estado inicial con Fondo Vertical)
-  //    0 = Solo imagen Pieza (botón invisible sobre CTA dibujado en la pieza)
+  //    0 = Solo imagen Pieza (8 segundos AUTO → pasa a políticas/aceptar; NO HAY CLICK)
   //    1 = Checks términos + botón ACEPTAR (con Fondo Vertical.png)
   const [felSubstep, setFelSubstep] = useState(-1)
 
+  // Countdown 8s PIEZA step1 felSubstep=0 (igual que Ganador real pedido HOY)
+  // User VERBATIM HOY: "Pieza NO le de click; solo 8 segundos y pase a políticas"
+  const [felCountdown, setFelCountdown] = useState(null)
+
+  // Toggle debug: ya no existe el botón invisible (SHA 12a7dd7 SUPERPUESTO por el countdown).
+  // Se reutiliza el switch como "Mostrar overlay countdown 8s"; default true.
   const [debugShowBtnArea, setDebugShowBtnArea] = useState(true)
 
   // Resetear Substep a -1 (Validando mock default) si cambiamos Step a 1
   useEffect(() => {
     if (step === 1) setFelSubstep(-1)
   }, [step])
+
+  // Countdown 8s auto en PIEZA (step 1 felSubstep=0). Cuando llega a 0 → felSubstep=1 (políticas).
+  useEffect(() => {
+    if (step === 1 && felSubstep === 0) {
+      setFelCountdown(8)
+      let restantes = 8
+      const idInt = setInterval(() => {
+        restantes = restantes - 1
+        if (restantes <= 0) {
+          clearInterval(idInt)
+          setFelCountdown(null)
+          setFelSubstep(1)
+          return
+        }
+        setFelCountdown(restantes)
+      }, 1000)
+      return () => clearInterval(idInt)
+    } else {
+      setFelCountdown(null)
+    }
+  }, [step, felSubstep])
 
   // Forzamos TCL o Móvil portrait con Wrapper CSS
   useEffect(() => {
@@ -198,16 +225,16 @@ export default function AdminPreview() {
           <span className="admin-preview-titulo">👀 Vista previa — Promoción "FIESTA"</span>
           {step === 1 && (
             <span className="admin-preview-subinfo" style={{color:'#475569',fontSize:'.85rem',marginLeft:12}}>
-              Substep actual: <b>{felSubstep === -1 ? '⌛ Validando QR (mock estado inicial)' : felSubstep === 0 ? '① Solo imagen (botón invisible sobre CTA dibujado)' : '② Fondo Vertical.png + Checks términos + botón ACEPTAR'}</b>
+              Substep actual: <b>{felSubstep === -1 ? '⌛ Validando QR (mock estado inicial)' : felSubstep === 0 ? '① Imagen Pieza · countdown 8s auto → políticas (NO hay click)' : '② Fondo Vertical.png + Checks términos + botón ACEPTAR'}</b>
               <span style={{marginLeft:10,display:'inline-flex',gap:6}}>
                 {felSubstep > -1 && <button type="button" className="admin-btn xs ghost" onClick={() => setFelSubstep(-1)}>⏮ Volver a Validando</button>}
-                {felSubstep === -1 && <button type="button" className="admin-btn xs" onClick={() => setFelSubstep(0)}>⏩ Simular QR OK → Imagen</button>}
-                {felSubstep === 0 && <button type="button" className="admin-btn xs" onClick={() => setFelSubstep(1)}>⏩ Simular click → Términos</button>}
-                {felSubstep === 1 && <button type="button" className="admin-btn xs ghost" onClick={() => setFelSubstep(0)}>↩️ Volver a imagen sola</button>}
+                {felSubstep === -1 && <button type="button" className="admin-btn xs" onClick={() => setFelSubstep(0)}>⏩ Simular QR OK → Imagen (contador 8s)</button>}
+                {felSubstep === 0 && <button type="button" className="admin-btn xs" onClick={() => { setFelCountdown(null); setFelSubstep(1) }}>⏩ Saltar 8s → Términos</button>}
+                {felSubstep === 1 && <button type="button" className="admin-btn xs ghost" onClick={() => setFelSubstep(0)}>↩️ Volver a imagen (reinicia countdown)</button>}
               </span>
               <label style={{display:'inline-flex',alignItems:'center',gap:6,marginLeft:14,color: debugShowBtnArea ? '#b45309' : '#64748b', fontWeight: debugShowBtnArea ? 700 : 500, fontSize: '.85rem', cursor: 'pointer'}}>
                 <input type="checkbox" style={{width:16,height:16,accentColor:'#facc15'}} checked={debugShowBtnArea} onChange={(e) => setDebugShowBtnArea(e.target.checked)} />
-                Mostrar área botón (debug amarillo)
+                Mostrar overlay countdown 8s
               </label>
             </span>
           )}
@@ -231,17 +258,26 @@ export default function AdminPreview() {
         <div className="screen ganador-screen">
           <div className={claseFondoPreview} />
 
-          {/* BOTÓN INVISIBLE SÓLO SOBRE ÁREA EXACTA BOTÓN DIBUJADO EN LA PIEZA
-              (igual que Ganador.jsx real). Solo visible cuando step 1 y felSubstep=0 (solo imagen pieza) */}
-          {step === 1 && felSubstep === 0 && (
-            <button
-              type="button"
-              className={claseBtnStep0}
-              onClick={() => setFelSubstep(1)}
-              aria-label="Continuar (área botón pieza)"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setFelSubstep(1) }}
-            />
+          {/* COUNTDOWN 8 SEGUNDOS SÓLO PIEZA step1 felSubstep=0 (igual que Ganador real HOY)
+              User VERBATIM: "Pieza NO le de click; solo 8 segundos y pase a políticas"
+              Si debugShowBtnArea=false → se oculta el overlay de texto para ver la pieza 100% limpia sin números */}
+          {step === 1 && felSubstep === 0 && felCountdown !== null && debugShowBtnArea && (
+            <div className="ganador-step0-countdown-wrapper">
+              <div className="ganador-step0-countdown-titulo">Continuando en</div>
+              <div className="ganador-step0-countdown-numero">
+                {felCountdown}
+                <span className="ganador-step0-countdown-seg">seg</span>
+              </div>
+              <div className="ganador-step0-countdown-barra-fondo">
+                <div
+                  className="ganador-step0-countdown-barra-llena"
+                  style={{ width: `${((8 - felCountdown + 1) / 8) * 100}%` }}
+                />
+              </div>
+              <div className="ganador-step0-countdown-leyenda">
+                Aceptar políticas y completar registro 👇
+              </div>
+            </div>
           )}
 
           {/* HEADER: Se oculta SOLO si step=1 y felSubstep=0 (solo imagen pieza limpia sin nada encima) */}

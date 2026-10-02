@@ -48,28 +48,46 @@ export default function AgradecimientoGanador() {
   const esRecogerCra74 = modalidad === 'RECOGER_CRA74' || modalidad === 'RECOGIDA'
 
   const renderMensaje = () => {
-    if (!esGanador) {
-      return (
-        <p className="agradecimiento-mensaje">
-          Lo sentimos, los premios de esta promoción ya fueron entregados por estricto orden de llegada.
-          ¡Gracias por participar! Te esperamos en la próxima fiesta ILV 1921.
-        </p>
-      )
-    }
+    const nombreLimpio = nombres && nombres !== 'participante' ? ` ${nombres}` : ''
     if (esRecogerCra74) {
       return (
-        <p className="agradecimiento-mensaje">
-          Tu botella ganadora la RECOGES en{' '}
-          <b>Cra. 74a #51a-87, Bogotá D.C.</b>.
-          Presenta tu cédula de ciudadanía original de lunes a viernes 9am-5pm.
-        </p>
+        <>
+          <p className="agradecimiento-mensaje">
+            ✅ <b>¡Gracias por registrarte{nombreLimpio}!</b> Tu premio está listo.
+          </p>
+          <p className="agradecimiento-mensaje">
+            🏬 Tu botella <b>Fiesta Aguardiente Blanco del Valle</b> la RECOGES PRESENCIALMENTE en:
+          </p>
+          <p className="agradecimiento-mensaje" style={{ fontWeight: 800, color: '#0f172a', fontSize: '1.08em' }}>
+            📍 Cra. 74a #51a-87, Bogotá D.C.
+          </p>
+          <p className="agradecimiento-mensaje">
+            📅 Presenta tu <b>cédula de ciudadanía original</b> de lunes a viernes en horario <b>9:00am – 5:00pm</b>.
+          </p>
+        </>
       )
     }
+    // Domicilio (incluye todos los casos no-Recoger: BOGOTA_DOMICILIO / DOMICILIO u otro)
+    const ciudadPais = (data?.ciudad || data?.municipio) ? ` para ${data?.ciudad || data?.municipio}` : ''
     return (
-      <p className="agradecimiento-mensaje">
-        Tu botella Fiesta será entregada a la dirección registrada en 10 días hábiles.
-        ¡Bebe con responsabilidad!
-      </p>
+      <>
+        <p className="agradecimiento-mensaje">
+          ✅ <b>¡Gracias por registrarte{nombreLimpio}!</b> Tu premio está confirmado.
+        </p>
+        <p className="agradecimiento-mensaje">
+          🚚 Tu botella <b>Fiesta Aguardiente Blanco del Valle</b> será ENTREGADA EN LA DIRECCIÓN que registraste{ciudadPais}:
+        </p>
+        <p className="agradecimiento-mensaje" style={{ fontWeight: 800, color: '#0f172a', fontSize: '1.08em' }}>
+          📍 {data?.direccion || 'Tu dirección registrada'}
+          {(data?.barrio) ? ` · ${data.barrio}` : ''}
+        </p>
+        <p className="agradecimiento-mensaje">
+          📅 Tiempo estimado de entrega: <b>10 días hábiles</b> después de hoy.
+        </p>
+        <p className="agradecimiento-mensaje" style={{ marginTop: 14, color: '#475569' }}>
+          🥃 ¡Disfruta con responsabilidad! #VaConTodo
+        </p>
+      </>
     )
   }
 
@@ -80,7 +98,7 @@ export default function AgradecimientoGanador() {
       <div className="screen-header instrucciones-header">
         <div className="header-left" />
         <div className="header-middle">
-          <h1 className="header-titulo">{esGanador ? '¡Premio Confirmado!' : 'Información'}</h1>
+          <h1 className="header-titulo">¡Gracias por registrarte!</h1>
         </div>
         <div className="header-right" />
       </div>
@@ -93,16 +111,19 @@ export default function AgradecimientoGanador() {
           </div>
         ) : error ? (
           <div className="agradecimiento-card">
-            <div className="agradecimiento-icon info">ℹ</div>
-            <h1>Información</h1>
-            <p className="agradecimiento-mensaje" style={{ color: '#991b1b' }}>{error}</p>
+            <div className="agradecimiento-icon ok">✓</div>
+            <h1>¡Gracias por registrarte!</h1>
+            <p className="agradecimiento-mensaje">
+              Tu información fue recibida correctamente. En breve un asesor validará el registro y contactará contigo
+              para coordinar la entrega de tu premio. ✨
+            </p>
           </div>
         ) : (
           <div className="agradecimiento-card">
-            <div className={`agradecimiento-icon ${esGanador ? 'ok' : 'info'}`}>
-              {esGanador ? '✓' : 'ℹ'}
+            <div className={`agradecimiento-icon ${esGanador ? 'ok' : 'ok'}`}>
+              ✓
             </div>
-            <h1>¡Gracias {nombres}!</h1>
+            <h1>¡Gracias por registrarte{esGanador ? ' ¡Ganaste!' : ''}</h1>
             {renderMensaje()}
           </div>
         )}

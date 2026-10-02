@@ -4394,19 +4394,21 @@ def admin_update_registro(id: int, req: AdminRegistroUpdateReq, admin: dict = _p
 def admin_delete_registro(id: int, admin: dict = _promo_Depends(get_current_admin)):
     with get_db_conn() as conn:
         conn.autocommit = False
+        posicion_eliminado = None
+        recalculated = 0
         try:
             cur = conn.cursor()
             ph = "%s" if DB_ENGINE == "POSTGRES" else "?"
+            if DB_ENGINE == "SQLITE":
+                cur.execute("BEGIN IMMEDIATE")
+            # PostgreSQL con autocommit=False YA inicia transacción automáticamente.
+            # NUNCA ejecutar BEGIN manual; causa "cannot start a transaction within a transaction".
             if DB_ENGINE == "POSTGRES":
-                cur.execute("BEGIN")
                 cur.execute(f"SELECT id, posicion_orden_ganador FROM promo_registros WHERE id = {ph} FOR UPDATE", (id,))
             else:
-                cur.execute("BEGIN IMMEDIATE")
                 cur.execute(f"SELECT id, posicion_orden_ganador FROM promo_registros WHERE id = {ph}", (id,))
             row = cur.fetchone()
             if row is None:
-                if DB_ENGINE != "POSTGRES":
-                    conn.rollback()
                 raise HTTPException(status_code=404, detail="Registro no encontrado")
             posicion_eliminado = row[1]
             cur.execute(f"DELETE FROM promo_registros WHERE id = {ph}", (id,))
@@ -4427,6 +4429,10 @@ def admin_delete_registro(id: int, admin: dict = _promo_Depends(get_current_admi
                 recalculated = cur.rowcount or 0
             conn.commit()
         except HTTPException:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             raise
         except Exception as e:
             try:
@@ -4927,16 +4933,19 @@ def admin_qr_patch(id_or_uuid, req: AdminQrPatchReq, admin: dict = _promo_Depend
 # M)ter DELETE /api/admin/qr/{id_or_uuid}  (eliminar QR de la base, incluso usado)
 @app.delete("/api/admin/qr/{id_or_uuid}")
 def admin_qr_delete(id_or_uuid, admin: dict = _promo_Depends(get_current_admin)):
+    qr = None
+    qr_id = None
     with get_db_conn() as conn:
-        cur = conn.cursor()
-        ph = "%s" if DB_ENGINE == "POSTGRES" else "?"
-        qr = _promo_resolver_qr_identifier(cur, ph, id_or_uuid)
-        if qr is None:
-            raise HTTPException(status_code=404, detail="QR no encontrado")
-        qr_id = int(qr["id"])
-        # Si el QR fue usado, poner en NULL el usado_registro_id del registro para mantener
-        # integridad (no queremos FK dangling si algun registro lo referencia, aunque no haya FK constraint en SQLite).
+        conn.autocommit = False
         try:
+            cur = conn.cursor()
+            ph = "%s" if DB_ENGINE == "POSTGRES" else "?"
+            if DB_ENGINE == "SQLITE":
+                cur.execute("BEGIN IMMEDIATE")
+            qr = _promo_resolver_qr_identifier(cur, ph, id_or_uuid)
+            if qr is None:
+                raise HTTPException(status_code=404, detail="QR no encontrado")
+            qr_id = int(qr["id"])
             if DB_ENGINE == "POSTGRES":
                 cur.execute("UPDATE promo_registros SET qr_id = NULL, qr_uuid = %s WHERE qr_id = %s AND (qr_id IS NOT NULL OR qr_uuid = %s)",
                             (qr.get("uuid_qr"), qr_id, qr.get("uuid_qr")))
@@ -4944,16 +4953,26 @@ def admin_qr_delete(id_or_uuid, admin: dict = _promo_Depends(get_current_admin))
             else:
                 cur.execute("UPDATE promo_registros SET qr_id = NULL WHERE qr_id = ?", (qr_id,))
                 cur.execute("DELETE FROM promo_qr_codes WHERE id = ?", (qr_id,))
-        except Exception:
-            conn.rollback()
+            conn.commit()
+        except HTTPException:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             raise
-        conn.commit()
-        _promo_insert_auditoria(int(admin["id"]), "DELETE_QR", {
-            "qr_id": qr_id,
-            "qr_uuid": qr.get("uuid_qr"),
-            "id_humano": qr.get("id_humano"),
-            "usado": bool(qr.get("usado_registro_id")),
-        })
+        except Exception as e:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            raise HTTPException(status_code=500, detail=f"Error delete QR: {str(e)}")
+    # Auditoria FUERA del with (igual que DELETE REGISTRO) para no mezclar transacciones
+    _promo_insert_auditoria(int(admin["id"]), "DELETE_QR", {
+        "qr_id": qr_id,
+        "qr_uuid": qr.get("uuid_qr") if qr else None,
+        "id_humano": qr.get("id_humano") if qr else None,
+        "usado": bool(qr.get("usado_registro_id")) if qr else False,
+    })
     return {"ok": True, "eliminado": True, "qr_eliminado": qr}
 
 

@@ -259,7 +259,21 @@ function TabRegistros({ authHeaders, toast }) {
       })
       if (res.ok) {
         const d = await res.json().catch(() => ({}))
-        setRegistros(Array.isArray(d) ? d : (d.registros || d.data || []))
+        // ✅ FIX alineado: backend retorna {"items":[...], "total":N, ...} por defecto.
+        // Retrocompatibilidad si alguna versión usa otras keys (registros, data).
+        // Fallback orden de prioridad: items (oficial) > registros > data > array raw
+        let arr = []
+        if (Array.isArray(d)) {
+          arr = d
+        } else if (d && typeof d === 'object') {
+          arr = (
+            (Array.isArray(d.items) ? d.items : null) ||
+            (Array.isArray(d.registros) ? d.registros : null) ||
+            (Array.isArray(d.data) ? d.data : null) ||
+            []
+          )
+        }
+        setRegistros(arr)
       }
     } catch {
     } finally {

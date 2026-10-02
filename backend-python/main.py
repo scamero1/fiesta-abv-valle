@@ -4336,11 +4336,19 @@ def admin_list_registros(
                 it["acepta_terminos"] = bool(it["acepta_terminos"]) if DB_ENGINE == "POSTGRES" else (int(it["acepta_terminos"] or 0) == 1)
             if "acepta_habeas" in it:
                 it["acepta_habeas"] = bool(it["acepta_habeas"]) if DB_ENGINE == "POSTGRES" else (int(it["acepta_habeas"] or 0) == 1)
+    # Alias triple de retrocompatibilidad:
+    #   items      = clave OFICIAL (por naming consistente con /api/admin/qr/list que usa items)
+    #   registros  = alias clave esperada por algunas versiones antiguas de AdminDashboard TAB2
+    #   data       = alias fallback genérico
+    # Así no se rompe si el frontend busca una u otra key (fix error "no salen las personas registradas"
+    # cuando el frontend buscaba d.registros pero el backend solo enviaba d.items).
     return {
         "total": total,
         "page": page,
         "per_page": per_page,
         "items": items,
+        "registros": items,
+        "data": items,
     }
 
 

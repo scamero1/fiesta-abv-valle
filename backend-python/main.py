@@ -3676,21 +3676,6 @@ async def promo_registro(req: PromoRegistroReq, request: Request):
         try:
             cur = conn.cursor()
             if DB_ENGINE == "POSTGRES":
-                # PostgreSQL + psycopg autocommit=False YA INICIA TRANSACCIÓN AUTOMÁTICAMENTE.
-                # NUNCA ejecutar BEGIN manual; provoca "cannot start a transaction within a transaction".
-                # Establecemos aislamiento SERIALIZABLE via conn para FIFO estricto.
-                try:
-                    conn.isolation_level = psycopg.IsolationLevel.SERIALIZABLE
-                except Exception:
-                    try:
-                        from psycopg import IsolationLevel as _IL
-                        conn.isolation_level = _IL.SERIALIZABLE
-                    except Exception:
-                        # Fallback: set vía SQL si el attr no está disponible.
-                        try:
-                            cur.execute("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE")
-                        except Exception:
-                            pass
                 cur.execute("SELECT id, uuid_qr, id_humano, usado_registro_id, habilitado FROM promo_qr_codes WHERE uuid_qr = %s", (qr_uuid,))
             else:
                 cur.execute("BEGIN IMMEDIATE")
@@ -3723,12 +3708,17 @@ async def promo_registro(req: PromoRegistroReq, request: Request):
                     detail="Este QR fue inhabilitado por el administrador. Por favor solicita un código nuevo en el puesto del evento.",
                 )
 
-            if DB_ENGINE == "POSTGRES":
-                cur.execute("SELECT dummy FROM promo_sorteo_lock WHERE id = 1 FOR UPDATE")
-                cur.execute("SELECT id, max_ganadores, estado_abierto, dir_fuera_bogota, titulo_premio FROM promo_config WHERE id = 1 FOR UPDATE")
-            else:
-                cur.execute("SELECT dummy FROM promo_sorteo_lock WHERE id = 1")
-                cur.execute("SELECT id, max_ganadores, estado_abierto, dir_fuera_bogota, titulo_premio FROM promo_config WHERE id = 1")
+            # ===== MODO EVENTO: TODOS LOS QR = GANADORES (sin límite, sin cupo) =====
+            # Se elimina lógica FIFO SERIALIZABLE + promo_sorteo_lock FOR UPDATE + chequeo max_ganadores.
+            # User VERBATIM: "todod lso qr que se generen son gaandores porfa"
+            # Siempre asignamos posicion_orden_ganador secuencial (para trazabilidad admin)
+            # pero SIN NINGÚN TOPE = TODOS GANAN.
+            cur.execute(
+                "SELECT id, max_ganadores, estado_abierto, dir_fuera_bogota, titulo_premio FROM promo_config WHERE id = %s"
+                if DB_ENGINE == "POSTGRES"
+                else "SELECT id, max_ganadores, estado_abierto, dir_fuera_bogota, titulo_premio FROM promo_config WHERE id = ?",
+                (1,),
+            )
             cfg_row = cur.fetchone()
             if cfg_row is None:
                 try:
@@ -3745,17 +3735,17 @@ async def promo_registro(req: PromoRegistroReq, request: Request):
                     pass
                 raise HTTPException(status_code=423, detail="Promoción cerrada temporalmente")
 
-            max_gan = int(cfg_row[1] or 1)
+            # max_gan se IGNORA completamente (no hay tope). Solo lo leemos por compatibilidad config.
             dir_fuera = str(cfg_row[3] or "Cra. 74a #51a-87, Bogotá")
             titulo_premio = str(cfg_row[4] or "Botella Aguardiente Blanco del Valle Fiesta")
 
+            # Conteo para posición secuencial TRAZABILIDAD (no es tope, solo para saber qué # ganador eres)
             count_sql = "SELECT COUNT(*) FROM promo_registros WHERE posicion_orden_ganador IS NOT NULL"
             cur.execute(count_sql)
             count_gan = int(cur.fetchone()[0] or 0)
 
-            posicion_ganador = None
-            if count_gan < max_gan:
-                posicion_ganador = count_gan + 1
+            # === TODOS GANAN === Asignamos posición SIEMPRE, sin if count<max
+            posicion_ganador = count_gan + 1
 
             cols_ins = [
                 "posicion_orden_ganador", "qr_id", "qr_uuid",
@@ -3802,13 +3792,11 @@ async def promo_registro(req: PromoRegistroReq, request: Request):
 
             conn.commit()
 
-            ganador = posicion_ganador is not None
+            # GANADOR SIEMPRE = True (nunca "no ganaste")
+            ganador = True
             mensaje_agradecimiento = (
                 f"¡FELICITACIONES! Eres el ganador #{posicion_ganador} de {titulo_premio}. "
                 f"{'Te lo enviaremos a tu domicilio en Bogotá.' if es_bogota else f'Retíralo en {dir_fuera}.'}"
-            ) if ganador else (
-                f"Gracias por participar, {req.nombres_apellidos}. "
-                f"No fuiste ganador esta vez, pero sigue disfrutando Aguardiente Blanco del Valle."
             )
             return {
                 "registro_id": int(new_id),
@@ -3853,13 +3841,16 @@ def promo_agradecimiento(registro_id: int):
         titulo_premio = str(cfg[1] or "Botella Aguardiente Blanco del Valle Fiesta")
 
         es_bogota = bool(d["es_bogota_direccion"]) if DB_ENGINE == "POSTGRES" else (int(d["es_bogota_direccion"]) == 1)
-        ganador = d["posicion_orden_ganador"] is not None
+        # MODO EVENTO: TODOS LOS REGISTROS = GANADORES (user VERBATIM: todo QR generado es ganador)
+        # Si posicion_orden_ganador es NULL por algún registro legacy, asignamos contando+1 inline
+        if d["posicion_orden_ganador"] is None:
+            cur.execute("SELECT COUNT(*) FROM promo_registros WHERE posicion_orden_ganador IS NOT NULL")
+            _posicion_fallback = int((cur.fetchone() or [0])[0] or 0) + 1
+            d["posicion_orden_ganador"] = _posicion_fallback
+        ganador = True
         mensaje_agradecimiento = (
             f"¡FELICITACIONES! Eres el ganador #{d['posicion_orden_ganador']} de {titulo_premio}. "
             f"{'Te lo enviaremos a tu domicilio en Bogotá.' if es_bogota else f'Retíralo en {dir_fuera}.'}"
-        ) if ganador else (
-            f"Gracias por participar, {d['nombres_apellidos']}. "
-            f"No fuiste ganador esta vez, pero sigue disfrutando Aguardiente Blanco del Valle."
         )
         return {
             "registro_id": int(d["id"]),

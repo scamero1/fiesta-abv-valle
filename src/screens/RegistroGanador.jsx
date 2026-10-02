@@ -173,15 +173,7 @@ export default function RegistroGanador() {
       <div className="screen-bg ganador-bg" />
 
       <div className="screen-header instrucciones-header">
-        <div className="header-left">
-          <button
-            type="button"
-            className="header-btn-atras"
-            onClick={() => navigate(-1)}
-          >
-            ‹ Volver
-          </button>
-        </div>
+        <div className="header-left" />
         <div className="header-middle">
           <h1 className="header-titulo">Completa tus datos</h1>
         </div>

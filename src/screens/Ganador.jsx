@@ -87,15 +87,7 @@ export default function Ganador() {
       <div className="screen-bg ganador-bg" />
 
       <div className="screen-header instrucciones-header">
-        <div className="header-left">
-          <button
-            type="button"
-            className="header-btn-atras"
-            onClick={() => navigate('/')}
-          >
-            ‹ Atrás
-          </button>
-        </div>
+        <div className="header-left" />
         <div className="header-middle">
           <h1 className="header-titulo">¡FELICIDADES GANASTE!</h1>
         </div>

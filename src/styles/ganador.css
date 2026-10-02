@@ -49,3 +49,17 @@
   .agradecimiento-botones{flex-direction:column;}
   .agradecimiento-botones>*{width:100%;}
 }
+
+/* ===== Bloqueos QR: inhabilitado / ya_usado / validando / no_existe (idea user: 1 QR = 1 ganador) ===== */
+.ganador-bloqueo-icono{width:clamp(72px,14svh,96px);height:clamp(72px,14svh,96px);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:clamp(40px,8svh,56px);font-weight:900;flex-shrink:0;background:rgba(255,255,255,.95);box-shadow:0 6px 24px rgba(0,0,0,.2);margin:0;}
+.ganador-bloqueo-titulo{line-height:1.15;max-width:640px;}
+.ganador-bloqueo-mensaje{max-width:680px;background:rgba(0,0,0,.18);padding:clamp(10px,1.6svh,14px) clamp(14px,2svw,20px);border-radius:14px;border:1px solid rgba(255,255,255,.2);}
+.ganador-bloqueo-nota{margin-top:4px;font-size:clamp(.75rem,1.3svw,.85rem);color:rgba(255,255,255,.78);max-width:640px;line-height:1.4;}
+.ganador-bloqueo-icono.color-red{background:linear-gradient(135deg,#b91c1c 0%,#7f1d1d 100%);color:#fff;box-shadow:0 6px 24px rgba(185,28,28,.4);}
+.ganador-bloqueo-icono.color-amber{background:linear-gradient(135deg,#b45309 0%,#78350f 100%);color:#fff;box-shadow:0 6px 24px rgba(180,83,9,.4);}
+.ganador-bloqueo-icono.color-blue{background:linear-gradient(135deg,#0047BA 0%,#002a7a 100%);color:#fff;box-shadow:0 6px 24px rgba(0,71,186,.4);}
+.ganador-bloqueo-icono.color-gray{background:linear-gradient(135deg,#475569 0%,#1e293b 100%);color:#fff;box-shadow:0 6px 24px rgba(71,85,105,.4);}
+.ganador-bloqueo-titulo.color-red{color:#fff;text-shadow:0 3px 12px rgba(185,28,28,.55);}
+.ganador-bloqueo-titulo.color-amber{color:#fff;text-shadow:0 3px 12px rgba(180,83,9,.55);}
+.ganador-bloqueo-titulo.color-blue{color:#fff;text-shadow:0 3px 12px rgba(0,71,186,.55);}
+.ganador-bloqueo-titulo.color-gray{color:#fff;text-shadow:0 3px 12px rgba(0,0,0,.45);}

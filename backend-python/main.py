@@ -3596,11 +3596,12 @@ def promo_qr_validar(req: PromoQrValidarReq):
         raise HTTPException(status_code=400, detail="qr_uuid es requerido")
     with get_db_conn() as conn:
         cur = conn.cursor()
+        ph = "%s" if DB_ENGINE == "POSTGRES" else "?"
         sql = (
-            "SELECT id, uuid_qr, id_humano, size_px, formato, usado_registro_id, habilitado "
+            "SELECT id, uuid_qr, id_humano, size_px, formato, usado_registro_id, habilitado, usado_at "
             "FROM promo_qr_codes WHERE uuid_qr = %s"
             if DB_ENGINE == "POSTGRES"
-            else "SELECT id, uuid_qr, id_humano, size_px, formato, usado_registro_id, habilitado "
+            else "SELECT id, uuid_qr, id_humano, size_px, formato, usado_registro_id, habilitado, usado_at "
                  "FROM promo_qr_codes WHERE uuid_qr = ?"
         )
         cur.execute(sql, (qr_uuid,))
@@ -3610,38 +3611,164 @@ def promo_qr_validar(req: PromoQrValidarReq):
                 "valido": False,
                 "usado": False,
                 "habilitado": False,
-                "mensaje": "QR no encontrado en el sistema",
+                "estado": "no_existe",
+                "mensaje": "QR no encontrado en el sistema. Pide un código nuevo en el puesto del evento.",
+                "mensaje_titulo": "QR inválido",
                 "size_px": 0,
                 "id_humano": "",
+                "usado_registro_id": None,
+                "usado_at_iso": None,
+                "ganador_nombre": None,
+                "ganador_celular": None,
+                "ganador_ciudad": None,
             }
-        usado = row[5] is not None
+        usado_registro_id = row[5]
+        usado = usado_registro_id is not None
         habil_blob = row[6]
         habilitado = (
             bool(habil_blob) if DB_ENGINE == "POSTGRES" else (int(habil_blob) == 1 if habil_blob is not None else True)
         )
+        size_px = int(row[3] or 512)
+        id_humano = str(row[2] or "")
+        usado_at_iso = None
+        ganador_nombre = None
+        ganador_celular = None
+        ganador_ciudad = None
+        if usado:
+            try:
+                _ua = row[7]
+                if _ua is not None:
+                    usado_at_iso = _ua.isoformat() if hasattr(_ua, "isoformat") else str(_ua)
+            except Exception:
+                pass
+            cur.execute(
+                f"SELECT nombres_apellidos, celular, ciudad, created_at FROM promo_registros WHERE id = {ph}",
+                (usado_registro_id,) if DB_ENGINE == "POSTGRES" else [usado_registro_id],
+            )
+            rg = cur.fetchone()
+            if rg is not None:
+                ganador_nombre = str(rg[0] or "")
+                ganador_celular = str(rg[1] or "")
+                ganador_ciudad = str(rg[2] or "")
+                if usado_at_iso is None:
+                    try:
+                        _ca = rg[3]
+                        if _ca is not None:
+                            usado_at_iso = _ca.isoformat() if hasattr(_ca, "isoformat") else str(_ca)
+                    except Exception:
+                        pass
         if not habilitado:
             return {
                 "valido": False,
                 "usado": usado,
                 "habilitado": False,
-                "mensaje": "QR inhabilitado por el administrador del evento",
-                "size_px": int(row[3] or 512),
-                "id_humano": str(row[2] or ""),
+                "estado": "inhabilitado",
+                "mensaje_titulo": "QR inhabilitado",
+                "mensaje": (
+                    "Este código QR fue inhabilitado por el administrador del evento y ya no se puede usar. "
+                    "Por favor solicita un QR nuevo en el puesto de Aguardiente Blanco del Valle."
+                ),
+                "size_px": size_px,
+                "id_humano": id_humano,
+                "usado_registro_id": usado_registro_id,
+                "usado_at_iso": usado_at_iso,
+                "ganador_nombre": ganador_nombre,
+                "ganador_celular": ganador_celular,
+                "ganador_ciudad": ganador_ciudad,
+            }
+        if usado:
+            # User VERBATIM idea: cuando una persona se registra, el mismo link NO puede volver a generar ganadores
+            # Mostramos a quien fue reclamado el premio (nombre + hora) para que el usuario entienda por qué está bloqueado.
+            partes = []
+            if ganador_nombre:
+                partes.append(f"Reclamado por: {ganador_nombre}.")
+            if usado_at_iso:
+                try:
+                    _dh = datetime.fromisoformat(usado_at_iso.replace("Z", "+00:00"))
+                    if _dh.tzinfo is None:
+                        _dh = _dh.replace(tzinfo=timezone.utc)
+                    from datetime import timedelta
+                    col = _dh.astimezone(timezone(timedelta(hours=-5)))
+                    partes.append(f"Hora registro (Bogotá): {col.strftime('%d/%m/%Y %I:%M %p')}.")
+                except Exception:
+                    pass
+            if ganador_ciudad:
+                partes.append(f"Ciudad: {ganador_ciudad}.")
+            extra = (" " + " ".join(partes)) if partes else ""
+            return {
+                "valido": False,
+                "usado": True,
+                "habilitado": True,
+                "estado": "ya_usado",
+                "mensaje_titulo": "QR ya utilizado — Premio ya reclamado",
+                "mensaje": (
+                    "Este código QR YA FUE UTILIZADO para registrar un ganador y solo permite un solo ganador por QR."
+                    + extra
+                    + " Si quieres participar, pide un código QR NUEVO en el puesto del evento. Cada persona tiene un QR único al momento de ganar."
+                ),
+                "size_px": size_px,
+                "id_humano": id_humano,
+                "usado_registro_id": usado_registro_id,
+                "usado_at_iso": usado_at_iso,
+                "ganador_nombre": ganador_nombre,
+                "ganador_celular": ganador_celular,
+                "ganador_ciudad": ganador_ciudad,
             }
         return {
             "valido": True,
-            "usado": usado,
+            "usado": False,
             "habilitado": True,
-            "mensaje": ("QR ya utilizado" if usado else "QR válido y listo para usar"),
-            "size_px": int(row[3] or 512),
-            "id_humano": str(row[2] or ""),
+            "estado": "listo",
+            "mensaje_titulo": "¡Felicidades!",
+            "mensaje": "QR válido y listo para reclamar tu premio.",
+            "size_px": size_px,
+            "id_humano": id_humano,
+            "usado_registro_id": None,
+            "usado_at_iso": None,
+            "ganador_nombre": None,
+            "ganador_celular": None,
+            "ganador_ciudad": None,
         }
 
 
 # B) POST /api/promo/aceptacion
 @app.post("/api/promo/aceptacion")
 def promo_aceptacion(req: PromoAceptacionReq):
+    qr_uuid = (req.qr_uuid or "").strip()
     server_ts = datetime.now(timezone.utc)
+    # Validación PREVIA: si QR NO EXISTE / INHABILITADO / YA USADO, no aceptar nada
+    # User idea: un QR usado = link bloqueado (no permitir seguir flujo)
+    if qr_uuid:
+        with get_db_conn() as conn:
+            cur = conn.cursor()
+            ph = "%s" if DB_ENGINE == "POSTGRES" else "?"
+            if DB_ENGINE == "POSTGRES":
+                cur.execute(
+                    "SELECT id, usado_registro_id, habilitado FROM promo_qr_codes WHERE uuid_qr = %s",
+                    (qr_uuid,),
+                )
+            else:
+                cur.execute(
+                    "SELECT id, usado_registro_id, habilitado FROM promo_qr_codes WHERE uuid_qr = ?",
+                    (qr_uuid,),
+                )
+            qr_row = cur.fetchone()
+            if qr_row is None:
+                raise HTTPException(status_code=404, detail="QR no encontrado")
+            if DB_ENGINE == "POSTGRES":
+                qr_hab = bool(qr_row[2])
+            else:
+                qr_hab = (int(qr_row[2]) == 1 if qr_row[2] is not None else True)
+            if not qr_hab:
+                raise HTTPException(
+                    status_code=410,
+                    detail="QR inhabilitado por el administrador. Pide un código nuevo en el puesto del evento.",
+                )
+            if qr_row[1] is not None:
+                raise HTTPException(
+                    status_code=409,
+                    detail="QR ya utilizado: este premio ya fue reclamado por otra persona. Cada QR solo permite 1 ganador.",
+                )
     return {
         "ok": True,
         "server_timestamp_iso": server_ts.isoformat(),

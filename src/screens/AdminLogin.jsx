@@ -51,6 +51,64 @@ export default function AdminLogin() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [debugInfo, setDebugInfo] = useState(null)
+  const [diagnostico, setDiagnostico] = useState(null)
+  const [diagnosticando, setDiagnosticando] = useState(false)
+
+  const diagnosticarBackend = async () => {
+    setDiagnosticando(true)
+    setDiagnostico(null)
+    const base = BACKEND_URL || window.location.origin
+    const urls = [
+      { k: 'HEALTH (cors)', u: `${base.replace(/\/+$/, '')}/health`, m: 'cors' },
+      { k: 'HEALTH (no-cors)', u: `${base.replace(/\/+$/, '')}/health`, m: 'no-cors' },
+      { k: 'CORSTEST (cors)', u: `${base.replace(/\/+$/, '')}/cors-test`, m: 'cors' },
+      { k: 'CORSTEST (no-cors)', u: `${base.replace(/\/+$/, '')}/cors-test`, m: 'no-cors' },
+    ]
+    const resumen = {}
+    for (const t of urls) {
+      try {
+        const res = await fetch(t.u, { method: 'GET', mode: t.m })
+        let bodyPreview = ''
+        try {
+          if (t.m === 'cors') {
+            const txt = await res.text()
+            bodyPreview = txt.slice(0, 160)
+          }
+        } catch {}
+        resumen[t.k] = { status: res.status, ok: res.ok, type: res.type, bodyPreview }
+      } catch (e) {
+        resumen[t.k] = {
+          status: 'EXC',
+          error: e?.message || String(e),
+          explicacion:
+            t.m === 'cors'
+              ? 'Failed to fetch modo cors = el backend NO respondió (caído / dominio incorrecto / puerto cerrado) O el header Access-Control-Allow-Origin NO fue enviado por CORS bloqueado por Railway WAF. Prueba modo no-cors abajo.'
+              : 'Failed to fetch modo no-cors = el backend está TOTALMENTE caído (502/503 Railway), el dominio NO EXISTE o hay firewall bloqueando. Esto NO es un problema de CORS.'
+        }
+      }
+    }
+
+    // Heuristica conclusión
+    let conclusion = ''
+    const c = resumen
+    if (c['HEALTH (no-cors)']?.error) {
+      conclusion =
+        '🔴 DIAGNÓSTICO: BACKEND PYTHON ESTÁ CAÍDO EN RAILWAY. No responde ni siquiera a no-cors. SOLUCIÓN: (1) Railway Dashboard → Servicio1 Python → Ver Logs / Redeploy Latest. (2) Asegúrate que quede Healthy (checkmark verde). (3) Probá la URL /health directamente en una pestaña.'
+    } else if (c['HEALTH (cors)']?.error && c['HEALTH (no-cors)']?.ok) {
+      conclusion =
+        '🟡 DIAGNÓSTICO: BACKEND ESTÁ UP PERO CORS ESTÁ BLOQUEADO. Modo no-cors funciona pero cors FALLA = el navegador bloquea por header Access-Control-Allow-Origin. SOLUCIÓN: (1) Hacer REDEPLOY del Backend Python SHA nuevo (ya agregué expose_headers y max_age). (2) Asegúrate de NO usar allow_credentials=True con allow_origins=* (está en False ya).'
+    } else if (c['HEALTH (cors)']?.ok) {
+      conclusion =
+        '🟢 DIAGNÓSTICO: BACKEND ESTÁ UP + CORS OK. Si el login sigue fallando = el problema NO es red ni CORS, es la lógica AUTH. Soluciones: (1) abre /api/promo/debug/reseed-admin en el dominio backend para insertar admin ilv1921. (2) Abre /api/promo/debug/health para verificar tablas existen.'
+    } else if (c['CORSTEST (cors)']?.ok) {
+      conclusion = '🟢 BACKEND UP + CORS OK. Revisa credenciales y que admin ilv1921 exista con /api/promo/debug/reseed-admin.'
+    } else {
+      conclusion = '🟡 INDEFINIDO: Revisa los resultados abajo y envíame screenshot.'
+    }
+
+    setDiagnostico({ base, resumen, conclusion })
+    setDiagnosticando(false)
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -168,6 +226,78 @@ export default function AdminLogin() {
               'INGRESAR'
             )}
           </button>
+
+          <button
+            type="button"
+            className="admin-login-btn"
+            disabled={diagnosticando}
+            style={{
+              marginTop: 10,
+              background: diagnosticando ? '#334155' : 'linear-gradient(135deg, #065f46 0%, #047857 100%)',
+              border: 'none',
+              fontSize: 15,
+            }}
+            onClick={diagnosticarBackend}
+          >
+            {diagnosticando ? '🔧 DIAGNOSTICANDO CONEXIÓN BACKEND...' : '🔧 DIAGNOSTICAR CONEXIÓN BACKEND (1 clic)'}
+          </button>
+
+          <div
+            style={{
+              marginTop: 14,
+              textAlign: 'left',
+              fontSize: 12.5,
+              color: '#cbd5e1',
+              background: 'rgba(15, 23, 42, 0.55)',
+              padding: '10px 12px',
+              borderRadius: 10,
+              lineHeight: 1.7,
+              border: '1px solid rgba(148, 163, 184, 0.2)',
+            }}
+          >
+            <div><b style={{ color: '#fbbf24' }}>📋 PASOS RÁPIDOS PRIMERO (sin tocar código):</b></div>
+            <div>1️⃣ ABRÍ NUEVA PESTAÑA → <b>{BACKEND_URL || '(mismo dominio, configura VITE_BACKEND_URL!)'}/health</b> → DEBE MOSTRAR JSON <code style={{ color: '#86efac' }}>{'{ok:true}'}</code></div>
+            <div>2️⃣ ABRÍ → <b>{BACKEND_URL || '(...)'}/cors-test</b> → DEBE MOSTRAR JSON <code style={{ color: '#86efac' }}>cors: OK</code></div>
+            <div>3️⃣ ABRÍ → <b>{BACKEND_URL || '(...)'}/api/promo/debug/reseed-admin</b> → reinserta admin ilv1921</div>
+            <div>4️⃣ VOLVÉ a <b>/admin</b> y click INGRESAR.</div>
+          </div>
+
+          {diagnostico && (
+            <div
+              style={{
+                marginTop: 14,
+                padding: '14px 16px',
+                borderRadius: 12,
+                background:
+                  diagnostico.conclusion.includes('🔴')
+                    ? 'rgba(127, 29, 29, 0.72)'
+                    : diagnostico.conclusion.includes('🟡')
+                      ? 'rgba(146, 64, 14, 0.72)'
+                      : 'rgba(6, 78, 59, 0.72)',
+                border: '1px solid rgba(226, 232, 240, 0.25)',
+                fontSize: 12.5,
+                color: '#e2e8f0',
+                lineHeight: 1.6,
+                fontFamily: 'ui-monospace, Consolas, monospace',
+                textAlign: 'left',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-all',
+              }}
+            >
+              <div style={{ fontSize: 14, color: '#fde68a', fontWeight: 700, marginBottom: 8 }}>
+                🔧 RESULTADO DIAGNÓSTICO:
+              </div>
+              <div style={{ marginBottom: 10 }}>{diagnostico.conclusion}</div>
+              <div>
+                <b style={{ color: '#93c5fd' }}>Dominio backend probado (base):</b> {diagnostico.base}
+              </div>
+              {Object.entries(diagnostico.resumen).map(([k, v]) => (
+                <div key={k} style={{ marginTop: 4 }}>
+                  <b style={{ color: '#bae6fd' }}>{k}:</b> {JSON.stringify(v, null, 0)}
+                </div>
+              ))}
+            </div>
+          )}
 
           {debugInfo && (
             <div

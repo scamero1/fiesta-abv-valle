@@ -372,16 +372,58 @@ def get_session():
 # ====== FASTAPI APP ======
 app = FastAPI(
     title="Aguardiente ABV Fiesta — Background Removal + Composition API",
-    version="2.0.0",
+    version="2.1.0",
 )
+
+# CORS MÁS ROBUSTO PARA RAILWAY + PWA TCL ANDROID CHROME
+# (Problema "Failed to fetch" suele ser CORS preflight no cacheado o missing expose_headers)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=86400,
 )
 
+
+@app.middleware("http")
+async def _promo_log_cors_and_trace_headers(request: Request, call_next):
+    """Middleware TRAZABILIDAD: imprime ORIGIN cada request con metodo POST a /api/admin o promo.
+    Sirve para diagnosticar 'Failed to fetch' = CORS bloqueado o Backend caido."""
+    method = request.method
+    path = request.url.path
+    origin = request.headers.get("origin") or request.headers.get("Origin") or ""
+    referer = request.headers.get("referer") or request.headers.get("Referer") or ""
+    host = request.headers.get("host") or request.headers.get("Host") or ""
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        print(f"[REQ-500] {method} {path} | origin={origin!r} host={host!r} ref={referer!r} | EXC={type(e).__name__}: {e}")
+        raise
+    if (method == "POST" and ("/api/admin" in path or "/api/promo" in path)) or "/debug/" in path or path == "/health":
+        print(
+            f"[REQ] {method} {path} HTTP {response.status_code} | "
+            f"origin={origin!r} host={host!r} ref={referer!r}"
+        )
+    return response
+
+
+@app.get("/cors-test")
+def cors_test_simple(request: Request):
+    """Endpoint SUPER SIMPLE para diagnosticar Failed to fetch.
+    No requiere headers, no requiere auth, responde JSON instantáneo.
+    Se usa en AdminLogin botón DIAGNOSTICAR 1 clic."""
+    return {
+        "ok": True,
+        "cors": "OK (si puedes ver este JSON en el navegador, backend Python Railway está UP)",
+        "method": "GET",
+        "request_host": request.headers.get("host"),
+        "request_origin": request.headers.get("origin"),
+        "request_user_agent": (request.headers.get("user-agent") or "")[:120],
+        "server_time_utc": datetime.now(timezone.utc).isoformat(),
+    }
 @app.on_event("startup")
 def startup_init_db_and_model():
     print(f"[startup] engine={DB_ENGINE} (DATABASE_URL_set={bool(DATABASE_URL)}) | IA model={MODEL_NAME} | CPU only")

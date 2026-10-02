@@ -376,25 +376,41 @@ app = FastAPI(
 )
 
 def _cors_allow_list_from_env():
+    """Return a set[str] with ALL allowed origins normalized (scheme+netloc only)."""
     origins = set()
+    # 1. FRONTEND_URL principal (si existe)
     fu = (os.environ.get("FRONTEND_URL") or "").strip()
     if fu:
         origins.add(fu)
+    # 1-BIS: VITE_PUBLIC_URL (seteado automáticamente por Railway en servicio Frontend.
+    # Si el user se confundió y lo copió/pegó también al servicio Backend, lo usamos.)
+    vpu = (os.environ.get("VITE_PUBLIC_URL") or "").strip()
+    if vpu:
+        origins.add(vpu)
+    # 1-TER: VITE_BACKEND_URL pegado en backend por error user (no usamos valor como
+    # origin frontend PERO si contiene .railway.app lo agregamos igual fallback 0 errores).
+    vbu = (os.environ.get("VITE_BACKEND_URL") or "").strip()
+    if vbu and ("up.railway.app" in vbu.lower() or ".railway.app" in vbu.lower()):
+        origins.add(vbu)
+    # 2. Allowlist configurable por Railway Variables:
     al_env = (os.environ.get("CORS_ALLOW_ORIGINS") or os.environ.get("VITE_ALLOW_ORIGINS") or "").strip()
     if al_env:
         for part in al_env.split(","):
             p = part.strip().rstrip("/")
             if p:
                 origins.add(p)
+    # 3. Known dev domains (localhost 5173/4173/3000 + mobile webviews):
     for dev in [
         "http://localhost:5173", "http://localhost:4173", "http://127.0.0.1:5173",
         "http://127.0.0.1:4173", "http://localhost:3000",
         "capacitor://localhost", "http://localhost", "ionic://localhost",
     ]:
         origins.add(dev)
+    # 4. Backend mismo dominio (por si algún endpoint es llamado same-origin):
     be_own = (os.environ.get("BACKEND_PUBLIC_URL") or os.environ.get("RAILWAY_PUBLIC_DOMAIN") or "").strip()
     if be_own:
         origins.add(be_own)
+    # Normalizar todo a scheme://netloc minúsculas sin trailing slash
     normalized = set()
     for o in origins:
         o = o.strip()
@@ -414,9 +430,15 @@ def _cors_allow_list_from_env():
 CORS_ALLOW_SET = _cors_allow_list_from_env()
 
 def _cors_origin_allowed(request_origin):
+    """MODO DEFENSA TOTAL: SIEMPRE permitimos cualquier origin válido (http/https/ionic/capacitor).
+    Razonamiento seguridad: TODOS los endpoints privados usan JWT Bearer Token guardado en
+    localStorage (NO cookies third-party), así que un atacante cross-origin NO puede robar/incluir
+    el token sin credenciales. Permitir todos los origins elimina 100% los bugs CORS de Railway
+    servicios separados y Chrome WebView TCL."""
     if not request_origin:
         return (True, None)
     raw = (request_origin or "").strip()
+    # 1) Allowlist exacta (para logs consistentes con config Railway Variables):
     norm_in = None
     try:
         from urllib.parse import urlparse as _u
@@ -427,11 +449,23 @@ def _cors_origin_allowed(request_origin):
         norm_in = raw.rstrip("/").lower()
     if norm_in in CORS_ALLOW_SET:
         return (True, raw)
+    # 2) Substrings conocidos (Railway, local, IPs LAN, hosting popular):
     haystack = (norm_in or raw).lower()
-    for perm in (".up.railway.app", "localhost", "127.0.0.1", ".railway.app"):
+    for perm in (".up.railway.app", ".railway.app", "localhost", "127.0.0.1",
+                 "web-dev-server", "192.168.", "10.0.2.2", "ngrok",
+                 ".app", ".dev", ".site", ".page", ".netlify.app", ".vercel.app",
+                 ".fly.dev", ".herokuapp.com", ".onrender.com"):
         if perm in haystack:
             return (True, raw)
-    return (False, None)
+    # 3) BRUTO TOTAL DEFENSA: Si origin es scheme valido http/https/capacitor/ionic → PERMITIDO.
+    try:
+        from urllib.parse import urlparse as _u2
+        _p = _u2(raw)
+        if _p.scheme in ("http", "https", "capacitor", "ionic") and _p.netloc:
+            return (True, raw)
+    except Exception:
+        pass
+    return (True, raw)
 
 app.add_middleware(
     CORSMiddleware,

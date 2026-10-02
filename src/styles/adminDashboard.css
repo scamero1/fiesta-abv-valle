@@ -57,9 +57,15 @@
 .admin-btn.ghost:active{background:#f1f5f9;}
 .admin-btn.sm{min-height:34px;height:34px;padding:5px 12px;font-size:.8rem;border-radius:8px;}
 .admin-btn[disabled]{opacity:.55;cursor:not-allowed;pointer-events:none;}
-.admin-toast{position:fixed;top:calc(var(--header-h)+16px);right:16px;z-index:9998;padding:10px 16px;border-radius:10px;font-weight:600;font-size:.88rem;box-shadow:0 4px 20px rgba(0,0,0,.2);}
-.admin-toast.ok{background:#16a34a;color:#fff;}
-.admin-toast.err{background:var(--color-rojo-acento);color:#fff;}
+.admin-toast{position:fixed;top:calc(var(--header-h)+16px);right:16px;left:auto;max-width:min(92vw,620px);min-width:min(80vw,480px);z-index:99999!important;padding:12px 16px 12px 16px;border-radius:14px;font-weight:700;font-size:.92rem;box-shadow:0 14px 30px -8px rgba(0,0,0,.42),0 0 0 1px rgba(0,0,0,.06) inset;display:flex;flex-direction:column;gap:8px;word-break:break-word;}
+.admin-toast::before{content:"";position:absolute;inset:-1px;border-radius:14px;box-shadow:0 0 0 2px rgba(255,255,255,.22) inset;pointer-events:none;}
+.admin-toast.ok{background:linear-gradient(180deg,#22c55e 0%,#15803d 100%);color:#fff;border:1px solid #166534;}
+.admin-toast.err{background:linear-gradient(180deg,#ef4444 0%,#991b1b 100%);color:#fff;border:1px solid #7f1d1d;animation:admin-toast-shake .42s ease-out;}
+@keyframes admin-toast-shake{0%{transform:translateX(0);}20%{transform:translateX(-7px);}40%{transform:translateX(7px);}60%{transform:translateX(-4px);}80%{transform:translateX(4px);}100%{transform:translateX(0);}}
+.admin-toast.persistente{min-height:auto;}
+.admin-toast-msg{line-height:1.5;}
+.admin-toast-close{align-self:flex-end;background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.3);padding:5px 12px;border-radius:8px;font-weight:700;font-size:.8rem;cursor:pointer;}
+.admin-toast-close:hover{background:rgba(255,255,255,.32);}
 .admin-table-wrap{overflow-x:auto;border-radius:12px;border:1px solid #e2e8f0;background:#fff;}
 .admin-table{width:100%;min-width:900px;border-collapse:collapse;font-size:.88rem;}
 .admin-table th{background:#f8fafc;padding:11px 14px;text-align:left;font-weight:700;color:var(--color-azul-primario);font-size:.82rem;border-bottom:1.5px solid #e2e8f0;white-space:nowrap;position:sticky;top:0;}

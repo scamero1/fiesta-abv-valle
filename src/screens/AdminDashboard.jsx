@@ -10,17 +10,36 @@ export default function AdminDashboard() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState(0)
   const [toast, setToast] = useState(null)
+  const [toastTimer, setToastTimer] = useState(null)
+
+  const limpiarTimerToast = () => {
+    if (toastTimer) {
+      clearTimeout(toastTimer)
+      setToastTimer(null)
+    }
+  }
+
+  const mostrarToast = (mensaje, tipo = 'ok', persistente = null) => {
+    limpiarTimerToast()
+    const persistir = (persistente != null) ? Boolean(persistente) : (tipo === 'err')
+    setToast({ msg: mensaje, tipo, persistir, id: Date.now() })
+    if (!persistir) {
+      const t = setTimeout(() => setToast(null), 4200)
+      setToastTimer(t)
+    }
+  }
+
+  const cerrarToastManual = () => {
+    limpiarTimerToast()
+    setToast(null)
+  }
 
   useEffect(() => {
     if (!leerJWTValido()) {
       navigate('/admin', { replace: true })
     }
+    return () => limpiarTimerToast()
   }, [navigate])
-
-  const mostrarToast = (mensaje, tipo = 'ok') => {
-    setToast({ msg: mensaje, tipo })
-    setTimeout(() => setToast(null), 3000)
-  }
 
   const getAuthHeaders = () => {
     const token = leerJWTValido()
@@ -69,8 +88,18 @@ export default function AdminDashboard() {
       </div>
 
       {toast && (
-        <div className={`admin-toast ${toast.tipo}`} role="status">
-          {toast.msg}
+        <div className={`admin-toast ${toast.tipo}${toast.persistir ? ' persistente' : ''}`} role="status">
+          <div className="admin-toast-msg">{toast.msg}</div>
+          {toast.persistir && (
+            <button
+              type="button"
+              className="admin-toast-close"
+              aria-label="Cerrar notificación de error"
+              onClick={cerrarToastManual}
+            >
+              ✕ Cerrar
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -453,23 +482,23 @@ function TabRegistros({ authHeaders, toast }) {
 
 function TabQRCodigos({ authHeaders, toast }) {
   const [cantidad, setCantidad] = useState(1)
-  const [tamano, setTamano] = useState(5) // valor segun unidad (512 px ó 5 cm default)
-  const [unidadTamaño, setUnidadTamaño] = useState('centimetros') // 'pixeles' | 'centimetros'
+  const [tamano, setTamano] = useState(5)
+  const [unidadTamaño, setUnidadTamaño] = useState('centimetros')
   const [dpi, setDpi] = useState(300)
   const [formato, setFormato] = useState('PNG')
   const [generando, setGenerando] = useState(false)
-  const [resultados, setResultados] = useState([]) // Recien generados
+  const [resultados, setResultados] = useState([])
+  const [ultimoErrorQR, setUltimoErrorQR] = useState(null) // { titulo, httpStatus, detail, body, url, stack, fechaIso }
 
-  // Listado historial BD
   const [listadoTodos, setListadoTodos] = useState([])
   const [cargandoListado, setCargandoListado] = useState(false)
   const [pagListado, setPagListado] = useState(1)
   const [totalListado, setTotalListado] = useState(0)
   const [perPageListado] = useState(50)
   const [busquedaQR, setBusquedaQR] = useState('')
-  const [filtroHab, setFiltroHab] = useState(null) // null = todos | true | false
-  const [filtroUsado, setFiltroUsado] = useState(null) // null = todos | true (usado) | false (sin usar)
-  const [confirmQR, setConfirmQR] = useState(null) // { tipo: 'INHAB' | 'HAB' | 'DEL', qr: {...} }
+  const [filtroHab, setFiltroHab] = useState(null)
+  const [filtroUsado, setFiltroUsado] = useState(null)
+  const [confirmQR, setConfirmQR] = useState(null)
 
   const recalcularPx = (valor, unidad, d, returnString = false) => {
     if (unidad === 'centimetros') {
@@ -491,7 +520,8 @@ function TabQRCodigos({ authHeaders, toast }) {
       if (busquedaQR && busquedaQR.trim()) params.set('q', busquedaQR.trim())
       if (filtroHab !== null) params.set('habilitado', filtroHab ? 'true' : 'false')
       if (filtroUsado !== null) params.set('usado', filtroUsado ? 'true' : 'false')
-      const res = await fetch(apiUrl(`/api/admin/qr/list?${params.toString()}`), {
+      const urlFull = apiUrl(`/api/admin/qr/list?${params.toString()}`)
+      const res = await fetch(urlFull, {
         method: 'GET',
         headers: authHeaders(),
       })
@@ -500,7 +530,15 @@ function TabQRCodigos({ authHeaders, toast }) {
         setListadoTodos(d.items || [])
         setTotalListado(d.total || 0)
         setPagListado(pageOverride)
+      } else {
+        const textoCrudo = await res.text().catch(() => '')
+        let d = {}
+        try { d = JSON.parse(textoCrudo) } catch {}
+        const msj = d.detail || d.message || textoCrudo || `HTTP ${res.status}`
+        console.error('[Admin] Cargar listado QR falló:', { status: res.status, url: urlFull, msj })
       }
+    } catch (e) {
+      console.error('[Admin] Cargar listado QR exception:', e && e.message)
     } finally {
       setCargandoListado(false)
     }
@@ -516,26 +554,47 @@ function TabQRCodigos({ authHeaders, toast }) {
   const handleGenerar = async () => {
     if (!cantidad || cantidad < 1 || cantidad > 5000) {
       toast('❌ Cantidad debe ser 1-5000', 'err')
+      setUltimoErrorQR({
+        titulo: 'Validación frontend',
+        httpStatus: 400,
+        detail: `Cantidad inválida = ${cantidad}. Debe estar entre 1 y 5000.`,
+        fechaIso: new Date().toISOString(),
+      })
       return
     }
     const sizePxFinal = recalcularPx(tamano, unidadTamaño, dpi)
     setGenerando(true)
+    setUltimoErrorQR(null)
+    const body = {
+      cantidad,
+      unidad: unidadTamaño,
+      tamano_valor: parseFloat(tamano) || 0,
+      dpi: parseInt(dpi) || 300,
+      size_px: sizePxFinal,
+      formato: formato.toLowerCase(),
+    }
+    const urlFull = apiUrl('/api/admin/qr/generar')
+    console.groupCollapsed('%c🔧 [Admin] DEBUG Generar QR request', 'color:#0ea5e9;font-weight:bold')
+    console.log('URL:', urlFull)
+    console.log('METHOD: POST')
+    console.log('HEADERS auth:', Object.keys(authHeaders()).join(','))
+    console.log('BODY:', JSON.stringify(body, null, 2))
+    console.log('Backend URL config actual (AdminLogin BACKEND_URL):', BACKEND_URL)
+    console.groupEnd()
+
     try {
-      const body = {
-        cantidad,
-        unidad: unidadTamaño,
-        tamano_valor: parseFloat(tamano) || 0,
-        dpi: parseInt(dpi) || 300,
-        size_px: sizePxFinal,
-        formato: formato.toLowerCase(),
-      }
-      const res = await fetch(apiUrl('/api/admin/qr/generar'), {
+      const res = await fetch(urlFull, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify(body),
       })
+      console.log('%c[Admin] POST /generar QR HTTP Status =', 'color:#f59e0b;font-weight:900', res.status, res.statusText, '| ok?', res.ok)
+      const textoCrudo = await res.text()
+      let d = {}
+      try { d = JSON.parse(textoCrudo) } catch (e) { d = { _raw_texto_html: textoCrudo.slice(0, 1200) } }
+      console.log('%c[Admin] POST /generar RESPUESTA (texto/json parseado):', 'color:#94a3b8', d)
+
       if (res.ok) {
-        const d = await res.json().catch(() => ({}))
         const itemsGenerados = d.items || []
         setResultados(itemsGenerados)
         toast(
@@ -543,14 +602,42 @@ function TabQRCodigos({ authHeaders, toast }) {
           (d.tamano_cm_final ? ` (${d.tamano_cm_final} cm @ ${d.dpi_final || 300} dpi)` : ''),
           'ok'
         )
-        // Refrescar listado
         cargarListadoBD(1)
       } else {
-        const d = await res.json().catch(() => ({}))
-        toast(`❌ ${d.detail || d.message || 'No se pudieron generar los QR'}`, 'err')
+        const msj = d.detail || d.message || d.error || d._raw_texto_html || 'No se pudieron generar los QR'
+        console.error('%c🚨 ERROR RESPUESTA BACKEND /generar QR:', 'background:#b91c1c;color:white;font-weight:bold;padding:2px 6px;border-radius:4px', {
+          status: res.status, statusText: res.statusText, url: urlFull, parsed: d, rawLength: textoCrudo.length,
+        })
+        setUltimoErrorQR({
+          titulo: 'BACKEND rechazó la solicitud (HTTP ≠ 2xx)',
+          httpStatus: res.status,
+          detail: msj,
+          url: urlFull,
+          bodyEnviado: body,
+          respuestaRaw: textoCrudo.slice(0, 2000),
+          respuestaJson: d,
+          fechaIso: new Date().toISOString(),
+        })
+        toast(`❌ HTTP ${res.status} · ${String(msj).slice(0, 160)}`, 'err')
       }
-    } catch {
-      toast('❌ Error de conexión con el servidor', 'err')
+    } catch (e) {
+      console.groupCollapsed('%c🚨 [Admin] ERROR FETCH NETWORK /generar QR (CORS/Backend caído/Timeout)', 'background:#991b1b;color:white;font-weight:bold;padding:2px 6px;border-radius:4px')
+      console.error('Exception message:', e && e.message)
+      console.error('Exception stack:', e && e.stack)
+      console.error('URL intentada:', urlFull)
+      console.error('BACKEND_URL configurado:', BACKEND_URL || '(VACIO = mismo dominio)')
+      console.groupEnd()
+      const msj = (e && e.message) ? `Error de conexión: ${e.message}` : 'Error de conexión con el servidor (CORS o backend caído)'
+      setUltimoErrorQR({
+        titulo: 'ERROR FETCH / RED / CORS / BACKEND CAÍDO',
+        httpStatus: 0,
+        detail: msj,
+        url: urlFull,
+        stack: (e && e.stack) ? String(e.stack).slice(0, 1500) : null,
+        bodyEnviado: body,
+        fechaIso: new Date().toISOString(),
+      })
+      toast(`❌ ${msj}`, 'err')
     } finally {
       setGenerando(false)
     }
@@ -728,6 +815,113 @@ function TabQRCodigos({ authHeaders, toast }) {
           </button>
         </div>
       </div>
+
+      {/* ================ PANEL ERROR VISIBLE PERMANENTE (si hubo error último intento) ================ */}
+      {ultimoErrorQR && (
+        <div
+          className="admin-panel-error-qr"
+          role="alert"
+          style={{
+            border: '2px solid #dc2626',
+            borderRadius: 10,
+            padding: '12px 14px 14px',
+            marginTop: 14,
+            marginBottom: 6,
+            background:
+              'linear-gradient(180deg,  #fff1f2 0%, #fee2e2 100%)',
+            boxShadow: '0 2px 0 #fecaca inset, 0 10px 20px -12px rgba(220,38,38,0.55)',
+            color: '#1f2937',
+            overflow: 'hidden',
+            position: 'relative',
+            zIndex: 3,
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{
+                background: '#b91c1c', color: 'white', width: 28, height: 28, borderRadius: '50%',
+                display: 'grid', placeItems: 'center', fontSize: 16, fontWeight: 900, lineHeight: 1,
+                boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+              }}>!</div>
+              <div>
+                <div style={{ fontSize: 13.5, fontWeight: 800, color: '#991b1b' }}>
+                  ⚠️ Error detectado al generar QR
+                </div>
+                <div style={{ fontSize: 11.5, color: '#7f1d1d', marginTop: 2 }}>
+                  <b>Título</b>: {ultimoErrorQR.titulo} &nbsp;·&nbsp;
+                  <b>HTTP</b>: {ultimoErrorQR.httpStatus || 'N/A'} &nbsp;·&nbsp;
+                  <b>Hora</b>: {new Date(ultimoErrorQR.fechaIso || Date.now()).toLocaleString('es-CO')}
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+              <button
+                type="button"
+                className="admin-btn sm primary"
+                style={{ padding: '4px 10px', fontSize: 12, borderRadius: 6 }}
+                onClick={async () => {
+                  try {
+                    const txt = JSON.stringify(ultimoErrorQR, null, 2)
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                      await navigator.clipboard.writeText(txt)
+                      toast('📋 Error copiado al portapapeles. Pégamelo por WhatsApp!', 'ok')
+                    } else {
+                      prompt('Copia esto manualmente:', txt)
+                    }
+                  } catch {
+                    prompt('Copia esto manualmente:', JSON.stringify(ultimoErrorQR, null, 2))
+                  }
+                }}
+              >📋 COPIAR ERROR</button>
+              <button
+                type="button"
+                className="admin-btn sm ghost"
+                style={{ padding: '4px 10px', fontSize: 12, borderRadius: 6 }}
+                onClick={() => setUltimoErrorQR(null)}
+              >✕ Ocultar</button>
+            </div>
+          </div>
+
+          <div style={{
+            background: 'white',
+            border: '1px solid #fecaca',
+            borderRadius: 8,
+            padding: '10px 12px',
+            marginTop: 4,
+            fontSize: 13.5,
+            lineHeight: 1.55,
+            color: '#7f1d1d',
+            fontWeight: 700,
+            wordBreak: 'break-word',
+          }}>
+            💬 {ultimoErrorQR.detail || '(sin mensaje)'}
+          </div>
+
+          <textarea
+            readOnly
+            style={{
+              width: '100%',
+              minHeight: 170,
+              maxHeight: 360,
+              marginTop: 10,
+              padding: '10px 12px',
+              fontSize: 11.5,
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+              lineHeight: 1.5,
+              color: '#1e293b',
+              background: '#f8fafc',
+              border: '1px solid #cbd5e1',
+              borderRadius: 8,
+              resize: 'vertical',
+            }}
+            value={JSON.stringify({
+              BACKEND_URL_config: BACKEND_URL || '(VACIO = mismo dominio que frontend)',
+              error: ultimoErrorQR,
+            }, null, 2)}
+          />
+        </div>
+      )}
+
 
       {resultados.length === 0 ? (
         <p style={{ color: '#64748b', textAlign: 'center', padding: '20px 0' }}>

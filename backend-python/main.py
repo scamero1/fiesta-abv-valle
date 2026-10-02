@@ -492,6 +492,56 @@ async def _promo_log_cors_and_trace_headers(request: Request, call_next):
     return response
 
 
+@app.middleware("http")
+async def _cors_intercept_preflight_options_NUCLEAR(request: Request, call_next):
+    """MIDDLEWARE MÁS SEGURO PARA CORS EN 2 SERVICIOS RAILWAY SEPARADOS.
+    ======= NIVEL: NUCLEAR (ÚLTIMA DEFENSA ANTES DE HTTP 500) =======
+    Starlette CORSMiddleware base a veces responde al preflight OPTIONS con wildcard
+    y luego Chrome Android/WebView TCL bloquea fetch con TypeError Failed to fetch.
+
+    SOLUCIÓN: si method == 'OPTIONS' y existe header Origin:
+      - INTERCEPTO DIRECTAMENTE, NUNCA llamo call_next() = el CORSMiddleware base
+        y otros middlewares NO pueden modificar headers CORS de respuesta.
+      - Contesto Response(status_code=204, content=b'') con headers de MI helper
+        _cors_origin_allowed():
+            access-control-allow-origin: <ORIGIN EXACTO si permitido>
+            access-control-allow-methods: GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS
+            access-control-allow-headers: *
+            access-control-expose-headers: *
+            access-control-max-age: 86400
+            access-control-allow-credentials: false
+            vary: Origin
+    Así el navegador SIEMPRE recibe 204 + origin exacto y NO bloquea nada.
+
+    (El resto de middlewares siguen intactos por redundancia: si un cliente no envía
+     preflight OPTIONS por ser simple request, los otros middlewares igual agregan
+     los headers CORS correctos en la response.)
+    """
+    method = request.method
+    origin = request.headers.get("origin") or None
+    path = request.url.path
+    if method == "OPTIONS" and origin:
+        allow_ok, echo = _cors_origin_allowed(origin)
+        print(f"[CORS-PREFLIGHT] OPTIONS {path} | origin={origin!r} allow={allow_ok} echo={echo!r}")
+        if allow_ok and echo:
+            headers = {
+                "access-control-allow-origin": echo,
+                "access-control-allow-methods": "GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS",
+                "access-control-allow-headers": request.headers.get("access-control-request-headers") or "*",
+                "access-control-expose-headers": "*",
+                "access-control-max-age": "86400",
+                "access-control-allow-credentials": "false",
+                "vary": "Origin",
+                "content-length": "0",
+            }
+            return Response(status_code=204, content=b"", headers=headers)
+        else:
+            headers = {"vary": "Origin", "content-length": "0"}
+            return Response(status_code=403, content=b"cors blocked origin", headers=headers)
+    # Caso normal: GET / POST / etc — pasa al siguiente middleware en la cadena
+    return await call_next(request)
+
+
 @app.get("/cors-test")
 def cors_test_simple(request: Request):
     origin = request.headers.get("origin") or ""

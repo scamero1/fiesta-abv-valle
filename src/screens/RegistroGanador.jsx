@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { apiUrl } from './AdminLogin.jsx'
 import '../styles/ganador.css'
 
 export default function RegistroGanador() {
@@ -113,7 +114,7 @@ export default function RegistroGanador() {
         ciudad: form.ciudad.trim(),
       }
 
-      const res = await fetch('/api/promo/registro', {
+      const res = await fetch(apiUrl('/api/promo/registro'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -126,7 +127,7 @@ export default function RegistroGanador() {
       } else {
         setErrores((prev) => ({
           ...prev,
-          _generico: data.message || data.error || 'No se pudo completar el registro. Intenta nuevamente.',
+          _generico: `HTTP ${res.status} — ${data.detail || data.error || data.message || 'No se pudo completar el registro. Intenta nuevamente.'}`,
         }))
       }
     } catch (err) {

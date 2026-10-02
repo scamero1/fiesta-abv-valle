@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { QRCodeCanvas } from 'qrcode.react'
+import { apiUrl } from './AdminLogin.jsx'
 import '../styles/ganador.css'
 
 export default function Ganador() {
@@ -31,7 +32,7 @@ export default function Ganador() {
   const enviarAceptacion = async (tipo) => {
     if (!qr_uuid) return null
     try {
-      const res = await fetch('/api/promo/aceptacion', {
+      const res = await fetch(apiUrl('/api/promo/aceptacion'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

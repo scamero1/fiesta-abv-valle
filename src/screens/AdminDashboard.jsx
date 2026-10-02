@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { QRCodeCanvas } from 'qrcode.react'
-import { leerJWTValido, borrarJWT } from './AdminLogin.jsx'
+import { leerJWTValido, borrarJWT, BACKEND_URL, apiUrl } from './AdminLogin.jsx'
 import '../styles/adminDashboard.css'
 
 const TABS = ['Configuración', 'Registros', 'Códigos QR']
@@ -92,7 +92,7 @@ function TabConfiguracion({ authHeaders, toast }) {
     let cancelado = false
     const cargar = async () => {
       try {
-        const res = await fetch('/api/admin/config', {
+        const res = await fetch(apiUrl('/api/admin/config'), {
           method: 'GET',
           headers: authHeaders(),
         })
@@ -114,7 +114,7 @@ function TabConfiguracion({ authHeaders, toast }) {
   const handleGuardar = async () => {
     setSaving(true)
     try {
-      const res = await fetch('/api/admin/config', {
+      const res = await fetch(apiUrl('/api/admin/config'), {
         method: 'PUT',
         headers: authHeaders(),
         body: JSON.stringify(config),
@@ -123,7 +123,7 @@ function TabConfiguracion({ authHeaders, toast }) {
         toast('✅ Configuración guardada correctamente', 'ok')
       } else {
         const d = await res.json().catch(() => ({}))
-        toast(`❌ ${d.message || 'No se pudo guardar'}`, 'err')
+        toast(`❌ ${d.detail || d.message || 'No se pudo guardar'}`, 'err')
       }
     } catch {
       toast('❌ Error de conexión', 'err')
@@ -224,7 +224,7 @@ function TabRegistros({ authHeaders, toast }) {
   const cargar = async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/registros?page=1&per_page=100', {
+      const res = await fetch(apiUrl('/api/admin/registros?page=1&per_page=100'), {
         headers: authHeaders(),
       })
       if (res.ok) {
@@ -242,7 +242,7 @@ function TabRegistros({ authHeaders, toast }) {
   const handleDescargarExcel = async () => {
     try {
       const token = leerJWTValido()
-      const res = await fetch('/api/admin/registros/xlsx', {
+      const res = await fetch(apiUrl('/api/admin/registros/xlsx'), {
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
@@ -275,7 +275,7 @@ function TabRegistros({ authHeaders, toast }) {
     if (!editRegistro) return
     try {
       const id = editForm.id || editForm.registro_id || editRegistro.id || editRegistro.registro_id
-      const res = await fetch(`/api/admin/registros/${encodeURIComponent(id)}`, {
+      const res = await fetch(apiUrl(`/api/admin/registros/${encodeURIComponent(id)}`), {
         method: 'PUT',
         headers: authHeaders(),
         body: JSON.stringify(editForm),
@@ -286,7 +286,7 @@ function TabRegistros({ authHeaders, toast }) {
         cargar()
       } else {
         const d = await res.json().catch(() => ({}))
-        toast(`❌ ${d.message || 'Error'}`, 'err')
+        toast(`❌ ${d.detail || d.message || 'Error'}`, 'err')
       }
     } catch {
       toast('❌ Error de conexión', 'err')
@@ -303,7 +303,7 @@ function TabRegistros({ authHeaders, toast }) {
     const r = deleteConfirm.registro
     try {
       const id = r.id || r.registro_id
-      const res = await fetch(`/api/admin/registros/${encodeURIComponent(id)}`, {
+      const res = await fetch(apiUrl(`/api/admin/registros/${encodeURIComponent(id)}`), {
         method: 'DELETE',
         headers: authHeaders(),
       })
@@ -313,7 +313,7 @@ function TabRegistros({ authHeaders, toast }) {
         cargar()
       } else {
         const d = await res.json().catch(() => ({}))
-        toast(`❌ ${d.message || 'Error'}`, 'err')
+        toast(`❌ ${d.detail || d.message || 'Error'}`, 'err')
       }
     } catch {
       toast('❌ Error de conexión', 'err')
@@ -469,7 +469,7 @@ function TabQRCodigos({ authHeaders, toast }) {
     }
     setGenerando(true)
     try {
-      const res = await fetch('/api/admin/qr/generar', {
+      const res = await fetch(apiUrl('/api/admin/qr/generar'), {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({ cantidad, tamano_pixeles: tamano, formato }),

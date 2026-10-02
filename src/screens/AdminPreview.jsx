@@ -128,21 +128,22 @@ function PantallaAgradecimiento() {
 
 export default function AdminPreview() {
   const navigate = useNavigate()
+  // step: 1 = Felicitaciones (Substeps: -1 = Validando QR mock / 0 = Imagen Botón Pieza / 1 = Checks Términos Fondo Vertical)
+  // step 2 = Registro / step 3 = Agradecimiento
   const [step, setStep] = useState(1)
   const [orientation, setOrientation] = useState('auto')
 
-  // Substep para la pantalla FELICITACIONES (flujo nuevo user)
-  // 0 = Ver solo imagen (sobre el botón dibujado en la pieza hay un BOTÓN INVISIBLE clickeable área exacta)
-  // 1 = Ver checks términos + botón ACEPTAR (con Fondo Vertical.png como fondo)
-  const [felSubstep, setFelSubstep] = useState(0)
+  // Substep para la pantalla FELICITACIONES
+  //   -1 = Estado "Validando código QR..." (mock para preview estado inicial con Fondo Vertical)
+  //    0 = Solo imagen Pieza (botón invisible sobre CTA dibujado en la pieza)
+  //    1 = Checks términos + botón ACEPTAR (con Fondo Vertical.png)
+  const [felSubstep, setFelSubstep] = useState(-1)
 
-  // Toggle debug: mostrar el área del botón invisible con borde amarillo dashado
-  // para alinear milimétricamente con el botón dibujado en la Pieza
   const [debugShowBtnArea, setDebugShowBtnArea] = useState(true)
 
-  // Resetear Substep a 0 si cambiamos Step a 1
+  // Resetear Substep a -1 (Validando mock default) si cambiamos Step a 1
   useEffect(() => {
-    if (step === 1) setFelSubstep(0)
+    if (step === 1) setFelSubstep(-1)
   }, [step])
 
   // Forzamos TCL o Móvil portrait con Wrapper CSS
@@ -177,12 +178,13 @@ export default function AdminPreview() {
 
   const tituloHeaderFrame = () => step === 1 ? '¡FELICIDADES GANASTE!' : step === 2 ? 'Completa tus datos' : '✅ Registro Exitoso'
 
-  // Clase fondo DINÁMICA igual que Ganador.jsx real:
-  // felSubstep 0 = Pieza Ganadores Vertical.jpg (oficial evento)
-  // felSubstep 1 = Fondo Vertical.png (user lo pidió cuando pasan a términos)
-  const claseFondoPreview = (step === 1 && felSubstep >= 1)
-    ? 'screen-bg ganador-bg-fondo-vertical'
-    : 'screen-bg ganador-bg'
+  // Clase fondo DINÁMICA alineada EXACTA con Ganador.jsx real SHA 12a7dd7+:
+  // - felSubstep === -1 (Validando mock) → Fondo Vertical.png
+  // - felSubstep === 0 (listo + stepVisual=0) → Pieza Ganadores Vertical.jpg
+  // - felSubstep >= 1 (listo + stepVisual=1 / bloqueos) → Fondo Vertical.png
+  const claseFondoPreview = (step === 1 && felSubstep === 0)
+    ? 'screen-bg ganador-bg'
+    : 'screen-bg ganador-bg-fondo-vertical'
 
   // Clase botón debug: si toggle true agregamos la clase debug-show-btn-area
   const claseBtnStep0 = 'ganador-step0-btn-cta' + (debugShowBtnArea ? ' debug-show-btn-area' : '')
@@ -196,9 +198,13 @@ export default function AdminPreview() {
           <span className="admin-preview-titulo">👀 Vista previa — Promoción "FIESTA"</span>
           {step === 1 && (
             <span className="admin-preview-subinfo" style={{color:'#475569',fontSize:'.85rem',marginLeft:12}}>
-              Substep actual: <b>{felSubstep === 0 ? '① Solo imagen (botón invisible sobre CTA dibujado)' : '② Fondo Vertical.png + Checks términos + botón ACEPTAR'}</b>
-              {felSubstep === 0 && <button type="button" className="admin-btn xs" style={{marginLeft:10}} onClick={() => setFelSubstep(1)}>⏩ Simular click en botón</button>}
-              {felSubstep === 1 && <button type="button" className="admin-btn xs ghost" style={{marginLeft:10}} onClick={() => setFelSubstep(0)}>↩️ Volver a imagen sola</button>}
+              Substep actual: <b>{felSubstep === -1 ? '⌛ Validando QR (mock estado inicial)' : felSubstep === 0 ? '① Solo imagen (botón invisible sobre CTA dibujado)' : '② Fondo Vertical.png + Checks términos + botón ACEPTAR'}</b>
+              <span style={{marginLeft:10,display:'inline-flex',gap:6}}>
+                {felSubstep > -1 && <button type="button" className="admin-btn xs ghost" onClick={() => setFelSubstep(-1)}>⏮ Volver a Validando</button>}
+                {felSubstep === -1 && <button type="button" className="admin-btn xs" onClick={() => setFelSubstep(0)}>⏩ Simular QR OK → Imagen</button>}
+                {felSubstep === 0 && <button type="button" className="admin-btn xs" onClick={() => setFelSubstep(1)}>⏩ Simular click → Términos</button>}
+                {felSubstep === 1 && <button type="button" className="admin-btn xs ghost" onClick={() => setFelSubstep(0)}>↩️ Volver a imagen sola</button>}
+              </span>
               <label style={{display:'inline-flex',alignItems:'center',gap:6,marginLeft:14,color: debugShowBtnArea ? '#b45309' : '#64748b', fontWeight: debugShowBtnArea ? 700 : 500, fontSize: '.85rem', cursor: 'pointer'}}>
                 <input type="checkbox" style={{width:16,height:16,accentColor:'#facc15'}} checked={debugShowBtnArea} onChange={(e) => setDebugShowBtnArea(e.target.checked)} />
                 Mostrar área botón (debug amarillo)
@@ -225,9 +231,8 @@ export default function AdminPreview() {
         <div className="screen ganador-screen">
           <div className={claseFondoPreview} />
 
-          {/* BOTÓN INVISIBLE SÓLO SOBRE ÁREA EXACTA DEL BOTÓN DIBUJADO EN LA PIEZA
-              (igual que Ganador.jsx real). Solo visible cuando felSubstep=0 y step=1.
-              Toggle debug: muestra outline dashado amarillo para confirmar posición. */}
+          {/* BOTÓN INVISIBLE SÓLO SOBRE ÁREA EXACTA BOTÓN DIBUJADO EN LA PIEZA
+              (igual que Ganador.jsx real). Solo visible cuando step 1 y felSubstep=0 (solo imagen pieza) */}
           {step === 1 && felSubstep === 0 && (
             <button
               type="button"
@@ -239,28 +244,60 @@ export default function AdminPreview() {
             />
           )}
 
-          {/* HEADER: igual condicional que real */}
-          {(step !== 1 || felSubstep >= 1) && (
+          {/* HEADER: Se oculta SOLO si step=1 y felSubstep=0 (solo imagen pieza limpia sin nada encima) */}
+          {(step !== 1 || felSubstep !== 0) && (
             <div className="screen-header instrucciones-header">
               <div className="header-left" />
               <div className="header-middle">
-                <h1 className="header-titulo">{tituloHeaderFrame()}</h1>
+                <h1 className="header-titulo">
+                  {step === 1 && felSubstep === -1 ? 'Validando QR...' : tituloHeaderFrame()}
+                </h1>
               </div>
               <div className="header-right" />
             </div>
           )}
 
-          {/* CONTENIDO: igual condicional que real */}
-          {(step !== 1 || felSubstep >= 1) && (
-            step === 1 ? <PantallaFelicitaciones /> : step === 2 ? <PantallaRegistro /> : <PantallaAgradecimiento />
+          {/* CONTENIDO:
+              - step 1 felSubstep -1 → PantallaValidando mock (Fondo Vertical.png + icono 🔍 + mensaje)
+              - step 1 felSubstep 0  → NADA (solo imagen pieza 100% limpia, sin header sin contenido)
+              - step 1 felSubstep 1  → PantallaFelicitaciones (Fondo Vertical.png)
+              - step 2 / 3          → PantallaRegistro / PantallaAgradecimiento */}
+          {(step !== 1 || felSubstep !== 0) && (
+            step === 1 && felSubstep === -1 ? (
+              <div className="screen-content ganador-content anim-in">
+                <div className="ganador-bloqueo-icono color-blue">🔍</div>
+                <h2 className="ganador-titulo ganador-bloqueo-titulo color-blue">Validando código QR...</h2>
+                <p className="ganador-subtitulo ganador-bloqueo-mensaje">
+                  Estamos confirmando que tu código QR está listo para reclamar el premio. Espera unos segundos.
+                </p>
+                <div style={{marginTop:18,display:'inline-flex',alignItems:'center',gap:10,color:'#fff',fontSize:'clamp(.85rem,2svw,1rem)',background:'rgba(255,255,255,.12)',backdropFilter:'blur(6px)',borderRadius:999,padding:'8px 20px',border:'1px solid rgba(255,255,255,.22)'}}>
+                  <span className="spinner" style={{width:16,height:16,borderWidth:3}} />
+                  Mock: duración ~300 ms en producción real
+                </div>
+                <div className="ganador-qr-wrap" style={{marginTop:14}} title="Mock Preview QR UUID">
+                  <QRCodeCanvas value={MOCK_UUID} size={64} level="M" includeMargin={false} />
+                </div>
+                <div className="ganador-bloqueo-nota">
+                  ⓘ Fondo actual (Validando) = Fondo Vertical.png (user pedido).
+                </div>
+              </div>
+            ) : step === 1 ? (
+              <PantallaFelicitaciones />
+            ) : step === 2 ? (
+              <PantallaRegistro />
+            ) : (
+              <PantallaAgradecimiento />
+            )
           )}
         </div>
       </div>
 
       {/* Pie admin preview: info del fondo usado */}
       <div className="admin-preview-footer">
-        <b>Step 1 Felicitaciones:</b>&nbsp; Substep① (solo imagen): <code>Pieza Ganadores Vertical.jpg</code> (oficial evento) &nbsp;|&nbsp; Substep② (términos + registro): <code>Fondo Vertical.png</code> (fondo alternativo user).
-        &nbsp;|&nbsp; Botón invisible: <b>W68% × H13%</b>, centrado, bottom 15%. Usa toggle "Mostrar área botón" para alinear.
+        <b>Regla de fondos (Ganador.jsx real):</b>&nbsp;
+        <b style={{color:'#0ea5e9'}}>Validando QR</b> → <code>Fondo Vertical.png</code> &nbsp;|&nbsp;
+        <b style={{color:'#7c3aed'}}>Listo + Click botón AÚN NO DADO</b> → <code>Pieza Ganadores Vertical.jpg</code> (100% limpia) &nbsp;|&nbsp;
+        <b style={{color:'#16a34a'}}>Listo + Click botón DADO / Bloqueos</b> → <code>Fondo Vertical.png</code> (checks términos + reg + agradec + pantallas rojas).
         &nbsp; Al terminar registro → <b>QR INHABILITADO AUTOMÁTICO (Capa 3 rowcount atomic)</b>.
       </div>
     </div>

@@ -308,10 +308,14 @@ export default function Ganador() {
   }
 
   // Determinamos clase fondo dinámicamente según stepVisual y estado QR
-  // User VERBATIM (2do pedido): cuando pase a los términos y condiciones → usar Fondo Vertical.png
-  const claseFondo = (qrEstado === 'listo' && stepVisual >= 1)
-    ? 'screen-bg ganador-bg-fondo-vertical'
-    : 'screen-bg ganador-bg'
+  // User VERBATIM (último pedido): "cuando diga validando codigo qr que tenga este fondo Fondo Vertical.png"
+  // Regla clara:
+  //   - qrEstado === 'validando' → Fondo Vertical.png
+  //   - qrEstado === 'listo' && stepVisual === 0 → Pieza Ganadores Vertical.jpg (solo cuando la pieza debe estar 100% limpia antes de click botón)
+  //   - CUALQUIER OTRO CASO (listo stepVisual>=1 / ya_usado / inhabilitado / error_red / no_existe) → Fondo Vertical.png
+  const claseFondo = (qrEstado === 'listo' && stepVisual === 0)
+    ? 'screen-bg ganador-bg'
+    : 'screen-bg ganador-bg-fondo-vertical'
 
   return (
     <div className="screen ganador-screen">

@@ -84,13 +84,15 @@ os.makedirs(STORAGE_DIR, exist_ok=True)
 # ====== DATABASE (PostgreSQL vía Private Network / fallback SQLite) ======
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 # ⚠️ Railway inyecta DATABASE_URL automáticamente AL ATTACHAR LA DB VÍA PRIVATE NETWORKING.
-# NO usar el host público crossover.proxy.rlwy.net → cuesta egress.
-# Host interno esperado (gratis, 0 egress): *.railway.internal en puerto 5432.
+# El host público proxy.rlwy.net es válido (egress costs billable), pero si el usuario NO tiene
+# opción "Attach Database" en Railway UI (solo dispone del URL público), lo aceptamos igualmente.
+# Host interno recomendado (gratis, 0 egress): *.railway.internal en puerto 5432.
+_pg_is_public_proxy = False
 if DATABASE_URL and "proxy.rlwy.net" in DATABASE_URL:
-    # Si por accidente se puso el público, advertimos en logs y NO lo usamos para evitar gasto.
-    print("[DB] ⚠️ Advertencia: DATABASE_URL apunta a host público proxy.rlwy.net (egress costs). "
-          "Se usará SQLite local hasta que configures el endpoint Private Network (*.railway.internal).")
-    DATABASE_URL = ""
+    _pg_is_public_proxy = True
+    print("[DB] ℹ️ Info: DATABASE_URL apunta a host público Railway proxy.rlwy.net (egress billable). "
+          "Se usará PostgreSQL vía URL pública. Recomendación: Attach Database vía UI Railway para "
+          "Private Network *.railway.internal (0 costo).")
 
 DB_ENGINE = "POSTGRES" if (HAS_PSYCOPG and DATABASE_URL and DATABASE_URL.startswith("postgres")) else "SQLITE"
 SQLITE_PATH = os.path.join(BASE_DIR, "fotos-local.sqlite3")
@@ -545,6 +547,39 @@ async def _handler_validation_error_legible(request: Request, exc: RequestValida
     return JSONResponse(status_code=422, content=content)
 
 
+@app.exception_handler(Exception)
+async def _handler_exception_global_traceback(request: Request, exc: Exception):
+    """Captura TODAS las exceptions no manejadas y escribe traceback COMPLETO a
+    stderr Railway logs. Sin esto FastAPI solo dice 'HTTP 500' sin causa visible.
+    Devuelve JSON con detalle y primeras 20 líneas del traceback para el front."""
+    import traceback as _tb
+    import sys as _sys
+    import io as _io
+    try:
+        _path = request.url.path
+        _method = request.method
+        _origin = request.headers.get("origin", "") or ""
+        print(f"[REQ-500] {_method} {_path} | origin={_origin!r} | exc_type={type(exc).__name__} | exc_msg={str(exc)[:200]!r}",
+              file=_sys.stderr)
+        _buf = _io.StringIO()
+        _tb.print_exc(file=_buf)
+        _tb_str = _buf.getvalue()
+        _sys.stderr.write(_tb_str)
+        _sys.stderr.flush()
+        _tb_lines = [ln.rstrip() for ln in _tb_str.splitlines() if ln.strip()]
+        _tb_preview = _tb_lines[-20:] if len(_tb_lines) > 20 else _tb_lines
+    except Exception as _inner:
+        _tb_lines = []
+        _tb_preview = [f"[traceback-capture-failed: {_inner}]"]
+    content = jsonable_encoder({
+        "detail": (f"Error interno del servidor: {type(exc).__name__} — " + (str(exc)[:300] if str(exc) else "(sin mensaje)")),
+        "error_type": type(exc).__name__,
+        "traceback_lines": _tb_preview,
+        "httpStatus": 500,
+    })
+    return JSONResponse(status_code=500, content=content)
+
+
 @app.middleware("http")
 async def _promo_override_cors_headers_dynamic(request: Request, call_next):
     origin = request.headers.get("origin") or None
@@ -700,7 +735,10 @@ def cors_debug_detallado(request: Request):
 
 @app.on_event("startup")
 def startup_init_db_and_model():
-    print(f"[startup] engine={DB_ENGINE} (DATABASE_URL_set={bool(DATABASE_URL)}) | IA model={MODEL_NAME} | CPU only")
+    _pg_note = ""
+    if DB_ENGINE == "POSTGRES":
+        _pg_note = f" | PublicProxy={_pg_is_public_proxy} (egress billable · recomendado .railway.internal si UI Attach DB disponible)"
+    print(f"[startup] engine={DB_ENGINE} (DATABASE_URL_set={bool(DATABASE_URL)}){_pg_note} | IA model={MODEL_NAME} | CPU only")
     print(
         f"[startup-CONFIG-VARS] "
         f"FRONTEND_URL_env={ (os.environ.get('FRONTEND_URL') or '')[:90]!r} | "
@@ -2874,9 +2912,36 @@ class PromoQrValidarReq(BaseModel):
 
 
 class PromoAceptacionReq(BaseModel):
+    model_config = {"extra": "allow"}
     qr_uuid: str
-    acepta_terminos: bool
-    acepta_habeas: bool
+    acepta_terminos: bool = False
+    acepta_habeas: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalizar_booleans_aceptacion(cls, data: Any) -> Any:
+        """El front a veces no envía los checkboxes o envía strings 'on'/'1'/'true'.
+        Normalizamos todo a bool y defaults False si faltan."""
+        if not isinstance(data, dict):
+            return data
+        d = dict(data)
+        for campo in ("acepta_terminos", "acepta_habeas"):
+            v = d.get(campo, None)
+            if v is None or v == "" or (isinstance(v, float) and v != v):
+                d[campo] = False
+            elif isinstance(v, bool):
+                pass
+            elif isinstance(v, (int, float)):
+                d[campo] = bool(v)
+            elif isinstance(v, str):
+                s = v.strip().lower()
+                d[campo] = s in ("1", "true", "t", "yes", "y", "si", "s", "on", "acepto", "aceptar")
+            else:
+                try:
+                    d[campo] = bool(v)
+                except Exception:
+                    d[campo] = False
+        return d
 
 
 class PromoRegistroReq(BaseModel):

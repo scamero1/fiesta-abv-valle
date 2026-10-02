@@ -91,3 +91,24 @@
 @media (max-width:1024px){.admin-qr-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
 @media (max-width:768px){.admin-form-grid{grid-template-columns:1fr;}.admin-qr-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}.admin-panel{padding:14px;border-radius:14px;}}
 @media (max-width:480px){.admin-qr-grid{grid-template-columns:1fr;}.admin-tab-btn{min-width:110px;padding:10px 12px;font-size:.82rem;}}
+
+/* =================== Ruta Oculta ADMIN PREVIEW: /admin/preview =================== */
+/* Link manual URL (ningún botón visible UI front público), solo acceso typing URL o botón oculto TAB1. */
+.admin-preview-pagina{background:linear-gradient(180deg,#f1f5f9 0%,#cbd5e1 100%);min-height:100svh;display:flex;flex-direction:column;gap:10px;padding:10px 12px calc(var(--legal-h) + 14px);box-sizing:border-box;}
+.admin-preview-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border-radius:14px;padding:10px 14px;box-shadow:0 1px 4px rgba(0,0,0,.08);flex-wrap:wrap;border:1px solid #e2e8f0;}
+.admin-preview-controls-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.admin-preview-controls-right{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.admin-preview-titulo{font-size:.95rem;font-weight:800;color:var(--color-azul-primario);letter-spacing:.01em;}
+.admin-preview-steps,.admin-preview-orientation{display:inline-flex;gap:6px;flex-wrap:wrap;}
+.admin-preview-orientation{margin-left:auto;}
+.admin-btn.primary{background:linear-gradient(180deg,var(--color-azul-secundario),var(--color-azul-primario));color:#fff;border-color:transparent;box-shadow:0 2px 0 #001d5a;}
+.admin-btn.primary:active{transform:translateY(2px);box-shadow:0 0 0 #001d5a;}
+.admin-btn.xs{min-height:36px;height:36px;padding:0 10px;font-size:.78rem;font-weight:600;}
+.admin-btn.sm{min-height:40px;height:40px;padding:0 14px;font-size:.85rem;}
+.preview-device-frame{position:relative;background:#000;border-radius:0;transition:width .25s ease, aspect-ratio .25s ease, border .25s ease, box-shadow .25s ease;}
+.admin-preview-footer{text-align:center;font-size:.8rem;color:#475569;padding:6px 10px;}
+.admin-preview-footer code{background:#fff;border:1px solid #e2e8f0;padding:2px 6px;border-radius:6px;font-family:"Consolas","Courier New",monospace;font-size:.75rem;}
+.admin-preview-dashboard-link{margin-left:auto;display:inline-flex;}
+.admin-preview-link-preview-btn{border:1px dashed rgba(255,255,255,.4);background:rgba(255,255,255,.06);color:#fff;font-weight:700;padding:6px 10px;border-radius:10px;font-size:.8rem;font-family:var(--font-ui);cursor:pointer;transition:background .15s ease;}
+.admin-preview-link-preview-btn:hover{background:rgba(255,255,255,.12);}
+.admin-preview-link-preview-btn:active{background:rgba(255,255,255,.18);}

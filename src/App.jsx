@@ -22,6 +22,7 @@ const RegistroGanador = lazy(() => import('./screens/RegistroGanador.jsx'))
 const AgradecimientoGanador = lazy(() => import('./screens/AgradecimientoGanador.jsx'))
 const AdminLogin = lazy(() => import('./screens/AdminLogin.jsx'))
 const AdminDashboard = lazy(() => import('./screens/AdminDashboard.jsx'))
+const AdminPreview = lazy(() => import('./screens/AdminPreview.jsx'))
 
 function PromocionSuspenseFallback() {
   // Loading 8px azul + 256ms mínimo. Sin FOUC al navegar /ganador o /admin.
@@ -50,6 +51,11 @@ export default function App() {
           <Route path="/ganador/gracias/:id" element={<AgradecimientoGanador />} />
           <Route path="/admin" element={<AdminLogin />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          {/* 🔒 Ruta OCULTA acceso MANUAL URL: /admin/preview (sin botones front públicos) —
+                 permite al admin ver una vista PREVIA maqueta de como se ven
+                 las 3 pantallas flujo ganador (felicitaciones, registro, agradecimiento)
+                 sin necesidad de generar/scannear QRs reales. */}
+          <Route path="/admin/preview" element={<AdminPreview />} />
           <Route path="/foto/:id" element={<LandingDescarga />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

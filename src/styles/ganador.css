@@ -1,8 +1,83 @@
 .ganador-bg {
-  background-image: url('../assets/Fondo Vertical.png') !important;
+  background-image: url('../assets/pieza-ganadores-vertical.jpg') !important;
   background-size: cover !important;
   background-repeat: no-repeat !important;
   background-position: center center !important;
+}
+.ganador-screen {
+  overflow: hidden !important;
+  touch-action: manipulation !important;
+}
+.ganador-content {
+  padding-left: clamp(14px, 3svw, 28px) !important;
+  padding-right: clamp(14px, 3svw, 28px) !important;
+  padding-top: clamp(10px, 2svh, 18px) !important;
+  padding-bottom: clamp(10px, 2svh, 18px) !important;
+}
+.ganador-checks {
+  max-width: min(680px, 92vw) !important;
+}
+.registro-form {
+  max-width: min(780px, 92vw) !important;
+  max-height: calc(100svh - 110px) !important;
+}
+/* Celulares portrait (móvil vertical 360x800, 412x915, etc) -- user pide que se vea bien en portrait y TODO CENTRADO */
+@media (orientation:portrait) {
+  .ganador-content.anim-in {
+    align-items: center !important;
+    justify-content: flex-start !important;
+    text-align: center !important;
+    padding-top: clamp(18px, 3svh, 26px) !important;
+    gap: clamp(10px, 1.7svh, 16px) !important;
+    height: calc(100svh - 60px) !important;
+  }
+  .ganador-titulo {
+    font-size: clamp(1.6rem, 5.2svw, 2.2rem) !important;
+  }
+  .ganador-subtitulo, .ganador-bloqueo-mensaje {
+    font-size: clamp(.95rem, 2.3svw, 1.05rem) !important;
+    line-height: 1.45 !important;
+    max-width: min(560px, 92vw) !important;
+  }
+  .ganador-qr-wrap {
+    padding: 12px !important;
+  }
+  .ganador-qr-wrap canvas, .ganador-qr-wrap svg {
+    width: 52px !important;
+    height: 52px !important;
+  }
+  .ganador-btn-continuar {
+    min-height: 60px !important;
+    height: 60px !important;
+    font-size: clamp(.95rem, 2.2svw, 1.1rem) !important;
+    min-width: min(520px, 92vw) !important;
+  }
+  .registro-form {
+    grid-template-columns: 1fr !important;
+    gap: clamp(8px, 1.4svh, 12px) !important;
+    padding-right: 2px !important;
+  }
+  .registro-campo.full {
+    grid-column: 1 / -1 !important;
+  }
+  .registro-btn-submit {
+    min-height: 60px !important;
+    height: 60px !important;
+    font-size: clamp(.95rem, 2.2svw, 1.1rem) !important;
+  }
+  .ganador-check-wrap {
+    padding: clamp(8px, 1.3svh, 12px) clamp(10px, 2svw, 14px) !important;
+    gap: 10px !important;
+  }
+  .ganador-check-label {
+    font-size: clamp(.85rem, 1.8svw, .95rem) !important;
+  }
+  .ganador-check-detalle {
+    font-size: clamp(.7rem, 1.25svw, .78rem) !important;
+  }
+  .header-titulo {
+    font-size: clamp(1.2rem, 4svw, 1.7rem) !important;
+  }
 }
 .ganador-content{align-items:center;justify-content:center;text-align:center;gap:clamp(12px,2svh,24px);}
 .ganador-titulo{font-size:clamp(2rem,6svw,2.6rem);font-weight:900;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.3);margin:0;line-height:1.1;}

@@ -4463,6 +4463,32 @@ def admin_list_registros(
                 it["acepta_terminos"] = bool(it["acepta_terminos"]) if DB_ENGINE == "POSTGRES" else (int(it["acepta_terminos"] or 0) == 1)
             if "acepta_habeas" in it:
                 it["acepta_habeas"] = bool(it["acepta_habeas"]) if DB_ENGINE == "POSTGRES" else (int(it["acepta_habeas"] or 0) == 1)
+            # ========= ALIAS FRONTEND-COMPATIBLES =========
+            # AdminDashboard.jsx Tab2 lee: r.posicion  (backend envía posicion_orden_ganador → alias)
+            # AdminDashboard.jsx Tab2 lee: r.fecha_registro (backend envía created_at → alias)
+            # AdminDashboard.jsx Tab2 lee: r.ganador  (columna "Ganó?" en la tabla → siempre True modo evento pero envía explícito)
+            # AdminDashboard.jsx Tab2 lee: r.correo (lo mismo)
+            # AdminDashboard.jsx Tab2 lee: r.nombres (lo mismo)
+            # AdminDashboard.jsx Tab2 lee: r.modalidad  (lo mismo)
+            # AdminDashboard.jsx Tab2 lee: r.registro_id  (lo mismo, id → alias)
+            # AdminDashboard.jsx Tab2 lee: r.fecha  (lo mismo)
+            # AdminDashboard.jsx Tab2 lee: r.pos | r.numero (fallbacks extras)
+            if "posicion_orden_ganador" in it:
+                it["posicion"] = it["posicion_orden_ganador"]
+                it["pos"] = it["posicion_orden_ganador"]
+                it["numero"] = it["posicion_orden_ganador"]
+            if "created_at" in it:
+                it["fecha_registro"] = it["created_at"]
+                it["fecha"] = it["created_at"]
+            if "id" in it:
+                it["registro_id"] = it["id"]
+            it["ganador"] = (it.get("posicion_orden_ganador") is not None)
+            if "correo_electronico" in it:
+                it["correo"] = it["correo_electronico"]
+            if "nombres_apellidos" in it:
+                it["nombres"] = it["nombres_apellidos"]
+            if "modalidad_entrega" in it:
+                it["modalidad"] = it["modalidad_entrega"]
     # Alias triple de retrocompatibilidad:
     #   items      = clave OFICIAL (por naming consistente con /api/admin/qr/list que usa items)
     #   registros  = alias clave esperada por algunas versiones antiguas de AdminDashboard TAB2
@@ -4483,45 +4509,81 @@ def admin_list_registros(
 @app.put("/api/admin/registros/{id}")
 def admin_update_registro(id: int, req: AdminRegistroUpdateReq, admin: dict = _promo_Depends(get_current_admin)):
     with get_db_conn() as conn:
-        cur = conn.cursor()
-        updates = []
-        params = []
-        ph = "%s" if DB_ENGINE == "POSTGRES" else "?"
-        data = req.model_dump(exclude_none=True)
-        for k, v in data.items():
-            if k == "ciudad":
-                continue
-            if k == "es_bogota_direccion":
-                continue
-            updates.append(f"{k} = {ph}")
-            if isinstance(v, bool) and DB_ENGINE != "POSTGRES":
-                params.append(1 if v else 0)
-            else:
-                params.append(v)
-        if "ciudad" in data or "direccion" in data:
-            cur.execute(f"SELECT ciudad, direccion FROM promo_registros WHERE id = {ph}", (id,) if DB_ENGINE == "POSTGRES" else [id])
-            row = cur.fetchone()
-            if row is None:
+        conn.autocommit = False
+        try:
+            cur = conn.cursor()
+            updates = []
+            params = []
+            ph = "%s" if DB_ENGINE == "POSTGRES" else "?"
+            data = req.model_dump(exclude_none=True)
+
+            # ========= BUG FIX UPDATE: Primero agregamos TODOS los campos del modelo =========
+            # El bug anterior: k==ciudad y k==es_bogota_direccion siempre hacian continue.
+            # Resultado: updates quedaba vacio si solo modificaba nombres/celular (sin ciudad/dir)
+            # y NO SE ACTUALIZABA NADA.
+            # Ahora: TODO campo editable se agrega PRIMERO a updates.
+            # Luego SI cambian ciudad/direccion RECALCULAMOS y sobreescribimos si hace falta.
+            ALLOWED_FIELDS = {
+                "nombres_apellidos", "celular", "telefono_fijo", "celular_confirmacion",
+                "correo_electronico", "direccion", "barrio", "municipio", "ciudad",
+                "posicion_orden_ganador", "modalidad_entrega", "es_bogota_direccion",
+                "acepta_terminos", "acepta_habeas",
+            }
+            for k, v in data.items():
+                if k not in ALLOWED_FIELDS:
+                    continue
+                updates.append(f"{k} = {ph}")
+                if isinstance(v, bool) and DB_ENGINE != "POSTGRES":
+                    params.append(1 if v else 0)
+                else:
+                    params.append(v)
+
+            # SI cambiaron ciudad O direccion: volvemos a calcular es_bogota_direccion y modalidad.
+            if "ciudad" in data or "direccion" in data:
+                if DB_ENGINE == "POSTGRES":
+                    cur.execute(f"SELECT ciudad, direccion FROM promo_registros WHERE id = {ph}", (id,))
+                else:
+                    cur.execute(f"SELECT ciudad, direccion FROM promo_registros WHERE id = {ph}", [id])
+                row = cur.fetchone()
+                if row is None:
+                    raise HTTPException(status_code=404, detail="Registro no encontrado")
+                c = data.get("ciudad", row[0])
+                d = data.get("direccion", row[1])
+                es_b = _promo_es_bogota(c or "", d or "")
+                mod = "DOMICILIO_BTA" if es_b else "RECOGER_CRA74"
+
+                # Solo agregamos si NO se enviaron explícitamente desde el front
+                if "es_bogota_direccion" not in data:
+                    updates.append(f"es_bogota_direccion = {ph}")
+                    params.append(es_b if DB_ENGINE == "POSTGRES" else (1 if es_b else 0))
+                if "modalidad_entrega" not in data:
+                    updates.append(f"modalidad_entrega = {ph}")
+                    params.append(mod)
+
+            if not updates:
+                # No hay fields para actualizar = 0 cambios. Devolvemos ok (sin error)
+                return {"ok": True, "updated": False, "motivo": "no_fields_changed"}
+
+            params.append(id)
+            sql = f"UPDATE promo_registros SET {', '.join(updates)} WHERE id = {ph}"
+            cur.execute(sql, tuple(params) if DB_ENGINE == "POSTGRES" else params)
+            if cur.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Registro no encontrado")
-            c = data.get("ciudad", row[0])
-            d = data.get("direccion", row[1])
-            es_b = _promo_es_bogota(c or "", d or "")
-            mod = "DOMICILIO_BTA" if es_b else "RECOGER_CRA74"
-            if "modalidad_entrega" not in data:
-                updates.append(f"modalidad_entrega = {ph}")
-                params.append(mod)
-            updates.append(f"es_bogota_direccion = {ph}")
-            params.append(es_b if DB_ENGINE == "POSTGRES" else (1 if es_b else 0))
-        if not updates:
-            return {"ok": True, "updated": False}
-        params.append(id)
-        sql = f"UPDATE promo_registros SET {', '.join(updates)} WHERE id = {ph}"
-        cur.execute(sql, tuple(params) if DB_ENGINE == "POSTGRES" else params)
-        if cur.rowcount == 0:
-            raise HTTPException(status_code=404, detail="Registro no encontrado")
-        conn.commit()
+            conn.commit()
+        except HTTPException:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            raise
+        except Exception as e:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            raise HTTPException(status_code=500, detail=f"Error update: {str(e)}")
     _promo_insert_auditoria(int(admin["id"]), "UPDATE_REGISTRO", {"id": id, **data})
-    return {"ok": True, "updated": True, "id": id}
+    return {"ok": True, "updated": True, "id": id, "fields_updated_count": len([u for u in updates if not u.startswith("es_bogota") and not u.startswith("modalidad")]) + (1 if any(u.startswith("es_bogota") for u in updates) else 0) + (1 if any(u.startswith("modalidad") for u in updates) else 0)}
 
 
 # J) DELETE /api/admin/registros/{id} (RENUMERACIÓN ATÓMICA)
@@ -4587,9 +4649,15 @@ def admin_delete_registro(id: int, admin: dict = _promo_Depends(get_current_admi
 # K) GET /api/admin/registros/xlsx
 @app.get("/api/admin/registros/xlsx")
 def admin_registros_xlsx(admin: dict = _promo_Depends(get_current_admin)):
-    import openpyxl as _xl
-    from openpyxl.styles import Font as _XlFont
-
+    # FIX: Import openpyxl CON try-except global para evitar 500 si no está instalado en Railway
+    try:
+        import openpyxl as _xl
+        from openpyxl.styles import Font as _XlFont
+    except Exception as _e_xl:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Librería openpyxl no disponible en el servidor. Error interno: {str(_e_xl)}",
+        )
     wb = _xl.Workbook()
     ws = wb.active
     ws.title = "Registros Promo"
@@ -4610,33 +4678,36 @@ def admin_registros_xlsx(admin: dict = _promo_Depends(get_current_admin)):
         "acepta_terminos", "acepta_habeas", "ip_cliente", "user_agent",
     ]
     cols_str = ", ".join(cols)
+    rows_returned = 0
     with get_db_conn() as conn:
         cur = conn.cursor()
         cur.execute(f"SELECT {cols_str} FROM promo_registros ORDER BY COALESCE(posicion_orden_ganador, 999999999) ASC, created_at ASC")
         rows = cur.fetchall()
+        rows_returned = len(rows)
         for r in rows:
             d = _promo_row_to_dict(r, cols)
             es_bog = bool(d["es_bogota_direccion"]) if DB_ENGINE == "POSTGRES" else (int(d["es_bogota_direccion"] or 0) == 1)
             acc_t = bool(d["acepta_terminos"]) if DB_ENGINE == "POSTGRES" else (int(d["acepta_terminos"] or 0) == 1)
             acc_h = bool(d["acepta_habeas"]) if DB_ENGINE == "POSTGRES" else (int(d["acepta_habeas"] or 0) == 1)
+            # FIX: Todos los string fields con fallback or "" para que None no crashee openpyxl/len
             ws.append([
-                d["posicion_orden_ganador"] if d["posicion_orden_ganador"] is not None else "",
-                d["created_at"],
-                d["qr_uuid"],
-                d["nombres_apellidos"],
-                d["celular"] or "",
-                d["telefono_fijo"] or "",
-                d["correo_electronico"],
-                d["direccion"],
-                d["barrio"] or "",
-                d["municipio"] or "",
-                d["ciudad"],
+                d.get("posicion_orden_ganador") if d.get("posicion_orden_ganador") is not None else "",
+                d.get("created_at") if d.get("created_at") is not None else "",
+                d.get("qr_uuid") or "",
+                d.get("nombres_apellidos") or "",
+                d.get("celular") or "",
+                d.get("telefono_fijo") or "",
+                d.get("correo_electronico") or "",  # FIX: antes d["correo_electronico"] crasheaba si NULL
+                d.get("direccion") or "",
+                d.get("barrio") or "",
+                d.get("municipio") or "",
+                d.get("ciudad") or "",
                 ("SÍ" if es_bog else "NO"),
-                d["modalidad_entrega"],
+                d.get("modalidad_entrega") or "",
                 ("SÍ" if acc_t else "NO"),
                 ("SÍ" if acc_h else "NO"),
-                d["ip_cliente"] or "",
-                (d["user_agent"] or "")[:200],
+                d.get("ip_cliente") or "",
+                (str(d.get("user_agent") or "")[:200]),
             ])
 
     for col_idx, _ in enumerate(headers, start=1):
@@ -4652,7 +4723,7 @@ def admin_registros_xlsx(admin: dict = _promo_Depends(get_current_admin)):
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
-    _promo_insert_auditoria(int(admin["id"]), "EXPORT_XLSX", {"filename": fname, "total_rows": len(rows)})
+    _promo_insert_auditoria(int(admin["id"]), "EXPORT_XLSX", {"filename": fname, "total_rows": rows_returned})
     return FileResponse(
         buf,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

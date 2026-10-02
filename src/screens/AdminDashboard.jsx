@@ -696,7 +696,7 @@ function TabQRCodigos({ authHeaders, toast }) {
     }
   }
 
-  const descargarIndividual = (qr, idx) => {
+  const descargarIndividual = (qr, idx, valOverride) => {
     try {
       if (qr.data_url_png_b64 && typeof qr.data_url_png_b64 === 'string' && qr.data_url_png_b64.startsWith('data:image')) {
         const a = document.createElement('a')
@@ -707,19 +707,28 @@ function TabQRCodigos({ authHeaders, toast }) {
         a.remove()
         return
       }
-      const canvas = document.querySelector(`#qr-canvas-${idx} canvas`)
+      void valOverride
+      let canvas = null
+      if (typeof idx === 'number' && !Number.isNaN(idx)) {
+        canvas = document.querySelector(`#qr-canvas-${idx} canvas`)
+      }
+      if (!canvas && qr && qr._rowCanvasSel) {
+        canvas = document.querySelector(qr._rowCanvasSel)
+      }
       if (!canvas) {
-        toast('❌ Canvas no disponible', 'err')
+        toast('ℹ Descarga: QR re-genera nuevo bloque o usa 🔗 Probar → print como imagen', 'info')
         return
       }
       const url = canvas.toDataURL('image/png')
       const a = document.createElement('a')
       a.href = url
-      a.download = `QR_${qr.id_humano || qr.id || idx + 1}.png`
+      const sufijo = (typeof idx === 'number' && !Number.isNaN(idx)) ? (idx + 1) : (qr.id_humano || qr.id || 'qr')
+      a.download = `QR_${sufijo}.png`
       document.body.appendChild(a)
       a.click()
       a.remove()
-    } catch {
+    } catch (e) {
+      console.error('[Admin] descargarIndividual error:', e)
       toast('❌ Error descargando QR', 'err')
     }
   }
@@ -934,29 +943,89 @@ function TabQRCodigos({ authHeaders, toast }) {
           </h3>
           <div className="admin-qr-grid">
             {resultados.slice(0, 100).map((qr, i) => {
-              const val = qr.url || qr.qr_value || (BACKEND_URL ? `${BACKEND_URL.replace(/\/+$/, '')}/ganador?qr=${qr.qr_uuid || qr.uuid}` : '')
-              const hab = typeof qr.habilitado === 'boolean' ? qr.habilitado : true
+              const val =
+                (qr.url && qr.url.startsWith('http')) ? qr.url :
+                (qr.qr_value && (String(qr.qr_value).startsWith('http'))) ? qr.qr_value :
+                (() => {
+                  try {
+                    const origen = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : ''
+                    const qrUuid = qr.qr_uuid || qr.uuid_qr || qr.uuid || ''
+                    return qrUuid ? `${origen}/ganador?qr=${qrUuid}` : ''
+                  } catch { return '' }
+                })()
+              const hab = typeof qr.habilitado === 'boolean' ? qr.habilitado : (qr.habilitado === 1 || qr.habilitado === '1')
               return (
-                <div key={qr.id || qr.uuid || i} className="admin-qr-item" style={{ opacity: hab ? 1 : 0.5 }}>
-                  <div className="admin-qr-canvas-wrap" id={`qr-canvas-${i}`}>
-                    <QRCodeCanvas
-                      value={val}
-                      size={128}
-                      level="H"
-                      includeMargin={true}
-                    />
-                  </div>
+                <div key={qr.id || qr.uuid || qr.qr_uuid || i} className="admin-qr-item" style={{ opacity: hab ? 1 : 0.5 }}>
+                  {val && (
+                    <a
+                      href={val}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                      title="Abrir link QR en pestaña nueva para probar"
+                      style={{ display: 'block' }}
+                    >
+                      <div className="admin-qr-canvas-wrap" id={`qr-canvas-${i}`}>
+                        <QRCodeCanvas
+                          value={val}
+                          size={128}
+                          level="H"
+                          includeMargin={true}
+                        />
+                      </div>
+                    </a>
+                  )}
+                  {!val && (
+                    <div className="admin-qr-canvas-wrap" id={`qr-canvas-${i}`}>
+                      <QRCodeCanvas
+                        value={String(qr.qr_uuid || qr.id_humano || 'QR')}
+                        size={128}
+                        level="H"
+                        includeMargin={true}
+                      />
+                    </div>
+                  )}
                   <div className="admin-qr-id">{qr.id_humano || qr.id || `QR-${i + 1}`}</div>
                   <div style={{ fontSize: 11, color: '#475569', margin: '4px 0' }}>
                     {qr.size_px ? `${qr.size_px} px` : ''}
-                    {qr.tamano_cm ? ` · ${qr.tamano_cm} cm` : ''}
+                    {qr.tamano_cm ? ` · ${Number(qr.tamano_cm).toFixed(1)} cm` : ''}
+                    {qr.dpi ? ` · ${qr.dpi} dpi` : ''}
                     {qr.unidad && qr.unidad !== 'pixeles' ? ` · ${qr.unidad}` : ''}
                   </div>
+                  {val && (
+                    <a
+                      href={val}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                      className="admin-qr-url-link"
+                      style={{
+                        fontSize: 10.5,
+                        color: '#1d4ed8',
+                        textDecoration: 'underline',
+                        textAlign: 'center',
+                        wordBreak: 'break-all',
+                        lineHeight: 1.35,
+                        padding: '0 4px',
+                        minHeight: 18,
+                      }}
+                      title="Probar link del QR"
+                    >🔗 {String(val).length > 68 ? (String(val).slice(0, 65) + '…') : val}</a>
+                  )}
                   <span className={`admin-qr-status ${qr.usado ? 'usado' : (hab ? 'sin-usar' : 'invalido')}`}>
                     {qr.usado ? 'USADO' : (hab ? 'SIN USAR' : 'INHABILITADO')}
                   </span>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, width: '100%', marginTop: 6 }}>
-                    <button type="button" className="admin-btn sm primary" onClick={() => descargarIndividual(qr, i)}>
+                    {val && (
+                      <button
+                        type="button"
+                        className="admin-btn sm success"
+                        onClick={() => window.open(val, '_blank', 'noopener,noreferrer')}
+                        title="Abrir el link del QR en pestaña nueva"
+                      >
+                        🔗 Probar link
+                      </button>
+                    )}
+                    {!val && <div style={{ visibility: 'hidden' }} />}
+                    <button type="button" className="admin-btn sm primary" onClick={() => descargarIndividual(qr, i, val)}>
                       ⬇ Descargar
                     </button>
                     {hab ? (
@@ -1046,24 +1115,42 @@ function TabQRCodigos({ authHeaders, toast }) {
                 </tr>
               </thead>
               <tbody>
-                {listadoTodos.map((qr) => {
+                {listadoTodos.map((qr, rowIdx) => {
                   const hab = !!qr.habilitado
                   const usado = !!qr.usado
-                  const previewUrl = (BACKEND_URL ? `${BACKEND_URL.replace(/\/+$/, '')}/ganador?qr=${qr.uuid_qr}` : '')
+                  const linkReal =
+                    (qr.url && String(qr.url).startsWith('http')) ? qr.url :
+                    (qr.qr_value && String(qr.qr_value).startsWith('http')) ? qr.qr_value :
+                    (() => {
+                      try {
+                        const origen = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : (BACKEND_URL ? BACKEND_URL.replace(/\/+$/, '') : '')
+                        const qrUuid = qr.qr_uuid || qr.uuid_qr || qr.uuid || ''
+                        return qrUuid ? `${origen}/ganador?qr=${qrUuid}` : ''
+                      } catch { return '' }
+                    })()
+                  const canvasSel = `#qr-row-canvas-${qr.id} canvas`
                   return (
                     <tr key={qr.id} style={{ opacity: hab ? 1 : 0.52 }}>
                       <td style={{ color: '#475569', fontFamily: 'monospace', fontSize: 12 }}>{qr.id}</td>
                       <td style={{ fontWeight: 700, color: '#0f172a' }}>{qr.id_humano}</td>
                       <td>
-                        <div style={{ width: 72, height: 72, background: 'white', padding: 6, border: '1px solid #cbd5e1', borderRadius: 8 }}>
-                          <QRCodeCanvas value={previewUrl || qr.uuid_qr} size={60} level="H" includeMargin={false} />
-                        </div>
+                        {linkReal ? (
+                          <a href={linkReal} target="_blank" rel="noopener noreferrer nofollow" title="Probar link QR en pestaña nueva">
+                            <div id={`qr-row-canvas-${qr.id}`} style={{ width: 72, height: 72, background: 'white', padding: 6, border: '1px solid #cbd5e1', borderRadius: 8 }}>
+                              <QRCodeCanvas value={linkReal} size={60} level="H" includeMargin={false} />
+                            </div>
+                          </a>
+                        ) : (
+                          <div id={`qr-row-canvas-${qr.id}`} style={{ width: 72, height: 72, background: 'white', padding: 6, border: '1px solid #cbd5e1', borderRadius: 8 }}>
+                            <QRCodeCanvas value={qr.uuid_qr || String(qr.id)} size={60} level="H" includeMargin={false} />
+                          </div>
+                        )}
                       </td>
                       <td style={{ fontSize: 12.5, lineHeight: 1.4 }}>
                         <div>{qr.size_px} <span style={{ color: '#64748b' }}>px</span></div>
                         {qr.tamano_cm && (
                           <div style={{ color: '#475569' }}>
-                            {qr.tamano_cm} <span style={{ color: '#64748b' }}>cm</span>
+                            {Number(qr.tamano_cm).toFixed(1)} <span style={{ color: '#64748b' }}>cm</span>
                             {qr.dpi && <span style={{ color: '#64748b' }}> · {qr.dpi} dpi</span>}
                           </div>
                         )}
@@ -1079,6 +1166,23 @@ function TabQRCodigos({ authHeaders, toast }) {
                             {usado ? 'USADO' : 'SIN USAR'}
                           </span>
                         </div>
+                        {linkReal && (
+                          <a
+                            href={linkReal}
+                            target="_blank"
+                            rel="noopener noreferrer nofollow"
+                            title={linkReal}
+                            style={{
+                              marginTop: 6,
+                              display: 'block',
+                              fontSize: 10.5,
+                              color: '#1d4ed8',
+                              textDecoration: 'underline',
+                              wordBreak: 'break-all',
+                              lineHeight: 1.3,
+                            }}
+                          >🔗 Link</a>
+                        )}
                       </td>
                       <td style={{ fontSize: 12, color: '#64748b', fontFamily: 'monospace' }}>
                         <div>{(qr.created_at || '').slice(0, 10)}</div>
@@ -1086,11 +1190,22 @@ function TabQRCodigos({ authHeaders, toast }) {
                       </td>
                       <td style={{ textAlign: 'center' }}>
                         <div style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
+                          {linkReal && (
+                            <button
+                              type="button"
+                              className="admin-btn sm success"
+                              title="Probar: abrir en pestaña nueva el link del QR"
+                              onClick={() => window.open(linkReal, '_blank', 'noopener,noreferrer')}
+                            >
+                              🔗
+                            </button>
+                          )}
                           <button type="button" className="admin-btn sm primary" onClick={() => descargarIndividual({
                             ...qr,
-                            url: previewUrl,
-                            uuid: qr.uuid_qr,
-                          }, listadoTodos.findIndex(x => x.id === qr.id) + 1000)}>
+                            url: linkReal,
+                            qr_uuid: qr.qr_uuid || qr.uuid_qr,
+                            _rowCanvasSel: canvasSel,
+                          }, rowIdx + 10000)}>
                             ⬇
                           </button>
                           {hab ? (

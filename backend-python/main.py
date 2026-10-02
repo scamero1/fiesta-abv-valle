@@ -3403,9 +3403,29 @@ async def admin_qr_generar(req: AdminQrGenerarReq, request: Request, admin: dict
 
     scheme = request.base_url.scheme
     host_hdr = request.headers.get("host", "")
-    frontend_base_url = f"{scheme}://{host_hdr}" if host_hdr else str(request.base_url).rstrip("/")
-    if not frontend_base_url.endswith("/"):
-        frontend_base_url += "/"
+    origin_hdr = (request.headers.get("origin") or "").strip()
+    frontend_url_env = (os.environ.get("FRONTEND_URL") or "").strip().rstrip("/")
+
+    # PRIORIDAD para armar frontend_base_url (el QR lleva al USUARIO FINAL al REACT, NO al fastapi backend):
+    #   1) Railway var FRONTEND_URL = la más segura, permanente, user la configura 1 vez.
+    #   2) ORIGIN header del request admin = el navegador/admin lo envia SIEMPRE desde el FRONTEND.
+    #   3) Fallback legacy = scheme + host (solo si es 1 solo dominio backend+frontend, caso RARO).
+    frontend_base_url = None
+    if frontend_url_env:
+        # Acepta valor con o sin barra final, con o sin /ganador/registro etc.
+        frontend_base_url = frontend_url_env
+    elif origin_hdr:
+        # Origin = "https://frontend.railway.app" sin path final (estándar HTTP spec)
+        try:
+            from urllib.parse import urlparse as _urlparse
+            _p = _urlparse(origin_hdr)
+            if _p.scheme and _p.netloc:
+                frontend_base_url = f"{_p.scheme}://{_p.netloc}"
+        except Exception:
+            frontend_base_url = origin_hdr.rstrip("/")
+    if not frontend_base_url:
+        frontend_base_url = f"{scheme}://{host_hdr}" if host_hdr else str(request.base_url).rstrip("/")
+    frontend_base_url = frontend_base_url.rstrip("/") + "/"
 
     import qrcode as _qrcode
     alphabet = _promo_string.ascii_uppercase + _promo_string.digits

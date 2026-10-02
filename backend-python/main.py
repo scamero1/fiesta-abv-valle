@@ -4877,8 +4877,14 @@ async def admin_qr_generar(req: AdminQrGenerarReq, request: Request, admin: dict
                 qr.make(fit=True)
                 img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
                 img = img.resize((size_px, size_px), Image.LANCZOS if hasattr(Image, "LANCZOS") else Image.Resampling.LANCZOS)
+                # 🔴 Guardar metadata DPI en el PNG (chunk pHYs) para que la impresora
+                # NO reduzca 5cm a 2cm al imprimir. Pillow guarda DPI como tupla (dpi_x,dpi_y).
+                try:
+                    img.info["dpi"] = (int(dpi), int(dpi))
+                except Exception:
+                    pass
                 qbuf = io.BytesIO()
-                img.save(qbuf, format="PNG")
+                img.save(qbuf, format="PNG", dpi=(int(dpi), int(dpi)))
                 qbuf.seek(0)
                 b64 = "data:image/png;base64," + base64.b64encode(qbuf.getvalue()).decode("ascii")
                 created_items.append({
@@ -5297,6 +5303,20 @@ def _promo_qr_make_pil_for_pdf(url_value, size_cm, dpi=300, size_px_fallback=512
     qr.make(fit=True)
     img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
     img = img.resize((px, px), Image.LANCZOS if hasattr(Image, "LANCZOS") else Image.Resampling.LANCZOS)
+    # 🔴 OBLIGATORIO: Guardar DPI METADATA en la imagen PIL para
+    # que cuando el admin DESCARGUE el PNG individual / pegue en Word / imprima,
+    # la impresora / editor use el DPI FÍSICO CORRECTO y NO reduzca 5cm a 2cm.
+    # Si no se pone esto, PNG no tiene pHYs chunk y cualquier programa asume 72/96 DPI,
+    # resultando en tamaños impresos MUY PEQUEÑOS.
+    try:
+        img.info["dpi"] = (int(dpi_eff), int(dpi_eff))
+    except Exception:
+        pass
+    try:
+        # Pillow save() metadata: llamar aquí no escribe a disco (solo setea metadata info dpi).
+        img.load()
+    except Exception:
+        pass
     # Informar cm reales (si venian de tamano_cm usar ese; sino calcular de px/dpi)
     if size_cm_float and size_cm_float > 0:
         cm_eff = float(size_cm_float)
@@ -5318,8 +5338,8 @@ class AdminQrPdfReq(BaseModel):
     habilitado: bool | None = None
     q: str | None = None
     max_qrs: int = 500
-    cols: int = 3
-    filas_por_pagina: int = 7
+    cols: int = 2
+    filas_por_pagina: int = 4
     pagina_horizontal: bool = False
     forzar_tamano_cm: float | None = None
     qr_id_on_page: bool = False  # DEFAULT FALSE por pedido user: NO mostrar código humano debajo del QR en PDF
@@ -5576,6 +5596,39 @@ def admin_qr_pdf(req: AdminQrPdfReq, admin: dict = _promo_Depends(get_current_ad
     per_page = cols * rows
     total_pag_estimado = max(1, (len(items) + per_page - 1) // per_page)
 
+    # ===== WARNING COLLECTOR para avisar al admin cuántos QRs se redujeron de tamaño =====
+    # Root cause user: "digo 5cm y me sale 2cm" → rows=7 y cols=3 hacen que cell_h ~3cm < 5cm,
+    # el código reducía SILENCIOSAMENTE sin avisar. Ahora se cuenta y se incluye en response headers JSON.
+    _warnings_collector = {
+        "count_reducidos": 0,
+        "cm_target_min": None,
+        "cm_target_max": None,
+        "cm_efectivo_min": None,
+        "cm_efectivo_max": None,
+        "cell_w_cm": round((cell_w_pt / mm_pt) / 10.0, 2),
+        "cell_h_cm": round((cell_h_pt / mm_pt) / 10.0, 2),
+        "cols": cols,
+        "rows": rows,
+    }
+    def _wc_registrar(target, efectivo, reducido_bool):
+        try:
+            if reducido_bool:
+                _warnings_collector["count_reducidos"] += 1
+            if target is not None:
+                t = float(target)
+                if _warnings_collector["cm_target_min"] is None or t < _warnings_collector["cm_target_min"]:
+                    _warnings_collector["cm_target_min"] = t
+                if _warnings_collector["cm_target_max"] is None or t > _warnings_collector["cm_target_max"]:
+                    _warnings_collector["cm_target_max"] = t
+            if efectivo is not None:
+                e = float(efectivo)
+                if _warnings_collector["cm_efectivo_min"] is None or e < _warnings_collector["cm_efectivo_min"]:
+                    _warnings_collector["cm_efectivo_min"] = e
+                if _warnings_collector["cm_efectivo_max"] is None or e > _warnings_collector["cm_efectivo_max"]:
+                    _warnings_collector["cm_efectivo_max"] = e
+        except Exception:
+            pass
+
     item_idx = 0
     n_items = len(items)
     pil_cache = {}  # id_qr -> (pil, cm_w, cm_h) para no renderizar 2 veces el mismo si hubiera dup
@@ -5618,20 +5671,36 @@ def admin_qr_pdf(req: AdminQrPdfReq, admin: dict = _promo_Depends(get_current_ad
                 cm_target = float(forzar_cm)
             elif qr.get("tamano_cm"):
                 cm_target = float(qr["tamano_cm"])
-            # Si cm_target sale de la celda (muy grande) → reducir al máximo disponible
+            # FALLBACK SMART si no hay tamano_cm (QRs antiguos generados antes del SHA e2d3c64):
+            #   cm = (size_px * 2.54) / dpi
+            if (cm_target is None or cm_target <= 0) and qr.get("size_px") and qr.get("dpi"):
+                try:
+                    _sp = int(qr["size_px"])
+                    _dp = int(qr["dpi"])
+                    if _sp > 0 and _dp > 0:
+                        cm_target = round((_sp * 2.54) / float(_dp), 3)
+                except Exception:
+                    cm_target = None
+            # Si cm_target sale de la celda (muy grande) → reducir al máximo disponible,
+            # pero además registrar en warnings para avisarle al admin que sus QRs se encogieron.
             qr_draw_pt = None
             dpi_eff = int(qr.get("dpi") or 300)
+            qr_draw_from_cm_pt = None
+            reducido = False
             if cm_target and cm_target > 0:
-                qr_draw_from_cm = (cm_target * 10.0) * mm_pt  # cm * 10 = mm * mm_pt = pt
-                qr_draw_pt = qr_draw_from_cm
-                # Limitar para que quepa siempre dentro de la celda
+                qr_draw_from_cm_pt = (cm_target * 10.0) * mm_pt  # cm * 10 = mm * mm_pt = pt
+                qr_draw_pt = qr_draw_from_cm_pt
+                _cm_target_original = float(cm_target)
                 if qr_draw_pt > max_side_pt:
                     qr_draw_pt = max_side_pt
                     # actualizar cm_target al reducido (para el texto info)
                     cm_target = round((qr_draw_pt / mm_pt) / 10.0, 2)
+                    reducido = True
+                _wc_registrar(_cm_target_original, cm_target, reducido)
             else:
                 qr_draw_pt = max_side_pt
                 cm_target = round((qr_draw_pt / mm_pt) / 10.0, 2)
+                _wc_registrar(cm_target, cm_target, False)
             # Center QR horizontal + vertical en el espacio superior (antes de la etiqueta)
             center_x_cell = cell_x0 + (cell_w_pt / 2.0)
             # Area QR = desde (cell_y0 + id_etiqueta_h_pt + 1mm) hasta (cell_y0 + cell_h_pt - 1mm)
@@ -5712,8 +5781,11 @@ def admin_qr_pdf(req: AdminQrPdfReq, admin: dict = _promo_Depends(get_current_ad
     c.save()
     pdf_bytes = buf.getvalue()
     buf.seek(0)
-    # Auditoria
+    # Auditoria + warnings de reducción de tamaño QRs (para avisarle al admin por headers)
+    wc_info = {}
     try:
+        import json as _json_mod
+        wc_info = dict(_warnings_collector or {})
         _promo_insert_auditoria(int(admin["id"]), "EXPORT_PDF_QR", {
             "qrs_count": len(items),
             "ids_sample": [int(x["id"]) for x in items[:20]],
@@ -5721,16 +5793,32 @@ def admin_qr_pdf(req: AdminQrPdfReq, admin: dict = _promo_Depends(get_current_ad
             "cols": cols,
             "filas": rows,
             "forzar_tamano_cm": forzar_cm,
+            "warnings_reducidos": int(wc_info.get("count_reducidos") or 0),
+            "cell_w_cm": wc_info.get("cell_w_cm"),
+            "cell_h_cm": wc_info.get("cell_h_cm"),
         })
     except Exception:
         pass
     from fastapi.responses import Response
     filename = f"QRs_Fiesta_ABV_{ahora.strftime('%Y%m%d_%H%M%S')}.pdf"
+    # Headers obligatorios PDF + warnings al front para toast user si hay reducción de tamaño:
+    #   X-QR-Cell-W-cm / X-QR-Cell-H-cm: tamaño REAL util de celda
+    #   X-QRs-Reducidos-Count: cuántos de los QRs pedidos fueron MENORES que el size cm declarado
+    #   (si > 0 el front avisa "tus QRs de 5cm se redujeron a 3.1cm porque rows=7, reduce a rows=4 cols=2")
     headers = {
         "Content-Disposition": f'attachment; filename="{filename}"',
         "Content-Length": str(len(pdf_bytes)),
         "Cache-Control": "no-store",
         "Pragma": "no-cache",
+        "X-QR-Cell-W-cm": str(wc_info.get("cell_w_cm", "")),
+        "X-QR-Cell-H-cm": str(wc_info.get("cell_h_cm", "")),
+        "X-QRs-Reducidos-Count": str(int(wc_info.get("count_reducidos") or 0)),
+        "X-QR-Cm-Target-Min": str(wc_info.get("cm_target_min", "")),
+        "X-QR-Cm-Target-Max": str(wc_info.get("cm_target_max", "")),
+        "X-QR-Cm-Efectivo-Min": str(wc_info.get("cm_efectivo_min", "")),
+        "X-QR-Cm-Efectivo-Max": str(wc_info.get("cm_efectivo_max", "")),
+        "X-QR-Layout-Cols": str(wc_info.get("cols", cols)),
+        "X-QR-Layout-Rows": str(wc_info.get("rows", rows)),
     }
     return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
 

@@ -805,7 +805,34 @@ function TabQRCodigos({ authHeaders, toast }) {
         a.click()
         a.remove()
         setTimeout(() => { try { URL.revokeObjectURL(url) } catch {} }, 1500)
-        toast(`✅ PDF generado correctamente (${Math.round(blob.size/1024)} kB). Descarga iniciada.`, 'ok')
+        // ====== WARNING TAMAÑO QR REDUCIDO (nuevo headers backend dcdfad3 ======
+        // El admin pidió cm y el layout del PDF tenía celda demasiado chica,
+        // los QRs se encogieron sin avisar. Ahora backend devuelve headers X-QR-*
+        // entonces si X-QRs-Reducidos-Count > 0 mostramos toast AMARILLO hint.
+        let warningMsg = null
+        try {
+          const reducidosHdr = (res.headers && res.headers.get) ? Number(res.headers.get('X-QRs-Reducidos-Count') || '0') : 0
+          if (Number.isFinite(reducidosHdr) && reducidosHdr > 0) {
+            const cellW = (res.headers.get('X-QR-Cell-W-cm') || '').toString()
+            const cellH = (res.headers.get('X-QR-Cell-H-cm') || '').toString()
+            const cmTarget = (res.headers.get('X-QR-Cm-Target-Max') || '').toString()
+            const cmEff = (res.headers.get('X-QR-Cm-Efectivo-Max') || '').toString()
+            const cols = (res.headers.get('X-QR-Layout-Cols') || '').toString()
+            const rows = (res.headers.get('X-QR-Layout-Rows') || '').toString()
+            const partes = []
+            if (cmTarget && cmEff) partes.push(`Tú pediste ~${cmTarget}cm y ${reducidosHdr} QR${reducidosHdr === 1 ? '' : 's'} sali${reducidosHdr === 1 ? '' : 'e'} en ~${cmEff}cm`)
+            if (cols && rows) partes.push(`Layout actual: ${cols}×${rows} cols×filas`)
+            if (cellW && cellH) partes.push(`Tamaño util celda: ${cellW}×${cellH} cm`)
+            partes.push('👉 Prueba REDUCIR columnas/filas o aumentar forzar_tamano_cm.')
+            warningMsg = `⚠️ ${reducidosHdr} QR${reducidosHdr === 1 ? '' : 's'} reducido${reducidosHdr === 1 ? '' : 's'} de tamaño en PDF. ${partes.join(' · ')}`
+          }
+        } catch {}
+        if (warningMsg) {
+          console.warn('%c[Admin] PDF QRs REDUCIDOS:', 'background:#713f12;color:#fde68a;padding:4px 8px;', warningMsg)
+          setTimeout(() => toast(warningMsg, 'warn'), 600)
+        } else {
+          toast(`✅ PDF generado correctamente (${Math.round(blob.size/1024)} kB). Descarga iniciada.`, 'ok')
+        }
       } else {
         const texto = await res.text().catch(() => '')
         let d = {}

@@ -18,8 +18,8 @@ export default function PdfConfigModal({
   initialCfg, // objeto defaults
 }) {
   const defaults = useMemo(() => Object.assign({
-    cols: 3,
-    filas_por_pagina: 7,
+    cols: 2,
+    filas_por_pagina: 4,
     pagina_horizontal: false,
     forzar_tamano_cm: null,
     qr_id_on_page: false,            // DEFAULT FALSE por user request: NO mostrar código humano en PDF
@@ -256,7 +256,7 @@ export default function PdfConfigModal({
                     ))}
                   </select>
                   <div style={{ fontSize: 11, color: '#64748b', marginTop: 3 }}>
-                    Default 3 × 7 = 21 QR / hoja Retrato
+                    Default 2 × 4 = 8 QR / hoja Retrato · celdas grandes para 5cm físico
                   </div>
                 </div>
                 <div>

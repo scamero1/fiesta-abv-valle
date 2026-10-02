@@ -600,6 +600,37 @@ def cors_debug_detallado(request: Request):
 @app.on_event("startup")
 def startup_init_db_and_model():
     print(f"[startup] engine={DB_ENGINE} (DATABASE_URL_set={bool(DATABASE_URL)}) | IA model={MODEL_NAME} | CPU only")
+    print(
+        f"[startup-CONFIG-VARS] "
+        f"FRONTEND_URL_env={ (os.environ.get('FRONTEND_URL') or '')[:90]!r} | "
+        f"CORS_ALLOW_ORIGINS_env={ (os.environ.get('CORS_ALLOW_ORIGINS') or '')[:120]!r} | "
+        f"JWT_SECRET_set={bool(os.environ.get('JWT_SECRET'))} | "
+        f"BACKEND_PUBLIC_URL_env={ (os.environ.get('BACKEND_PUBLIC_URL') or '')[:80]!r} | "
+        f"STORAGE_DIR={STORAGE_DIR}"
+    )
+    # ====== ADVERTENCIA CRÍTICA SI ESTAMOS EN SQLITE SIN VOLUMEN PERSISTENTE EN RAILWAY ======
+    if DB_ENGINE == "SQLITE":
+        print("=" * 78)
+        print("[startup-WARNING ⚠️⚠️⚠️ ] DB_SQLITE_LOCAL = LOS DATOS SE BORRAN CADA REDEPLOY RAILWAY!")
+        print(
+            "[startup-WARNING] No tienes PostgreSQL attachado al servicio ni VOLUMEN PERSISTENTE.\n"
+            "[startup-WARNING] Solucion recomendada 1 (99% fiabilidad GRATIS sin volumen):\n"
+            "   Railway Dashboard → Proyecto Fiesta → NEW → Database → PostgreSQL → Create.\n"
+            "   Luego entra a la Database → Settings → Connect → Private Networking → Copy link postgres://...\n"
+            "   → NO LO PEGUES MANUALMENTE: entra a Servicio1 (backend) → Settings → Attach Database\n"
+            "   → Selecciona la PostgreSQL que acabas de crear. Railway setea DATABASE_URL automáticamente\n"
+            "   y todos los redeploys MANTIENEN LOS DATOS (QRs, registros, admin). 0 costo, 0 egress.\n"
+            "[startup-WARNING] Solucion alternativa 2 (SQLite + VOLUMEN Railway pago bajo):\n"
+            "   Servicio1 → Settings → Volumes → Add Volume, Mount Path = /app/backend-python\n"
+            "   → guarda el archivo fotos-local.sqlite3 en disco persistente. Costo ~$0.25/mes 1GB.\n"
+            "[startup-WARNING] Sin estas 2 soluciones → cada Redeploy / restart proceso BORRA los QRs y registros."
+        )
+        print("=" * 78)
+    if not (os.environ.get("FRONTEND_URL") or "").strip():
+        print(
+            "[startup-WARNING] Falta Railway var FRONTEND_URL en Servicio1 Backend.\n"
+            "   Valor esperado: https://front-production-3d2a.up.railway.app  (TU dominio frontend SIN / final)."
+        )
     try:
         init_db_tables()
         print(f"[startup] ✅ Tabla fotos_procesadas lista en {DB_ENGINE}. Storage={STORAGE_DIR}")
@@ -616,6 +647,33 @@ def startup_init_db_and_model():
         print(f"[startup] ✅ 6 Tablas promo/admin + seeds OK en {DB_ENGINE}.")
     except Exception as e:
         print(f"[startup] ⚠️ Falló init promo/admin DB: {str(e)}")
+    # ====== IMPRIMIR CONTEOS TABLAS AL INICIAR (diagnóstico QRs perdidos) ======
+    try:
+        tablas_count = {}
+        with get_db_conn() as conn:
+            cur = conn.cursor()
+            for t in [
+                "promo_qr_codes", "promo_registros", "promo_config",
+                "promo_admin_users", "promo_sorteo_lock", "promo_auditoria",
+            ]:
+                try:
+                    if DB_ENGINE == "POSTGRES":
+                        cur.execute(f"SELECT COUNT(*) FROM {t}")
+                    else:
+                        cur.execute(f"SELECT COUNT(*) FROM {t}")
+                    row = cur.fetchone()
+                    tablas_count[t] = int(row[0]) if row else 0
+                except Exception as e_tab:
+                    tablas_count[t] = f"ERR: {type(e_tab).__name__}"
+        print(f"[startup-COUNTS-DB] Conteos tablas promo: {json.dumps(tablas_count, ensure_ascii=False, default=str)}")
+        if tablas_count.get("promo_qr_codes", 0) == 0:
+            print(
+                "[startup-COUNTS-DB-WARNING] promo_qr_codes = 0 filas. Si esperabas QRs generados:\n"
+                "   → (a) Es SQLite sin persistencia + redeploy reciente (se borraron).\n"
+                "   → (b) Es PostgreSQL nuevo attachado sin migrar datos del SQLite viejo."
+            )
+    except Exception as e:
+        print(f"[startup-COUNTS-DB] No pudo leer conteos: {type(e).__name__}: {e}")
 
 class BodyB64(BaseModel):
     image: str
@@ -3074,10 +3132,24 @@ def admin_login(req: AdminLoginReq):
 # =====================================================================
 
 @app.get("/api/promo/debug/health")
-def promo_debug_health():
-    """Healthcheck simple sistema promocion: estado tablas, admin existe, etc.
-    SOLO para uso deploy diagnosticar 'credenciales invalidas'."""
-    out = {"db_engine": DB_ENGINE, "ok": True, "checks": {}}
+def promo_debug_health(request: Request):
+    """Healthcheck simple sistema promocion: estado tablas, admin existe, + CONTEOS filas para diagnosticar QRs perdidos."""
+    out = {"db_engine": DB_ENGINE, "ok": True, "checks": {}, "counts": {}}
+    # Variables entorno mostradas sin secrets (para diagnosticar CORS)
+    out["env"] = {
+        "FRONTEND_URL_config": (os.environ.get("FRONTEND_URL") or "")[:120],
+        "CORS_ALLOW_ORIGINS_env": (os.environ.get("CORS_ALLOW_ORIGINS") or "")[:160],
+        "JWT_SECRET_SET": bool(os.environ.get("JWT_SECRET")),
+        "BACKEND_PUBLIC_URL_env": (os.environ.get("BACKEND_PUBLIC_URL") or "")[:80],
+    }
+    # CORS info
+    origin = (request.headers.get("origin") or "") or None
+    allow_ok, echo = _cors_origin_allowed(origin)
+    out["cors"] = {
+        "origin_entrante": origin,
+        "permitido": bool(allow_ok),
+        "echo_origin": echo,
+    }
     try:
         init_promo_db_tables_and_seeds()
         out["checks"]["init_seeds_idempotent"] = True
@@ -3085,7 +3157,6 @@ def promo_debug_health():
         out["checks"]["init_seeds_idempotent"] = False
         out["error_init"] = str(e)
         out["ok"] = False
-    # contar tablas existen
     tablas = ["promo_admin_users", "promo_config", "promo_qr_codes",
               "promo_registros", "promo_auditoria_admin", "promo_sorteo_lock"]
     with get_db_conn() as conn:
@@ -3101,6 +3172,14 @@ def promo_debug_health():
                 out["checks"][f"tabla_{t}"] = existe
                 if not existe:
                     out["ok"] = False
+                else:
+                    # COUNT filas para diagnosticar QRs perdidos
+                    try:
+                        cur.execute(f"SELECT COUNT(*) FROM {t}")
+                        row = cur.fetchone()
+                        out["counts"][t] = int(row[0]) if row else 0
+                    except Exception:
+                        out["counts"][t] = None
             except Exception as e:
                 out["checks"][f"tabla_{t}"] = False
                 out[f"error_tabla_{t}"] = str(e)
@@ -3133,6 +3212,23 @@ def promo_debug_health():
     except Exception:
         out["checks"]["config_id1_exists"] = False
         out["ok"] = False
+    # DB WARNINGS
+    if DB_ENGINE == "SQLITE":
+        out["db_warning"] = (
+            "⚠️ ESTAS EN SQLITE LOCAL: CADA REDEPLOY EN RAILWAY BORRA TODOS LOS QRs Y REGISTROS. "
+            "Solución recomendada: Railway Dashboard → NEW → Database → PostgreSQL → Create → "
+            "luego en Servicio1 Backend → Settings → Attach Database → selecciona la PostgreSQL "
+            "(0 costo, 0 egress Private Networking). Datos permanentes."
+        )
+        out["db_warning_alt_volumen"] = (
+            "Opcion alternativa mas barata: Servicio1 → Settings → Volumes → Add Volume, "
+            "Mount Path = /app/backend-python (guarda SQLite en disco persistente)."
+        )
+    if out["counts"].get("promo_qr_codes") == 0:
+        out["qr_0_filas_warning"] = (
+            "promo_qr_codes = 0 filas. Si esperabas códigos: se borraron en redeploy anterior "
+            "por SQLite sin persistencia, o es PostgreSQL DB nueva attachada recien."
+        )
     return out
 
 

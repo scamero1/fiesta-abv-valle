@@ -4946,13 +4946,43 @@ def admin_qr_delete(id_or_uuid, admin: dict = _promo_Depends(get_current_admin))
             if qr is None:
                 raise HTTPException(status_code=404, detail="QR no encontrado")
             qr_id = int(qr["id"])
+
+            # ===== INTEGRIDAD FK promo_registros.qr_id → promo_qr_codes(id) =====
+            # La columna promo_registros.qr_id es NOT NULL + FOREIGN KEY REAL al QR.
+            # Si el QR YA FUE USADO (hay un ganador registrado con él), NO PODEMOS BORRARLO:
+            #   - PostgreSQL lanzaría error FK violation (no permite dejar references dangling)
+            #   - Tampoco queremos BORRAR el historial de ganador = dato oficial del evento.
+            # Caso QR USADO → HTTP 409 CONFLICT: usuario usa opcion INHABILITAR en su lugar (ya existe).
+            # Caso QR SIN USAR (usado_registro_id NULL) → se puede borrar seguro (no hay FK que apunte).
+            qr_usado_registro_id = qr.get("usado_registro_id")
+            if qr_usado_registro_id is not None:
+                # Chequeo doble por seguridad: cuento filas en promo_registros que lo referencien.
+                cur.execute(
+                    f"SELECT COUNT(*) FROM promo_registros WHERE qr_id = {ph}",
+                    (qr_id,),
+                )
+                cnt_refs = int((cur.fetchone() or [0])[0] or 0)
+                if cnt_refs > 0:
+                    raise HTTPException(
+                        status_code=409,
+                        detail=(
+                            "Este QR YA FUE UTILIZADO por una persona ganadora registrada (#registros "
+                            f"que lo referencian: {cnt_refs}). NO se puede ELIMINAR para preservar el "
+                            "historial de ganadores (integridad referencial base de datos: promo_registros.qr_id "
+                            "es NOT NULL con FK a promo_qr_codes). Si lo que quieres es que nadie más lo use, "
+                            "usa la opción INHABILITAR en su lugar: el QR seguirá en el historial pero cualquier "
+                            "persona que lo escuche recibirá 'QR inhabilitado por el administrador' y no podrá "
+                            "registrarse."
+                        ),
+                    )
+
+            # === QR NO USADO: BORRADO SEGURO. No necesitamos tocar promo_registros (nunca fue referenciado). ===
             if DB_ENGINE == "POSTGRES":
-                cur.execute("UPDATE promo_registros SET qr_id = NULL, qr_uuid = %s WHERE qr_id = %s AND (qr_id IS NOT NULL OR qr_uuid = %s)",
-                            (qr.get("uuid_qr"), qr_id, qr.get("uuid_qr")))
                 cur.execute("DELETE FROM promo_qr_codes WHERE id = %s", (qr_id,))
             else:
-                cur.execute("UPDATE promo_registros SET qr_id = NULL WHERE qr_id = ?", (qr_id,))
                 cur.execute("DELETE FROM promo_qr_codes WHERE id = ?", (qr_id,))
+            if cur.rowcount != 1:
+                raise HTTPException(status_code=500, detail="Ninguna fila fue eliminada (QR ya no existía)")
             conn.commit()
         except HTTPException:
             try:
@@ -4965,6 +4995,17 @@ def admin_qr_delete(id_or_uuid, admin: dict = _promo_Depends(get_current_admin))
                 conn.rollback()
             except Exception:
                 pass
+            # Mensaje amigable si PostgreSQL FK salta de todos modos por algun edge
+            msg_str = str(e).lower()
+            if "foreignkey" in msg_str or "foreign key" in msg_str or "violates not-null" in msg_str or "qr_id" in msg_str:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "No se puede eliminar este QR: está referenciado por uno o más registros oficiales "
+                        "de ganadores. Usa la opción INHABILITAR en su lugar para evitar que se vuelva a usar "
+                        "sin borrar el historial."
+                    ),
+                )
             raise HTTPException(status_code=500, detail=f"Error delete QR: {str(e)}")
     # Auditoria FUERA del with (igual que DELETE REGISTRO) para no mezclar transacciones
     _promo_insert_auditoria(int(admin["id"]), "DELETE_QR", {

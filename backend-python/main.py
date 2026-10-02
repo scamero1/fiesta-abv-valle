@@ -372,11 +372,67 @@ def get_session():
 # ====== FASTAPI APP ======
 app = FastAPI(
     title="Aguardiente ABV Fiesta — Background Removal + Composition API",
-    version="2.1.0",
+    version="2.2.0",
 )
 
-# CORS MÁS ROBUSTO PARA RAILWAY + PWA TCL ANDROID CHROME
-# (Problema "Failed to fetch" suele ser CORS preflight no cacheado o missing expose_headers)
+def _cors_allow_list_from_env():
+    origins = set()
+    fu = (os.environ.get("FRONTEND_URL") or "").strip()
+    if fu:
+        origins.add(fu)
+    al_env = (os.environ.get("CORS_ALLOW_ORIGINS") or os.environ.get("VITE_ALLOW_ORIGINS") or "").strip()
+    if al_env:
+        for part in al_env.split(","):
+            p = part.strip().rstrip("/")
+            if p:
+                origins.add(p)
+    for dev in [
+        "http://localhost:5173", "http://localhost:4173", "http://127.0.0.1:5173",
+        "http://127.0.0.1:4173", "http://localhost:3000",
+        "capacitor://localhost", "http://localhost", "ionic://localhost",
+    ]:
+        origins.add(dev)
+    be_own = (os.environ.get("BACKEND_PUBLIC_URL") or os.environ.get("RAILWAY_PUBLIC_DOMAIN") or "").strip()
+    if be_own:
+        origins.add(be_own)
+    normalized = set()
+    for o in origins:
+        o = o.strip()
+        if not o:
+            continue
+        try:
+            from urllib.parse import urlparse as _urlparse_norm
+            _p = _urlparse_norm(o)
+            if _p.scheme and _p.netloc:
+                normalized.add(f"{_p.scheme.lower()}://{_p.netloc.lower()}")
+                continue
+        except Exception:
+            pass
+        normalized.add(o.rstrip("/").lower())
+    return normalized
+
+CORS_ALLOW_SET = _cors_allow_list_from_env()
+
+def _cors_origin_allowed(request_origin):
+    if not request_origin:
+        return (True, None)
+    raw = (request_origin or "").strip()
+    norm_in = None
+    try:
+        from urllib.parse import urlparse as _u
+        _p = _u(raw)
+        if _p.scheme and _p.netloc:
+            norm_in = f"{_p.scheme.lower()}://{_p.netloc.lower()}"
+    except Exception:
+        norm_in = raw.rstrip("/").lower()
+    if norm_in in CORS_ALLOW_SET:
+        return (True, raw)
+    haystack = (norm_in or raw).lower()
+    for perm in (".up.railway.app", "localhost", "127.0.0.1", ".railway.app"):
+        if perm in haystack:
+            return (True, raw)
+    return (False, None)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -389,9 +445,34 @@ app.add_middleware(
 
 
 @app.middleware("http")
+async def _promo_override_cors_headers_dynamic(request: Request, call_next):
+    origin = request.headers.get("origin") or None
+    response = await call_next(request)
+    allow_ok, echo = _cors_origin_allowed(origin)
+    if allow_ok and echo:
+        response.headers["access-control-allow-origin"] = echo
+        response.headers["access-control-allow-credentials"] = "false"
+        response.headers["access-control-expose-headers"] = "*"
+        response.headers["access-control-max-age"] = "86400"
+        vary = response.headers.get("vary", "")
+        varies = [v.strip() for v in vary.split(",") if v.strip()]
+        if "Origin" not in varies:
+            varies.append("Origin")
+        response.headers["vary"] = ", ".join(varies)
+    elif not allow_ok and origin:
+        for hdr in ("access-control-allow-origin", "access-control-expose-headers",
+                    "access-control-allow-credentials", "access-control-max-age"):
+            if hdr in response.headers:
+                del response.headers[hdr]
+    if (not origin) and ("access-control-allow-origin" not in response.headers):
+        response.headers["access-control-allow-origin"] = "*"
+        response.headers["access-control-expose-headers"] = "*"
+        response.headers["access-control-max-age"] = "86400"
+    return response
+
+
+@app.middleware("http")
 async def _promo_log_cors_and_trace_headers(request: Request, call_next):
-    """Middleware TRAZABILIDAD: imprime ORIGIN cada request con metodo POST a /api/admin o promo.
-    Sirve para diagnosticar 'Failed to fetch' = CORS bloqueado o Backend caido."""
     method = request.method
     path = request.url.path
     origin = request.headers.get("origin") or request.headers.get("Origin") or ""
@@ -402,28 +483,70 @@ async def _promo_log_cors_and_trace_headers(request: Request, call_next):
     except Exception as e:
         print(f"[REQ-500] {method} {path} | origin={origin!r} host={host!r} ref={referer!r} | EXC={type(e).__name__}: {e}")
         raise
-    if (method == "POST" and ("/api/admin" in path or "/api/promo" in path)) or "/debug/" in path or path == "/health":
+    if (method == "POST" and ("/api/admin" in path or "/api/promo" in path)) or "/debug/" in path or path == "/health" or path == "/cors-test":
         print(
             f"[REQ] {method} {path} HTTP {response.status_code} | "
-            f"origin={origin!r} host={host!r} ref={referer!r}"
+            f"origin={origin!r} host={host!r} ref={referer!r} | "
+            f"cors_allow={_cors_origin_allowed(origin or '')[0]}"
         )
     return response
 
 
 @app.get("/cors-test")
 def cors_test_simple(request: Request):
-    """Endpoint SUPER SIMPLE para diagnosticar Failed to fetch.
-    No requiere headers, no requiere auth, responde JSON instantáneo.
-    Se usa en AdminLogin botón DIAGNOSTICAR 1 clic."""
+    origin = request.headers.get("origin") or ""
+    allow_ok, echo = _cors_origin_allowed(origin or None)
     return {
         "ok": True,
-        "cors": "OK (si puedes ver este JSON en el navegador, backend Python Railway está UP)",
+        "cors": "OK (si puedes ver este JSON, backend Python Railway está UP)",
         "method": "GET",
         "request_host": request.headers.get("host"),
-        "request_origin": request.headers.get("origin"),
+        "request_origin": origin,
+        "request_origin_permitido": bool(allow_ok),
+        "request_origin_echo": echo,
+        "cors_allow_list": sorted(list(CORS_ALLOW_SET))[:50],
+        "FRONTEND_URL_config": os.environ.get("FRONTEND_URL") or "",
+        "CORS_ALLOW_ORIGINS_env": os.environ.get("CORS_ALLOW_ORIGINS") or "",
         "request_user_agent": (request.headers.get("user-agent") or "")[:120],
         "server_time_utc": datetime.now(timezone.utc).isoformat(),
     }
+
+
+@app.get("/api/promo/debug/cors-check-detallado")
+def cors_debug_detallado(request: Request):
+    origin = request.headers.get("origin") or request.headers.get("Origin") or ""
+    referer = request.headers.get("referer") or ""
+    allow_ok, echo = _cors_origin_allowed(origin or None)
+    probable_front = ""
+    try:
+        if referer:
+            from urllib.parse import urlparse as _upp
+            _pr = _upp(referer)
+            if _pr.scheme and _pr.netloc:
+                probable_front = f"{_pr.scheme.lower()}://{_pr.netloc.lower()}"
+    except Exception:
+        probable_front = ""
+    recomendaciones = [
+        "SERVICIO 1 (Backend Python) → Variables → Add: FRONTEND_URL = https://front-production-3d2a.up.railway.app SIN / al final",
+        "SERVICIO 2 (Frontend Vite Static) → Variables → Add: VITE_BACKEND_URL = https://fiesta-abv-valle-production.up.railway.app SIN / al final!",
+        "Redeploy AMBOS servicios triangular ⏯ Latest Commit en Railway.",
+        "TCL Chrome: Ritual Nuclear: Ajustes → Apps → Chrome → Almacenamiento → BORRAR ALMACENAMIENTO. Cerrar Chrome, reabrir PWA.",
+    ]
+    return {
+        "ok": True,
+        "resumen": ("OK CORS ✅" if allow_ok else "🛑 CORS BLOQUEADO"),
+        "origin_entrante": origin,
+        "origin_permitido": echo,
+        "referer": referer,
+        "probable_frontend_desde_referer": probable_front,
+        "allowlist_actual": sorted(list(CORS_ALLOW_SET)),
+        "FRONTEND_URL_env": os.environ.get("FRONTEND_URL") or "",
+        "CORS_ALLOW_ORIGINS_env": os.environ.get("CORS_ALLOW_ORIGINS") or "",
+        "recomendaciones_railway": recomendaciones,
+        "server_time_utc": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 @app.on_event("startup")
 def startup_init_db_and_model():
     print(f"[startup] engine={DB_ENGINE} (DATABASE_URL_set={bool(DATABASE_URL)}) | IA model={MODEL_NAME} | CPU only")

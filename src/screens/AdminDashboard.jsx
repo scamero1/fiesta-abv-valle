@@ -737,11 +737,73 @@ function TabQRCodigos({ authHeaders, toast }) {
     toast('ℹ Descarga ZIP requiere backend; usa descarga individual', 'err')
   }
 
+  const descargarPDF = async (body, nombreSufijo = '') => {
+    const genName = () => {
+      const d = new Date()
+      const pad = (n) => String(n).padStart(2, '0')
+      return `QRs_Fiesta_ABV_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}${nombreSufijo ? '_'+nombreSufijo : ''}.pdf`
+    }
+    try {
+      const res = await fetch(apiUrl('/api/admin/qr/pdf'), {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(body || {}),
+      })
+      if (res.ok) {
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        const cdHeader = (res.headers && res.headers.get) ? res.headers.get('Content-Disposition') : ''
+        let nombre = ''
+        if (cdHeader && /filename="?([^"]+)"?/i.test(cdHeader)) {
+          const mm = cdHeader.match(/filename="?([^"]+)"?/i)
+          if (mm && mm[1]) nombre = mm[1]
+        }
+        a.download = nombre || genName()
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        setTimeout(() => { try { URL.revokeObjectURL(url) } catch {} }, 1500)
+        toast(`✅ PDF generado correctamente (${Math.round(blob.size/1024)} kB). Descarga iniciada.`, 'ok')
+      } else {
+        const texto = await res.text().catch(() => '')
+        let d = {}
+        try { d = JSON.parse(texto) } catch { d = { _raw: texto.slice(0, 1200) } }
+        const msj = d.detail || d.message || d.error || d._raw || `Error HTTP ${res.status}`
+        toast(`❌ PDF falló: HTTP ${res.status} · ${String(msj).slice(0, 240)}`, 'err')
+        setUltimoErrorQR({
+          titulo: `BACKEND rechazó solicitud PDF (HTTP ${res.status})`,
+          httpStatus: res.status,
+          detail: msj,
+          url: apiUrl('/api/admin/qr/pdf'),
+          bodyEnviado: body,
+          respuestaRaw: texto.slice(0, 2500),
+          respuestaJson: d,
+          fechaIso: new Date().toISOString(),
+        })
+      }
+    } catch (e) {
+      console.error('[Admin] descargarPDF exception:', e)
+      const msj = (e && e.message) ? `Error de conexión PDF: ${e.message}` : 'Error de conexión al generar PDF'
+      toast(`❌ ${msj}`, 'err')
+      setUltimoErrorQR({
+        titulo: 'ERROR NETWORK PDF (CORS / Backend caído / Timeout)',
+        httpStatus: 0,
+        detail: msj,
+        url: apiUrl('/api/admin/qr/pdf'),
+        stack: (e && e.stack) ? String(e.stack).slice(0, 1500) : null,
+        bodyEnviado: body,
+        fechaIso: new Date().toISOString(),
+      })
+    }
+  }
+
   return (
     <div className="admin-panel">
       <div className="admin-panel-header">
         <h2 className="admin-panel-title">🔲 Códigos QR Promoción</h2>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button
             type="button"
             className="admin-btn ghost"
@@ -751,10 +813,51 @@ function TabQRCodigos({ authHeaders, toast }) {
             {cargandoListado ? '⏳ Cargando...' : '🔄 Recargar listado BD'}
           </button>
           {resultados.length > 0 && (
-            <button type="button" className="admin-btn primary" onClick={descargarTodosZipFront}>
+            <button
+              type="button"
+              className="admin-btn primary"
+              onClick={() => descargarTodosZipFront()}
+            >
               ⬇ Descargar TODOS ZIP (front)
             </button>
           )}
+          <button
+            type="button"
+            className="admin-btn success"
+            onClick={() => descargarPDF({
+              ids: (resultados || []).map((r) => (r && r.id != null) ? Number(r.id) : null).filter((x) => Number.isFinite(x) && x > 0),
+              cols: 3,
+              filas_por_pagina: 7,
+              pagina_horizontal: false,
+              qr_id_on_page: true,
+            }, 'recien-generados')}
+            disabled={(resultados || []).length === 0}
+            title={resultados.length ? `Generar PDF con los ${resultados.length} QR recién generados (arriba)` : 'Primero genera códigos QR con el botón azul'}
+          >
+            📄 PDF Recién Generados
+          </button>
+          <button
+            type="button"
+            className="admin-btn ghost"
+            style={{
+              background: 'linear-gradient(180deg, #fff7ed 0%, #ffedd5 100%)',
+              border: '1.5px solid #fb923c',
+              color: '#9a3412',
+            }}
+            onClick={() => descargarPDF({
+              habilitado: filtroHab,
+              usado: filtroUsado,
+              q: busquedaQR && busquedaQR.trim() ? busquedaQR.trim() : null,
+              max_qrs: 1000,
+              cols: 3,
+              filas_por_pagina: 7,
+              pagina_horizontal: false,
+              qr_id_on_page: true,
+            }, 'historial-completo')}
+            title="Exportar PDF con todo el HISTORIAL (aplica filtros: busqueda / hab / uso). Límite 1000 QRs por PDF."
+          >
+            📑 PDF Historial (filtros)
+          </button>
         </div>
       </div>
 

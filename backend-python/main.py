@@ -3791,6 +3791,418 @@ def admin_qr_delete(id_or_uuid, admin: dict = _promo_Depends(get_current_admin))
     return {"ok": True, "eliminado": True, "qr_eliminado": qr}
 
 
+# ======= HELPERS PDF QR =======
+
+def _promo_qr_compute_frontend_base_url(request):
+    """Reutiliza la misma lógica de POST /admin/qr/generar para armar la URL FRONTEND del QR.
+    Devuelve string SIN slash final: "https://front.up.railway.app"
+    """
+    scheme = request.base_url.scheme
+    host_hdr = request.headers.get("host", "")
+    origin_hdr = (request.headers.get("origin") or "").strip()
+    frontend_url_env = (os.environ.get("FRONTEND_URL") or "").strip().rstrip("/")
+    base = None
+    if frontend_url_env:
+        base = frontend_url_env
+    elif origin_hdr:
+        try:
+            from urllib.parse import urlparse as _urlparse
+            _p = _urlparse(origin_hdr)
+            if _p.scheme and _p.netloc:
+                base = f"{_p.scheme}://{_p.netloc}"
+        except Exception:
+            base = origin_hdr.rstrip("/")
+    if not base:
+        base = f"{scheme}://{host_hdr}" if host_hdr else str(request.base_url).rstrip("/")
+    return base.rstrip("/")
+
+
+def _promo_qr_make_pil_for_pdf(url_value, size_cm, dpi=300, size_px_fallback=512):
+    """Genera una imagen PIL RGB en memoria con el QR para meterla en el PDF.
+    - Si el admin especificó tamaño en cm → TAMAÑO REAL IMPRESO = tamaño_cm.
+    - Fórmula: px = cm * dpi / 2.54  (1 inch = 2.54cm)
+    - Si falla por algún motivo, fallback al tamaño en píxeles que tenía almacenado.
+    Devuelve (pil_img_rgb, ancho_cm, alto_cm)  (ancho = alto, QR cuadrado)
+    """
+    import qrcode as _qrcode
+    size_cm_float = None
+    try:
+        size_cm_float = float(size_cm) if size_cm is not None else None
+    except Exception:
+        size_cm_float = None
+    if size_cm_float and size_cm_float > 0:
+        px = int(round((size_cm_float * float(dpi or 300)) / 2.54))
+        px = max(256, min(4096, px))
+    else:
+        try:
+            px = int(size_px_fallback or 512)
+        except Exception:
+            px = 512
+        px = max(256, min(4096, px))
+    try:
+        dpi_eff = max(72, min(1200, int(dpi or 300)))
+    except Exception:
+        dpi_eff = 300
+    qr = _qrcode.QRCode(version=None, error_correction=_qrcode.constants.ERROR_CORRECT_H,
+                        box_size=max(1, px // 30), border=4)
+    qr.add_data(url_value)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+    img = img.resize((px, px), Image.LANCZOS if hasattr(Image, "LANCZOS") else Image.Resampling.LANCZOS)
+    # Informar cm reales (si venian de tamano_cm usar ese; sino calcular de px/dpi)
+    if size_cm_float and size_cm_float > 0:
+        cm_eff = float(size_cm_float)
+    else:
+        cm_eff = round((float(px) * 2.54) / float(dpi_eff), 3)
+    return img, cm_eff, cm_eff
+
+
+class AdminQrPdfReq(BaseModel):
+    """Body request para generar PDF de QRs. Cualquier combinación permitida:
+    - ids: array de integer IDs (ex: recien generados ids). Si envías => ignoras filtros y traes SOLO esos.
+    - OPCIONAL filtros mismos de /list (si no envías ids, trae todos los QRs que coincidan, ordenados id DESC, límite max_qrs).
+    - cols / filas_por_pagina: layout cuantos por página.
+    - pagina_horizontal: True = paisaje / False = retrato.
+    - forzar_tamano_cm: si >0 ignora tamano_cm de cada QR y usa un tamaño UNIFORME en toda la hoja.
+    - qr_id_on_page: True → imprime ID HUMANO debajo (default True).
+    - incluir_fecha_titulo: default True.
+    """
+    ids: list[int] | None = None
+    usado: bool | None = None
+    habilitado: bool | None = None
+    q: str | None = None
+    max_qrs: int = 500
+    cols: int = 3
+    filas_por_pagina: int = 7
+    pagina_horizontal: bool = False
+    forzar_tamano_cm: float | None = None
+    qr_id_on_page: bool = True
+    incluir_fecha_titulo: bool = True
+
+
+def _promo_qr_fetch_ids_or_filtered(req: AdminQrPdfReq):
+    """Trae QRs de la DB según IDs o filtros (mismo where de list endpoint).
+    Devuelve lista de dicts ordenados según req.ids (si existe) o id DESC.
+    """
+    ph = "%s" if DB_ENGINE == "POSTGRES" else "?"
+    cols = [
+        "id", "uuid_qr", "id_humano", "size_px", "tamano_cm", "dpi", "unidad",
+        "formato", "habilitado", "usado_registro_id", "creado_admin_id", "created_at",
+    ]
+    cols_str = ", ".join(cols)
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        if req.ids:
+            ids_ok = list({int(x) for x in req.ids if x is not None})
+            if not ids_ok:
+                return []
+            phs = ",".join([ph] * len(ids_ok))
+            where_extra = f" WHERE id IN ({phs})"
+            sql = f"SELECT {cols_str} FROM promo_qr_codes{where_extra}"
+            cur.execute(sql, tuple(ids_ok) if DB_ENGINE == "POSTGRES" else ids_ok)
+            rows_raw = _promo_fetch_all_to_dicts(cur, cols)
+            # Reordenar con el orden inicial del usuario (ids array)
+            pos = {int(r["id"]): idx for idx, r in enumerate(rows_raw)}
+            rows_raw.sort(key=lambda r: pos.get(int(r["id"]), 999_999_999))
+            items = rows_raw
+        else:
+            where = []
+            params = []
+            if req.usado is not None:
+                where.append("usado_registro_id IS NOT NULL" if req.usado else "usado_registro_id IS NULL")
+            if req.habilitado is not None:
+                if DB_ENGINE == "POSTGRES":
+                    where.append(f"habilitado = {ph}")
+                    params.append(bool(req.habilitado))
+                else:
+                    where.append(f"habilitado = {ph}")
+                    params.append(1 if req.habilitado else 0)
+            if req.q:
+                q = str(req.q).strip()
+                if q:
+                    where.append(f"(uuid_qr LIKE {ph} OR id_humano LIKE {ph} OR COALESCE(CAST(id AS TEXT), '') LIKE {ph})")
+                    like = f"%{q}%"
+                    params += [like, like, like]
+            where_sql = f" WHERE {' AND '.join(where)}" if where else ""
+            cur.execute(f"SELECT COUNT(*) FROM promo_qr_codes{where_sql}", tuple(params) if DB_ENGINE == "POSTGRES" else params)
+            try:
+                total = int(cur.fetchone()[0] or 0)
+            except Exception:
+                total = 0
+            limit_qr = max(1, min(10000, int(req.max_qrs or 500)))
+            qp = list(params) + [limit_qr]
+            sql = f"SELECT {cols_str} FROM promo_qr_codes{where_sql} ORDER BY id DESC LIMIT {ph}"
+            cur.execute(sql, tuple(qp) if DB_ENGINE == "POSTGRES" else qp)
+            items = _promo_fetch_all_to_dicts(cur, cols)
+            _ = total
+    # Normalizar tipos numericos / booleano
+    for it in items:
+        if DB_ENGINE == "POSTGRES":
+            it["habilitado"] = bool(it.get("habilitado", True))
+        else:
+            raw = it.get("habilitado")
+            it["habilitado"] = True if raw is None else (int(raw) == 1)
+        for kk in ("tamano_cm",):
+            if it.get(kk) is not None:
+                try: it[kk] = float(it[kk])
+                except Exception: it[kk] = None
+        for kk in ("dpi", "size_px"):
+            if it.get(kk) is not None:
+                try: it[kk] = int(it[kk])
+                except Exception: it[kk] = None
+    return items
+
+
+# M)pdf POST /api/admin/qr/pdf — Genera PDF con QRs (recién generados o historial filtrado)
+@app.post("/api/admin/qr/pdf")
+def admin_qr_pdf(req: AdminQrPdfReq, admin: dict = _promo_Depends(get_current_admin), request: Request = None):
+    # 1) Traer QRs
+    items = _promo_qr_fetch_ids_or_filtered(req)
+    if not items:
+        raise HTTPException(status_code=400, detail="No se encontraron QRs para este criterio. Genera códigos primero o cambia los filtros.")
+
+    # 2) Layout y tamaños de página
+    from reportlab.lib.pagesizes import LETTER, landscape as _landscape_fn
+    from reportlab.pdfgen import canvas as _pdfcanvas
+    from reportlab.lib.utils import ImageReader as _ImageReader
+    from reportlab.lib import colors as _colors
+
+    # Carta (Colombia) por defecto: LETTER en points 612×792
+    page_size = LETTER
+    cols = max(1, min(6, int(req.cols or 3)))
+    rows = max(1, min(12, int(req.filas_por_pagina or 7)))
+    if req.pagina_horizontal:
+        page_size = _landscape_fn(page_size)
+
+    page_w_pt, page_h_pt = page_size
+    mm_pt = 2.83464567  # 1mm = 2.8346 pt aprox
+    margen_laterales_mm = 15  # mm
+    margen_arriba_mm = 22     # mm (título y subtítulo)
+    margen_abajo_mm = 16      # mm (legal footer)
+    gap_entre_celdas_mm = 4   # mm entre QR y QR
+
+    margen_l_pt = margen_laterales_mm * mm_pt
+    margen_r_pt = margen_laterales_mm * mm_pt
+    margen_t_pt = margen_arriba_mm * mm_pt
+    margen_b_pt = margen_abajo_mm * mm_pt
+    gap_pt = gap_entre_celdas_mm * mm_pt
+
+    area_util_w = page_w_pt - margen_l_pt - margen_r_pt
+    area_util_h = page_h_pt - margen_t_pt - margen_b_pt
+
+    cell_w_pt = max(1.0, (area_util_w - (max(0, cols - 1) * gap_pt)) / float(cols))
+    cell_h_pt = max(1.0, (area_util_h - (max(0, rows - 1) * gap_pt)) / float(rows))
+
+    # Si el admin pidió forzar tamaño uniforme: limitamos el tamaño QR a la celda
+    forzar_cm = None
+    if req.forzar_tamano_cm and float(req.forzar_tamano_cm) > 0:
+        try:
+            forzar_cm = float(req.forzar_tamano_cm)
+            if forzar_cm <= 0:
+                forzar_cm = None
+        except Exception:
+            forzar_cm = None
+
+    # Crear PDF en memoria
+    import io as _io
+    buf = _io.BytesIO()
+    c = _pdfcanvas.Canvas(buf, pagesize=page_size)
+    c.setTitle("Códigos QR — Fiesta Aguardiente Blanco del Valle")
+    c.setAuthor("ILV 1921 · Admin")
+    c.setSubject("QRs promoción Fiesta")
+    c.setCreator("Aguardiente Blanco del Valle - FastAPI reportlab")
+
+    # Calcular URLs frontend base (MISMA regla que generación QR)
+    front_base = _promo_qr_compute_frontend_base_url(request or Request({"type": "http"}))
+
+    # Header/footer callback y pagina en canvas (reportlab usa drawOn callback pero más fácil: hacemos bucle manual)
+    from datetime import datetime as _dt, timezone as _tz
+    tz_co = None
+    try:
+        from zoneinfo import ZoneInfo as _ZI
+        tz_co = _ZI("America/Bogota")
+    except Exception:
+        tz_co = _tz.utc
+    ahora = _dt.now(tz_co or _tz.utc)
+
+    def _escribir_header_y_footer(cv, pnum, total_paginas_estimado=None):
+        # HEADER zona superior (dentro de los márgenes)
+        cv.saveState()
+        cv.setFillColor(_colors.HexColor("#0033A0"))  # Azul ABV
+        cv.rect(0, page_h_pt - (10 * mm_pt), page_w_pt, (10 * mm_pt), stroke=0, fill=1)
+        cv.setFillColor(_colors.white)
+        cv.setFont("Helvetica-Bold", 13)
+        cv.drawString(margen_l_pt, page_h_pt - (7.2 * mm_pt), "ILV 1921 — Aguardiente Blanco del Valle")
+        cv.setFont("Helvetica", 9)
+        cv.drawRightString(page_w_pt - margen_r_pt, page_h_pt - (7.2 * mm_pt),
+                           (f"Página {pnum}" + (f" / {total_paginas_estimado}" if total_paginas_estimado else "")))
+        # Subtítulo antes iniciar grilla
+        if req.incluir_fecha_titulo:
+            cv.setFillColor(_colors.HexColor("#0f172a"))
+            cv.setFont("Helvetica-Bold", 11)
+            cv.drawString(margen_l_pt, page_h_pt - (15.5 * mm_pt), "Códigos QR — Fiesta · ¡Va con todo!")
+            cv.setFillColor(_colors.HexColor("#475569"))
+            cv.setFont("Helvetica", 8.5)
+            cv.drawRightString(page_w_pt - margen_r_pt, page_h_pt - (15.5 * mm_pt),
+                               f"Generado el {ahora.strftime('%d/%m/%Y %I:%M %p')} (Colombia) · Admin #{int(admin.get('id') or 0)}")
+        # FOOTER legal
+        cv.setFillColor(_colors.HexColor("#f1f5f9"))
+        cv.rect(0, 0, page_w_pt, (10 * mm_pt), stroke=0, fill=1)
+        cv.setStrokeColor(_colors.HexColor("#cbd5e1"))
+        cv.setLineWidth(0.6)
+        cv.line(0, 10 * mm_pt, page_w_pt, 10 * mm_pt)
+        cv.setFillColor(_colors.HexColor("#475569"))
+        cv.setFont("Helvetica", 7.5)
+        texto_legal_izq = ("Uso exclusivo evento Fiesta Aguardiente Blanco del Valle · QR 1 solo uso. "
+                           "Cualquier alteración, distribución o comercialización es prohibida.")
+        cv.drawString(margen_l_pt, 4.0 * mm_pt, texto_legal_izq)
+        cv.drawRightString(page_w_pt - margen_r_pt, 4.0 * mm_pt, f"{len(items)} QR(s) · {cols}×{rows}")
+        cv.restoreState()
+
+    # Estimación de páginas (se actualiza al dibujar, al final se hace un show pages count pero no importa)
+    per_page = cols * rows
+    total_pag_estimado = max(1, (len(items) + per_page - 1) // per_page)
+
+    item_idx = 0
+    n_items = len(items)
+    pil_cache = {}  # id_qr -> (pil, cm_w, cm_h) para no renderizar 2 veces el mismo si hubiera dup
+    while item_idx < n_items:
+        # Inicio página
+        _escribir_header_y_footer(c, ((item_idx // per_page) + 1), total_pag_estimado)
+        # Bucle por celdas dentro de la página
+        for pos_in_pagina in range(per_page):
+            if item_idx >= n_items:
+                break
+            qr = items[item_idx]
+            qr_id = int(qr["id"])
+            col = pos_in_pagina % cols
+            fila = pos_in_pagina // cols
+            # Calcular esquina inferior-izquierda de la CELDA (reportlab origen abajo-izq)
+            # El área útil Y empieza DESPUES del header
+            area_y0 = page_h_pt - margen_t_pt  # Y SUPERIOR área util
+            cell_x0 = margen_l_pt + (col * (cell_w_pt + gap_pt))
+            # Cell top (superior): area_y0 - (fila * (cell_h_pt + gap_pt))
+            cell_y_top = area_y0 - (fila * (cell_h_pt + gap_pt))
+            cell_y0 = cell_y_top - cell_h_pt
+            # Si forzamos tamaño cm o no, calculamos el cuadro del QR DENTRO DE LA CELDA
+            # (dejamos espacio vertical para ID humano abajo)
+            id_etiqueta_h_pt = 12.0  # 2 lineas aprox
+            area_qr_disponible_w = cell_w_pt
+            area_qr_disponible_h = cell_h_pt - (id_etiqueta_h_pt + 2 * mm_pt)
+            max_side_pt = max(20.0, min(area_qr_disponible_w, area_qr_disponible_h))
+            # 1) Calcular cm real que vamos a dibujar, si forzar_cm o tamano_cm en QR
+            cm_target = None
+            if forzar_cm:
+                cm_target = float(forzar_cm)
+            elif qr.get("tamano_cm"):
+                cm_target = float(qr["tamano_cm"])
+            # Si cm_target sale de la celda (muy grande) → reducir al máximo disponible
+            qr_draw_pt = None
+            dpi_eff = int(qr.get("dpi") or 300)
+            if cm_target and cm_target > 0:
+                qr_draw_from_cm = (cm_target * 10.0) * mm_pt  # cm * 10 = mm * mm_pt = pt
+                qr_draw_pt = qr_draw_from_cm
+                # Limitar para que quepa siempre dentro de la celda
+                if qr_draw_pt > max_side_pt:
+                    qr_draw_pt = max_side_pt
+                    # actualizar cm_target al reducido (para el texto info)
+                    cm_target = round((qr_draw_pt / mm_pt) / 10.0, 2)
+            else:
+                qr_draw_pt = max_side_pt
+                cm_target = round((qr_draw_pt / mm_pt) / 10.0, 2)
+            # Center QR horizontal + vertical en el espacio superior (antes de la etiqueta)
+            center_x_cell = cell_x0 + (cell_w_pt / 2.0)
+            # Area QR = desde (cell_y0 + id_etiqueta_h_pt + 1mm) hasta (cell_y0 + cell_h_pt - 1mm)
+            qr_area_y_min = cell_y0 + id_etiqueta_h_pt + (1.0 * mm_pt)
+            qr_area_y_max = cell_y0 + cell_h_pt - (1.0 * mm_pt)
+            center_y_qr = ((qr_area_y_min + qr_area_y_max) / 2.0)
+            qr_x0 = center_x_cell - (qr_draw_pt / 2.0)
+            qr_y0 = center_y_qr - (qr_draw_pt / 2.0)
+            # Generar PIL imagen del QR (cacheado)
+            if qr_id not in pil_cache:
+                url_qr = f"{front_base}/ganador?qr={qr.get('uuid_qr') or ''}"
+                pil_img, cmw, cmh = _promo_qr_make_pil_for_pdf(
+                    url_qr,
+                    size_cm=cm_target,
+                    dpi=dpi_eff,
+                    size_px_fallback=int(qr.get("size_px") or 512),
+                )
+                pil_cache[qr_id] = (pil_img, cmw, cmh)
+            else:
+                pil_img, cmw, cmh = pil_cache[qr_id]
+            # Dibujar imagen en el PDF
+            try:
+                c.drawImage(_ImageReader(pil_img),
+                            qr_x0, qr_y0,
+                            width=qr_draw_pt, height=qr_draw_pt,
+                            preserveAspectRatio=True, anchor='c', mask='auto')
+            except Exception:
+                # Fallback simple: dibujar placeholder gris y texto
+                c.setFillColor(_colors.HexColor("#e2e8f0"))
+                c.rect(qr_x0, qr_y0, qr_draw_pt, qr_draw_pt, stroke=1, fill=1)
+                c.setFillColor(_colors.HexColor("#334155"))
+                c.setFont("Helvetica-Bold", 8)
+                c.drawCentredString(center_x_cell, center_y_qr, "QR")
+            # Borde ligero gris alrededor (cortar stickers a mano)
+            c.setStrokeColor(_colors.HexColor("#cbd5e1"))
+            c.setLineWidth(0.4)
+            c.setDash(1, 1.2)
+            c.rect(cell_x0 + 0.5 * mm_pt, cell_y0 + 0.5 * mm_pt,
+                   cell_w_pt - 1.0 * mm_pt, cell_h_pt - 1.0 * mm_pt,
+                   stroke=1, fill=0)
+            c.setDash()
+            # Etiqueta debajo: ID humano + tamaño
+            if req.qr_id_on_page:
+                c.setFillColor(_colors.HexColor("#0f172a"))
+                c.setFont("Helvetica-Bold", 8.5)
+                idh = str(qr.get("id_humano") or f"ID-{qr['id']}")
+                # si idh muy largo achicamos fuente
+                if len(idh) > 14:
+                    c.setFont("Helvetica-Bold", 7.2)
+                c.drawCentredString(center_x_cell, cell_y0 + (id_etiqueta_h_pt - 1.2), idh)
+                # línea 2: información del tamaño (pequeño gris)
+                c.setFillColor(_colors.HexColor("#64748b"))
+                c.setFont("Helvetica", 7.0)
+                sz_info = []
+                if qr.get("size_px"):
+                    sz_info.append(f"{int(qr['size_px'])}px")
+                if cm_target:
+                    sz_info.append(f"{cm_target:g}cm")
+                if qr.get("dpi"):
+                    sz_info.append(f"{int(qr['dpi'])}dpi")
+                if qr.get("habilitado") is False:
+                    sz_info.append("INHAB")
+                info_txt = " · ".join(sz_info) or f"QR #{qr['id']}"
+                c.drawCentredString(center_x_cell, cell_y0 + (id_etiqueta_h_pt - 5.2), info_txt)
+            item_idx += 1
+        # Fin página
+        c.showPage()
+    c.save()
+    pdf_bytes = buf.getvalue()
+    buf.seek(0)
+    # Auditoria
+    try:
+        _promo_insert_auditoria(int(admin["id"]), "EXPORT_PDF_QR", {
+            "qrs_count": len(items),
+            "ids_sample": [int(x["id"]) for x in items[:20]],
+            "paginas_estimadas": total_pag_estimado,
+            "cols": cols,
+            "filas": rows,
+            "forzar_tamano_cm": forzar_cm,
+        })
+    except Exception:
+        pass
+    from fastapi.responses import Response
+    filename = f"QRs_Fiesta_ABV_{ahora.strftime('%Y%m%d_%H%M%S')}.pdf"
+    headers = {
+        "Content-Disposition": f'attachment; filename="{filename}"',
+        "Content-Length": str(len(pdf_bytes)),
+        "Cache-Control": "no-store",
+        "Pragma": "no-cache",
+    }
+    return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
+
+
 # N) GET /api/admin/auditoria
 @app.get("/api/admin/auditoria")
 def admin_auditoria(

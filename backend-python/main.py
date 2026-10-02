@@ -87,15 +87,144 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 # El host público proxy.rlwy.net es válido (egress costs billable), pero si el usuario NO tiene
 # opción "Attach Database" en Railway UI (solo dispone del URL público), lo aceptamos igualmente.
 # Host interno recomendado (gratis, 0 egress): *.railway.internal en puerto 5432.
+#
+# IMPORTANTE SSL: Railway proxy público proxy.rlwy.net REQUIERE sslmode=require OBLIGATORIO.
+# Si el usuario no lo agrega manualmente, falla con "invalid response to SSL negotiation: H".
+# Solución: normalizamos AUTOMÁTICAMENTE el URL agregando ?sslmode=require cuando:
+#   (a) el URL NO trae ningún param sslmode, O
+#   (b) el host contiene .railway. (proxy público o Private Network)
+def _normalizar_pg_url_con_ssl(raw_url: str) -> str:
+    """Agrega sslmode=require a un URL PostgreSQL si no lo tiene o si es Railway.
+    Retorna el URL listo para psycopg3."""
+    if not raw_url:
+        return raw_url
+    u = str(raw_url).strip()
+    # Permitir al usuario sobreescribir explícitamente: si ya hay sslmode=X dejarlo
+    try:
+        from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
+    except Exception:
+        # Si urllib no sirve, fallback simple por string:
+        if "sslmode=" not in u:
+            sep = "&" if ("?" in u) else "?"
+            return u + sep + "sslmode=require"
+        return u
+    try:
+        parsed = urlparse(u)
+        # Si no es postgres, retornar igual
+        if parsed.scheme not in ("postgres", "postgresql", "postgres+psycopg", "postgresql+psycopg"):
+            return u
+        params = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        host = (parsed.hostname or "").lower()
+        es_railway = ("railway" in host) or ("proxy.rlwy.net" in host)
+        sslmode_user = params.get("sslmode", None)
+        if sslmode_user is None or sslmode_user.strip() == "":
+            # Usuario NO puso sslmode; Railway requiere sslmode=require
+            params["sslmode"] = "require"
+        elif es_railway and sslmode_user.lower() in ("disable", "allow", "prefer"):
+            # Usuario puso un sslmode incompatible con Railway: sobreescribimos a require
+            params["sslmode"] = "require"
+        # Reconstrir URL
+        new_query = urlencode(params)
+        rebuilt = parsed._replace(query=new_query)
+        return urlunparse(rebuilt)
+    except Exception:
+        # Fallback simple
+        if "sslmode=" not in u:
+            sep = "&" if ("?" in u) else "?"
+            return u + sep + "sslmode=require"
+        return u
+
 _pg_is_public_proxy = False
-if DATABASE_URL and "proxy.rlwy.net" in DATABASE_URL:
-    _pg_is_public_proxy = True
-    print("[DB] ℹ️ Info: DATABASE_URL apunta a host público Railway proxy.rlwy.net (egress billable). "
-          "Se usará PostgreSQL vía URL pública. Recomendación: Attach Database vía UI Railway para "
-          "Private Network *.railway.internal (0 costo).")
+_diff_params = False
+if DATABASE_URL:
+    # Detectar Railway público ANTES de normalizar
+    _pg_is_public_proxy = bool("proxy.rlwy.net" in DATABASE_URL)
+    if _pg_is_public_proxy:
+        print("[DB] ℹ️ Info: DATABASE_URL apunta a host público Railway proxy.rlwy.net (egress billable). "
+              "Se usará PostgreSQL vía URL pública. Recomendación: Attach Database vía UI Railway para "
+              "Private Network *.railway.internal (0 costo).")
+    # Normalizar SSL MODE siempre (agrega sslmode=require si faltaba)
+    try:
+        _DATABASE_URL_ORIG = DATABASE_URL
+        DATABASE_URL = _normalizar_pg_url_con_ssl(DATABASE_URL)
+        _diff_params = bool(DATABASE_URL != _DATABASE_URL_ORIG)
+    except Exception:
+        _diff_params = False
+    # Log info SSL modificado
+    if _diff_params and DATABASE_URL.startswith("postgres"):
+        print("[DB] 🔐 SSL Auto: agregado sslmode=require al DATABASE_URL (Railway proxy lo requiere).")
+    elif not _diff_params and DATABASE_URL.startswith("postgres") and "sslmode=" in DATABASE_URL:
+        try:
+            from urllib.parse import urlparse, parse_qsl
+            _p = urlparse(DATABASE_URL)
+            _params = dict(parse_qsl(_p.query))
+            _mode = (_params.get("sslmode") or "").lower()
+            print(f"[DB] 🔐 SSL: DATABASE_URL trae sslmode={_mode!r} (usaré ese).")
+        except Exception:
+            pass
 
 DB_ENGINE = "POSTGRES" if (HAS_PSYCOPG and DATABASE_URL and DATABASE_URL.startswith("postgres")) else "SQLITE"
 SQLITE_PATH = os.path.join(BASE_DIR, "fotos-local.sqlite3")
+
+
+def _pg_connect_ssl_fallback(url_base: str, **extra_kwargs):
+    """Conecta a PostgreSQL probando 3 configuraciones SSL en orden.
+    Railway proxy público usualmente requiere sslmode=require.
+    Fallback chain:
+      1) sslmode=require (para Railway)
+      2) sslmode=verify-ca (si el user trajo CA)
+      3) sslmode=disable / sin param
+    Devuelve la conexión psycopg abierta o lanza la ÚLTIMA excepción capturada."""
+    if not HAS_PSYCOPG:
+        raise RuntimeError("psycopg3 no está disponible; verifica requirements.")
+    def _append_sslmode(url, mode):
+        try:
+            from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
+            parsed = urlparse(url)
+            params = dict(parse_qsl(parsed.query, keep_blank_values=True))
+            params["sslmode"] = mode
+            return urlunparse(parsed._replace(query=urlencode(params)))
+        except Exception:
+            sep = "?" if "?" not in url else "&"
+            # Quitar sslmode anterior si lo tiene por string simple
+            base = url
+            if "sslmode=" in base:
+                import re as _re
+                base = _re.sub(r"[?&]sslmode=[^&]*", "", base)
+                if not "?" in base:
+                    base = base + "?"
+                    sep = ""
+            return base + (sep if sep else "&") + f"sslmode={mode}"
+    attempts = []
+    # Orden intentos: require (Railway default) → verify-full → prefer → disable
+    ssl_order = ["require", "verify-ca", "prefer", "disable"]
+    last_exc = None
+    for mode in ssl_order:
+        url_tried = _append_sslmode(url_base or "", mode)
+        try:
+            conn = psycopg.connect(
+                url_tried,
+                autocommit=False,
+                connect_timeout=18,
+                **extra_kwargs
+            )
+            print(f"[DB] ✅ Conectado PostgreSQL OK con sslmode={mode!r}.")
+            return conn
+        except Exception as e:
+            msg = str(e)[:240]
+            attempts.append((mode, type(e).__name__, msg))
+            last_exc = e
+            # Short-circuit rápido si el error NO es SSL (no probar resto)
+            _es_ssl = ("ssl" in msg.lower() or "SSL negotiation" in msg or "sslmode" in msg or "certificate" in msg.lower() or "tlsv" in msg.lower())
+            if not _es_ssl and ("password authentication" in msg.lower() or "role" in msg.lower() or "does not exist" in msg.lower() or "pg_hba" in msg.lower() or "timeout expired" in msg.lower() or "could not translate host" in msg.lower()):
+                # Auth / DNS / timeout falló el 1er intento y no es SSL → no probar más
+                break
+    # Si llegamos aquí: todos los intentos fallaron
+    err_log = " | ".join([f"[{m}] {t}: {s[:90]}" for (m, t, s) in attempts])
+    print(f"[DB] ❌ Falló PostgreSQL en TODOS los sslmode. Intentos: {err_log}")
+    if last_exc is not None:
+        raise last_exc
+    raise RuntimeError("No se pudo conectar a PostgreSQL (fallback chain agotada).")
 
 @contextmanager
 def get_db_conn():
@@ -107,7 +236,9 @@ def get_db_conn():
             # NUNCA llames cur.execute("BEGIN") manualmente; eso rompe psycopg con "cannot start a
             # transaction within a transaction". El caller es responsable de llamar conn.commit()
             # o conn.rollback() para sus transacciones propias SERIALIZABLE / FOR UPDATE.
-            conn = psycopg.connect(DATABASE_URL, autocommit=False, connect_timeout=15)
+            #
+            # Railway proxy requiere SSL; usamos cadena multi-attempt con fallback chain.
+            conn = _pg_connect_ssl_fallback(DATABASE_URL)
         else:
             conn = sqlite3.connect(SQLITE_PATH, isolation_level=None, timeout=30)
             conn.row_factory = sqlite3.Row

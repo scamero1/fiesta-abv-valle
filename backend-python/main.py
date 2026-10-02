@@ -3122,25 +3122,59 @@ class PromoRegistroReq(BaseModel):
     barrio: str | None = None
     municipio: str | None = None
     ciudad: str
+    # ========= NUEVOS campos booleans de aceptación (EL FALLO era que NO existían, se usaban en INSERT) =========
+    acepta_terminos: bool = False
+    acepta_habeas: bool = False
     acepta_terminos_at_iso: str = ""
     acepta_habeas_at_iso: str = ""
 
     @model_validator(mode="before")
     @classmethod
     def _compatibilizar_nombres_campos_front_legacy(cls, data: Any) -> Any:
-        """El front a veces envía nombres antiguos (sin _iso final o confirmar_celular).
+        """El front a veces envía nombres antiguos (sin _iso final o confirmar_celular),
+        ni envía los booleans acepta_* (solo los timestamps).
         Renombramos aquí ANTES de que Pydantic valide campos obligatorios, para
-        evitar el HTTP 422 por diferencias de nombres entre versiones."""
+        evitar el HTTP 422 por diferencias de nombres entre versiones y el 500 AttributeError por field missing."""
         if not isinstance(data, dict):
             return data
         # Clonamos para no mutar el input original
         d = dict(data)
+
+        # ===== 0) PRIMERO: Normalizar los BOOLEANS acepta_terminos/acepta_habeas (igual que PromoAceptacionReq)
+        #     El front a veces manda string 'on'/'1'/'' o no lo manda en absoluto.
+        for campo in ("acepta_terminos", "acepta_habeas"):
+            v = d.get(campo, None)
+            if v is None or v == "" or (isinstance(v, float) and v != v):
+                d[campo] = False
+            elif isinstance(v, bool):
+                pass
+            elif isinstance(v, (int, float)):
+                d[campo] = bool(v)
+            elif isinstance(v, str):
+                s = v.strip().lower()
+                d[campo] = s in ("1", "true", "t", "yes", "y", "si", "s", "on", "acepto", "aceptar", "ok", "verdadero")
+            else:
+                try:
+                    d[campo] = bool(v)
+                except Exception:
+                    d[campo] = False
+
         # 1) Timestamp términos y condiciones: acepta_terminos_at (legacy) → acepta_terminos_at_iso
         if not d.get("acepta_terminos_at_iso") and d.get("acepta_terminos_at"):
             d["acepta_terminos_at_iso"] = str(d["acepta_terminos_at"])
         # 2) Timestamp habeas data: acepta_habeas_at (legacy) → acepta_habeas_at_iso
         if not d.get("acepta_habeas_at_iso") and d.get("acepta_habeas_at"):
             d["acepta_habeas_at_iso"] = str(d["acepta_habeas_at"])
+
+        # 2b) INFERENCIA SMART: Si no mandó boolean acepta_terminos PERO SÍ HAY TIMESTAMP (acepta_*_at_iso no vacío),
+        #     asumir que el usuario SÍ aceptó (porque timestamp generado en front cuando hace clic checkbox).
+        _t_at = (d.get("acepta_terminos_at_iso") or "").strip()
+        _h_at = (d.get("acepta_habeas_at_iso") or "").strip()
+        if _t_at and not d.get("acepta_terminos"):
+            d["acepta_terminos"] = True
+        if _h_at and not d.get("acepta_habeas"):
+            d["acepta_habeas"] = True
+
         # 3) Confirmación celular: confirmar_celular (front form name) → celular_confirmacion (pydantic)
         if (not d.get("celular_confirmacion")) and d.get("confirmar_celular"):
             d["celular_confirmacion"] = str(d["confirmar_celular"])
@@ -3149,6 +3183,7 @@ class PromoRegistroReq(BaseModel):
         # que NO tienen campo confirmar_celular (registro administrativo rápido).
         if (not d.get("celular_confirmacion")) and d.get("celular"):
             d["celular_confirmacion"] = str(d["celular"])
+
         # 5) Si acepta_* siguen vacíos, rellenamos con hora actual UTC.
         if not d.get("acepta_terminos_at_iso"):
             d["acepta_terminos_at_iso"] = datetime.now(timezone.utc).isoformat()

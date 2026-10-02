@@ -22,10 +22,11 @@ export default function PdfConfigModal({
     filas_por_pagina: 7,
     pagina_horizontal: false,
     forzar_tamano_cm: null,
-    qr_id_on_page: true,
+    qr_id_on_page: false,            // DEFAULT FALSE por user request: NO mostrar código humano en PDF
+    incluir_id_humano: false,        // Alias del mismo flag (front usa este nombre más intuitivo)
     incluir_fecha_titulo: true,
     borde_punteado: true,
-    mostrar_info_tecnica: true,
+    mostrar_info_tecnica: false,     // DEFAULT FALSE por user request: NO mostrar dimensiones en PDF
     id_humano_font_size_pt: 8.5,
     info_font_size_pt: 7.0,
     margen_mm_izq: 15.0,
@@ -46,8 +47,20 @@ export default function PdfConfigModal({
 
   if (!open) return null
 
-  const setField = (k, v) => setCfg((prev) => ({ ...prev, [k]: v }))
-  const toggle = (k) => setCfg((prev) => ({ ...prev, [k]: !prev[k] }))
+  const setField = (k, v) => setCfg((prev) => {
+    const next = { ...prev, [k]: v }
+    // Sinonimia entre incluir_id_humano y qr_id_on_page: actualizar ambos siempre
+    if (k === 'incluir_id_humano') next.qr_id_on_page = Boolean(v)
+    if (k === 'qr_id_on_page') next.incluir_id_humano = Boolean(v)
+    return next
+  })
+  const toggle = (k) => setCfg((prev) => {
+    const nextVal = !prev[k]
+    const next = { ...prev, [k]: nextVal }
+    if (k === 'incluir_id_humano') next.qr_id_on_page = Boolean(nextVal)
+    if (k === 'qr_id_on_page') next.incluir_id_humano = Boolean(nextVal)
+    return next
+  })
 
   // ===== Cálculos preview miniatura =====
   const pageWmm = cfg.pagina_horizontal ? LANDSCAPE_W_MM : LETTER_W_MM
@@ -116,7 +129,9 @@ export default function PdfConfigModal({
       ? Number(cfg.forzar_tamano_cm)
       : null
     // QR visuales:
-    body.qr_id_on_page = Boolean(cfg.qr_id_on_page)
+    const _incluirId = Boolean(cfg.qr_id_on_page || cfg.incluir_id_humano)
+    body.qr_id_on_page = _incluirId
+    body.incluir_id_humano = _incluirId
     body.mostrar_info_tecnica = Boolean(cfg.mostrar_info_tecnica)
     body.borde_punteado = Boolean(cfg.borde_punteado)
     body.id_humano_font_size_pt = clamp(Number(cfg.id_humano_font_size_pt) || 8.5, 5, 16)
@@ -323,8 +338,9 @@ export default function PdfConfigModal({
                   ...cfg,
                   margen_mm_izq: 8, margen_mm_der: 8, margen_mm_sup: 10, margen_mm_inf: 8,
                   gap_mm_entre_celdas: 3, incluir_header_azul: false, incluir_footer_legal: false,
+                  qr_id_on_page: false, incluir_id_humano: false, mostrar_info_tecnica: false,
                 })} style={chipStylePreset}>
-                  ⚡ Preset IMPRENTA (solo QR mínimo margen)
+                  ⚡ Preset IMPRENTA (solo QR, sin textos ni marcas)
                 </button>
                 <button type="button" onClick={() => setCfg({
                   ...cfg,
@@ -348,8 +364,8 @@ export default function PdfConfigModal({
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 6 }}>
                 {/* Toggles */}
-                <Toggle label="✅ Incluir ID HUMANO debajo QR" checked={cfg.qr_id_on_page} onChange={() => toggle('qr_id_on_page')} />
-                <Toggle label="ℹ Línea info técnica (px·cm·dpi·INHAB)" checked={cfg.mostrar_info_tecnica && cfg.qr_id_on_page} onChange={() => toggle('mostrar_info_tecnica')} disabled={!cfg.qr_id_on_page} />
+                <Toggle label="✅ Mostrar código ID HUMANO debajo del QR" checked={Boolean(cfg.qr_id_on_page || cfg.incluir_id_humano)} onChange={() => toggle('incluir_id_humano')} />
+                <Toggle label="ℹ Mostrar info dimensiones (px · cm · dpi · INHAB)" checked={cfg.mostrar_info_tecnica} onChange={() => toggle('mostrar_info_tecnica')} />
                 <Toggle label="✂ Borde punteado para cortar stickers" checked={cfg.borde_punteado} onChange={() => toggle('borde_punteado')} />
                 <Toggle label="🟦 Header azul ILV 1921 arriba" checked={cfg.incluir_header_azul} onChange={() => toggle('incluir_header_azul')} />
                 <Toggle label="📑 Footer legal abajo" checked={cfg.incluir_footer_legal} onChange={() => toggle('incluir_footer_legal')} />
@@ -538,8 +554,8 @@ export default function PdfConfigModal({
                               ))}
                               </div>
                             )}
-                            {/* ETIQUETA DEBAJO QR */}
-                            {!isEmpty && cfg.qr_id_on_page ? (
+                            {/* ETIQUETA DEBAJO QR (ahora INDEPENDIENTE: ID e info son flags separados) */}
+                            {!isEmpty && (cfg.qr_id_on_page || cfg.incluir_id_humano || cfg.mostrar_info_tecnica) ? (
                               <div style={{
                                 textAlign: 'center',
                                 width: '100%',
@@ -547,21 +563,23 @@ export default function PdfConfigModal({
                                 lineHeight: 1.05,
                                 padding: '0 1px',
                               }}>
-                                <div style={{
-                                  fontWeight: 800,
-                                  color: '#0f172a',
-                                  fontSize: Math.max(4, Math.round(cfg.id_humano_font_size_pt * (pxPerMm / 2.8346))),
-                                  fontFamily: 'monospace',
-                                  whiteSpace: 'nowrap',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                }}>
-                                  FIESTA-{String.fromCharCode(65 + (col % 26))}{String.fromCharCode(65 + (fila % 26))}X{String(fila+1).padStart(2,'0')}{String(col+1).padStart(2,'0')}
-                                </div>
+                                {(cfg.qr_id_on_page || cfg.incluir_id_humano) ? (
+                                  <div style={{
+                                    fontWeight: 800,
+                                    color: '#0f172a',
+                                    fontSize: Math.max(4, Math.round(cfg.id_humano_font_size_pt * (pxPerMm / 2.8346))),
+                                    fontFamily: 'monospace',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                  }}>
+                                    FIESTA-{String.fromCharCode(65 + (col % 26))}{String.fromCharCode(65 + (fila % 26))}X{String(fila+1).padStart(2,'0')}{String(col+1).padStart(2,'0')}
+                                  </div>
+                                ) : null}
                                 {cfg.mostrar_info_tecnica ? (
                                   <div style={{
                                     color: '#64748b',
-                                    marginTop: 1,
+                                    marginTop: (cfg.qr_id_on_page || cfg.incluir_id_humano) ? 1 : 0,
                                     fontSize: Math.max(3.5, Math.round(cfg.info_font_size_pt * (pxPerMm / 2.8346))),
                                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                                   }}>

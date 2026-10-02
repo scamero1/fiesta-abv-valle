@@ -4449,13 +4449,14 @@ class AdminQrPdfReq(BaseModel):
     filas_por_pagina: int = 7
     pagina_horizontal: bool = False
     forzar_tamano_cm: float | None = None
-    qr_id_on_page: bool = True
+    qr_id_on_page: bool = False  # DEFAULT FALSE por pedido user: NO mostrar código humano debajo del QR en PDF
     incluir_fecha_titulo: bool = True
 
     # ========= NUEVOS PARÁMETROS DE CONFIGURACIÓN AVANZADA =========
     # Visualización celdas:
     borde_punteado: bool = True   # dibujar borde punteado gris alrededor c/celda (para cortar stickers)
-    mostrar_info_tecnica: bool = True  # línea 2 debajo QR: px·cm·dpi·INHAB (si qr_id_on_page=True)
+    mostrar_info_tecnica: bool = False  # DEFAULT FALSE por pedido user: NO mostrar info dimensiones (px/cm/dpi/INHAB) en PDF
+    incluir_id_humano: bool | None = None  # Alias de qr_id_on_page (sinónimo para el front)
     id_humano_font_size_pt: float = 8.5  # tamaño fuente Helvetica-Bold ID humano debajo QR
     info_font_size_pt: float = 7.0       # tamaño fuente info técnica
 
@@ -4473,6 +4474,22 @@ class AdminQrPdfReq(BaseModel):
     color_header_hex: str = "#0033A0"
     # Título customizado arriba (si se envía reemplaza el default):
     titulo_pdf: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _alias_incluir_id_humano(cls, data: Any) -> Any:
+        """Sinónimo: `incluir_id_humano` es alias de `qr_id_on_page` para que el front mande nombre
+        más intuitivo. Si se envía cualquiera de los 2, actualiza el otro para mantener consistencia."""
+        if not isinstance(data, dict):
+            return data
+        d = dict(data)
+        a = d.get("qr_id_on_page")
+        b = d.get("incluir_id_humano")
+        if b is not None and a is None:
+            d["qr_id_on_page"] = bool(b)
+        if a is not None and b is None:
+            d["incluir_id_humano"] = bool(a)
+        return d
 
 
 def _promo_qr_fetch_ids_or_filtered(req: AdminQrPdfReq):
@@ -4709,7 +4726,16 @@ def admin_qr_pdf(req: AdminQrPdfReq, admin: dict = _promo_Depends(get_current_ad
             cell_y0 = cell_y_top - cell_h_pt
             # Si forzamos tamaño cm o no, calculamos el cuadro del QR DENTRO DE LA CELDA
             # (dejamos espacio vertical para ID humano abajo)
-            id_etiqueta_h_pt = 14.0 if (mostrar_id_humano and mostrar_info_tam) else (8.0 if mostrar_id_humano else 0.0)
+            _hay_etiqueta_id = bool(mostrar_id_humano)
+            _hay_etiqueta_info = bool(mostrar_info_tam)
+            if _hay_etiqueta_id and _hay_etiqueta_info:
+                id_etiqueta_h_pt = 14.0
+            elif _hay_etiqueta_id:
+                id_etiqueta_h_pt = 8.0
+            elif _hay_etiqueta_info:
+                id_etiqueta_h_pt = 7.0
+            else:
+                id_etiqueta_h_pt = 0.0
             area_qr_disponible_w = cell_w_pt
             area_qr_disponible_h = cell_h_pt - (id_etiqueta_h_pt + 2 * mm_pt)
             max_side_pt = max(20.0, min(area_qr_disponible_w, area_qr_disponible_h))
@@ -4775,17 +4801,18 @@ def admin_qr_pdf(req: AdminQrPdfReq, admin: dict = _promo_Depends(get_current_ad
                        cell_w_pt - 0.6 * mm_pt, cell_h_pt - 0.6 * mm_pt,
                        stroke=1, fill=0)
                 c.setDash()
-            # Etiqueta debajo: ID humano + tamaño (AHORA configurable show ID + info técnica)
-            if mostrar_id_humano:
-                # LINEA 1 - ID HUMANO (font size configurable por admin):
-                c.setFillColor(_colors.HexColor("#0f172a"))
-                c.setFont("Helvetica-Bold", id_font_sz)
-                idh = str(qr.get("id_humano") or f"ID-{qr['id']}")
-                # si idh muy largo achicamos fuente (dentro del límite):
-                if len(idh) > 14 and id_font_sz > 7:
-                    c.setFont("Helvetica-Bold", max(6.0, id_font_sz - 1.5))
-                id_linea_1_y = cell_y0 + (id_etiqueta_h_pt - 1.2)
-                c.drawCentredString(center_x_cell, id_linea_1_y, idh)
+            # Etiqueta debajo: ID humano + tamaño (AHORA configurable show ID + info TÉCNICA de forma INDEPENDIENTE)
+            if mostrar_id_humano or mostrar_info_tam:
+                # LINEA 1 - ID HUMANO (si se encendió):
+                linea1_y = cell_y0 + (max(2.0, id_etiqueta_h_pt) - 1.2)
+                if mostrar_id_humano:
+                    c.setFillColor(_colors.HexColor("#0f172a"))
+                    c.setFont("Helvetica-Bold", id_font_sz)
+                    idh = str(qr.get("id_humano") or f"ID-{qr['id']}")
+                    # si idh muy largo achicamos fuente (dentro del límite):
+                    if len(idh) > 14 and id_font_sz > 7:
+                        c.setFont("Helvetica-Bold", max(6.0, id_font_sz - 1.5))
+                    c.drawCentredString(center_x_cell, linea1_y, idh)
                 # LINEA 2 - información del tamaño (pequeño gris, configurable mostrar)
                 if mostrar_info_tam:
                     c.setFillColor(_colors.HexColor("#64748b"))
@@ -4800,7 +4827,11 @@ def admin_qr_pdf(req: AdminQrPdfReq, admin: dict = _promo_Depends(get_current_ad
                     if qr.get("habilitado") is False:
                         sz_info.append("INHAB")
                     info_txt = " · ".join(sz_info) or f"QR #{qr['id']}"
-                    info_linea_2_y = id_linea_1_y - (info_font_sz + 1.5)
+                    # Posición Y: si había ID, va 1 línea DEBAJO; si no, en la posición única
+                    if mostrar_id_humano:
+                        info_linea_2_y = linea1_y - (info_font_sz + 1.5)
+                    else:
+                        info_linea_2_y = linea1_y
                     c.drawCentredString(center_x_cell, info_linea_2_y, info_txt)
             item_idx += 1
         # Fin página

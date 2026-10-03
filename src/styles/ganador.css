@@ -240,13 +240,14 @@
   display: block !important;  /* 🔴 FLEX → BLOCK. Ya no usamos align-items:flex-end con margin-bottom. */
 }
 /* 🔴 User 03/10 7:30PM: MAS ANGOSTO (menos ancho) + SIN EMOJIS.
+   🔴 User 03/10 7:45PM: BAJARLO UN POCO MAS. Reducir gap bottom (mas cerca banner legal sin tocarlo).
    - Reducir max-width de 58% → ~360px (ancho natural ajustado al texto sin emojis).
    - padding horizontal +15% más reducido.
    - text-align center. */
 .ganador-step0-btn-fullscreen-llamado{
   position: absolute !important;
-  /* === ESQUINA INFERIOR IZQUIERDA, justo POR ENCIMA del banner legal === */
-  bottom: calc(var(--legal-h) + 12px) !important;
+  /* === ESQUINA INFERIOR IZQUIERDA, MAS CERCA del banner legal SIN TOCARLO === */
+  bottom: calc(var(--legal-h) + 6px) !important;
   left: clamp(14px, 3svw, 24px) !important;
   transform: none !important;
   background: rgba(255,255,255,.84);
@@ -276,10 +277,10 @@
   50%  { transform: translateY(-2px) scale(1.012);   box-shadow: 0 11px 24px rgba(0,0,0,.26), 0 0 0 2px rgba(0,71,186,.12) inset !important; }
   100% { transform: translateY(0) scale(1);         box-shadow: 0 8px 18px rgba(0,0,0,.24), 0 0 0 0 rgba(0,71,186,.4) inset !important; }
 }
-/* @media portrait / max-height:640: mantener ESQUINA INFERIOR IZQUIERDA y MAS ANGOSTO también. */
+/* @media portrait / max-height:640: mantener ESQUINA INFERIOR IZQUIERDA, MAS ANGOSTO, y MAS BAJO. */
 @media (orientation:portrait){
   .ganador-step0-btn-fullscreen-llamado{
-    bottom: calc(var(--legal-h) + 20px) !important;
+    bottom: calc(var(--legal-h) + 10px) !important;
     left: clamp(14px, 4svw, 22px) !important;
     font-size: clamp(.86rem, 2.3svw, 1.02rem) !important;
     padding: clamp(8px, 1.6svh, 10px) clamp(12px, 2.8svw, 18px) !important;
@@ -288,7 +289,7 @@
 }
 @media (max-height:640px){
   .ganador-step0-btn-fullscreen-llamado{
-    bottom: calc(var(--legal-h) + 6px) !important;
+    bottom: calc(var(--legal-h) + 3px) !important;
     left: clamp(12px, 2.6svw, 20px) !important;
     padding: clamp(6px, 1.1svh, 8px) clamp(10px, 2svw, 14px) !important;
     font-size: clamp(.8rem, 1.7svw, .92rem) !important;

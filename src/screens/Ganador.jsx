@@ -86,30 +86,27 @@ export default function Ganador() {
   // TRY-CATCH TOTAL DEL RENDER (NUNCA MÁS PANTALLA AZUL SÓLIDA):
   // ============================================================
   try {
+  // ===== TODOS LOS HOOKS PRIMERO (orden fijo React Rules of Hooks) =====
+  // NUNCA mezclar hooks con constantes/funciones handlers entre ellos para
+  // evitar referencias adelantadas / TDZ / desalineación doble-render StrictMode.
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const qr_uuid = searchParams.get('qr') || ''
 
+  // Estados (TODOS declarados ANTES de cualquier useRef/función que los capture):
   const [aceptaTerminos, setAceptaTerminos] = useState(false)
   const [aceptaHabeas, setAceptaHabeas] = useState(false)
   const [terminosTs, setTerminosTs] = useState('')
   const [habeasTs, setHabeasTs] = useState('')
-
-  // ===== FLUJO NUEVO PEDIDO USER HOY (MÁXIMA PRIORIDAD): =====
-  // User VERBATIM: "colocas un botón transparente en TODA LA PANTALLA para
-  // que solo le de click y de una pase a terminos y condiciones"
-  //
-  // ANTERIORES intentos fallidos superados:
-  //   SHA 787034c → "tocar cualquiera parte overlay fullscreen" (user luego lo cambió)
-  //   SHA 12a7dd7 → "botón invisible solo área CTA dibujada" (user lo cambió)
-  //   SHA af8a64f → "countdown 8s sin click" (user HOY cambia: NO, BOTÓN FULLSCREEN CLICK)
-  // IMPLEMENTACIÓN HOY: OVERLAY BUTTON FULLSCREEN TRANSPARENTE Z=9999.
-  // User toca CUALQUIER LUGAR de la pantalla en la Pieza → pasa a términos.
   const [stepVisual, setStepVisual] = useState(0)
-  const avanzarATerminos = () => {
-    if (qrEstado !== 'listo') return
-    setStepVisual(1)
-  }
+  const [qrEstado, setQrEstado] = useState('validando')
+  const [qrInfo, setQrInfo] = useState(null)
+
+  // ===== useMemo / useEffects DESPUÉS de todos los useState =====
+  const puedeContinuar = useMemo(
+    () => !!(qr_uuid && qrEstado === 'listo' && aceptaTerminos && aceptaHabeas),
+    [qr_uuid, qrEstado, aceptaTerminos, aceptaHabeas]
+  )
 
   // ============== FIX INMEDIATO PANTALLA AZUL ==============
   // Cuando el endpoint retorna 200 y qrEstado → 'listo' (async), forzamos siempre stepVisual a 0
@@ -136,9 +133,6 @@ export default function Ganador() {
   // ===== VALIDACION QR AL ABRIR LINK (ANTES DE MOSTRAR NADA) =====
   // User idea: 1 QR = 1 solo ganador. Si ya fue registrado, link se bloquea.
   // Estados: validando | listo | ya_usado | inhabilitado | no_existe | error_red
-  const [qrEstado, setQrEstado] = useState('validando')
-  const [qrInfo, setQrInfo] = useState(null)   // payload endpoint /api/promo/qr/validar
-
   useEffect(() => {
     let cancelled = false
     const validar = async () => {
@@ -189,7 +183,11 @@ export default function Ganador() {
     return () => { cancelled = true }
   }, [qr_uuid])
 
-  const puedeContinuar = !!(qr_uuid && qrEstado === 'listo' && aceptaTerminos && aceptaHabeas)
+  // ===== FUNCIONES HANDLERS (TODOS los states YA están declarados, sin referencias adelantadas) =====
+  const avanzarATerminos = () => {
+    if (qrEstado !== 'listo') return
+    setStepVisual(1)
+  }
 
   const formatearTimestamp = (iso) => {
     if (!iso) return ''
@@ -462,7 +460,7 @@ export default function Ganador() {
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') avanzarATerminos() }}
         >
           <span className="ganador-step0-btn-fullscreen-llamado">
-            👉 Toca cualquier parte para continuar �
+            👉 Toca cualquier parte para continuar 👈
           </span>
         </button>
       )}

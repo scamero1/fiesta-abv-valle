@@ -1,10 +1,88 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { QRCodeCanvas } from 'qrcode.react'
 import { apiUrl } from './AdminLogin.jsx'
 import '../styles/ganador.css'
 
+// ============================================================
+// COMPONENTE A PRUEBA DE CRASH PARA QRCodeCanvas
+// ============================================================
+// Si la librería qrcode.react falla (cualquier razón), NUNCA debe desmontar
+// TODO el componente Ganador. User reportó "azul puro sin nada por horas" =
+// React 18 crashea 1 vez y no recupera sin ErrorBoundary.
+// Este wrapper try/catch render retorna un div placeholder si algo sale mal.
+function QRSeguro({ value, size = 64 }) {
+  try {
+    if (!value || typeof value !== 'string') return null
+    // No importamos ni usamos nada dinámico; si falla el return JSX, catch
+    // en el primer render lo agarramos antes de que React crashee el árbol.
+    const _seguro = <QRCodeCanvas value={String(value)} size={Number(size) || 64} level="M" includeMargin={false} />
+    return _seguro
+  } catch (err) {
+    // Silencioso; user solo ve un placeholder sin QR; no afecta UX de form/validación.
+    try {
+      console.warn('[GanaQR] fallback sin QR canvas:', err && err.message ? err.message : err)
+    } catch {}
+    return (
+      <div style={{
+        width: Number(size) || 64,
+        height: Number(size) || 64,
+        background: 'rgba(255,255,255,.06)',
+        borderRadius: 10,
+        border: '1px dashed rgba(255,255,255,.22)',
+        color: '#fff',
+        fontSize: 10,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        padding: 6,
+        wordBreak: 'break-all',
+        lineHeight: 1.15,
+      }}>
+        QR: {String(value || '').slice(0, 10)}…
+      </div>
+    )
+  }
+}
+
+// ============================================================
+// ERROR BOUNDARY INLINE: si <Ganador /> TOTALMENTE falla (render o cualquier cosa),
+// se renderiza este fallback amigable con el usuario en lugar de pantalla AZUL SÓLIDA.
+// ============================================================
+function PantallaFalloSeguro({ raw }) {
+  return (
+    <div className="screen ganador-screen">
+      <div className="screen-bg ganador-bg-fondo-vertical" />
+      <div className="screen-header instrucciones-header">
+        <div className="header-left" />
+        <div className="header-middle"><h1 className="header-titulo">Lo sentimos</h1></div>
+        <div className="header-right" />
+      </div>
+      <div className="screen-content ganador-content anim-in">
+        <div style={{maxWidth:640, margin:'0 auto', background:'rgba(255,255,255,.95)', padding:28, borderRadius:22, boxShadow:'0 14px 50px rgba(0,0,0,.25)', textAlign:'center'}}>
+          <div style={{fontSize:60, marginBottom:6}}>ℹ️</div>
+          <h1 style={{margin:'6px 0 12px', color:'#002A7A'}}>Para continuar, cierra y vuelve a abrir el link</h1>
+          <p style={{margin:'0 0 16px', color:'#334155', fontSize:16, lineHeight:1.5}}>
+            Oprime el botón <b>REFRESCAR</b> del navegador o cierra la pestaña y vuelve a escanear el QR.
+            <br />Prometemos que el premio sigue ahí, solo hubo un detalle momentáneo.
+          </p>
+          {raw && typeof raw === 'string' && (
+            <p style={{marginTop:14, fontSize:12, color:'#94a3b8', textAlign:'center'}}>{raw.slice(0,160)}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Ganador() {
+  // ============================================================
+  // TRY-CATCH TOTAL DEL RENDER: Cualquier error en JSX / closures / hooks
+  // => retorna PantallaFalloSeguro + screen-bg fallback gradiente.
+  // NUNCA más "azul puro sólido sin nada por horas".
+  // ============================================================
+  try {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const qr_uuid = searchParams.get('qr') || ''
@@ -235,8 +313,8 @@ export default function Ganador() {
       <div className={`ganador-bloqueo-icono ${colorTitulo}`}>{icono}</div>
       <h2 className={`ganador-titulo ganador-bloqueo-titulo ${colorTitulo}`}>{titulo}</h2>
       <p className="ganador-subtitulo ganador-bloqueo-mensaje">{mensaje}</p>
-      <div className="ganador-qr-wrap" title={`QR: ${qr_uuid || 'sin-qr'}`}>
-        <QRCodeCanvas value={qr_uuid || 'no-qr'} size={64} level="M" includeMargin={false} />
+      <div className={`ganador-qr-wrap`} title={`QR: ${qr_uuid || 'sin-qr'}`}>
+        <QRSeguro value={qr_uuid || 'no-qr'} size={64} />
       </div>
       {notaPie && <div className="ganador-bloqueo-nota">{notaPie}</div>}
     </div>
@@ -290,7 +368,7 @@ export default function Ganador() {
 
             {qr_uuid && (
               <div className="ganador-qr-wrap" title={`QR: ${qr_uuid}`}>
-                <QRCodeCanvas value={qr_uuid} size={64} level="M" includeMargin={false} />
+                <QRSeguro value={qr_uuid} size={64} />
               </div>
             )}
 
@@ -409,4 +487,13 @@ export default function Ganador() {
       {(qrEstado !== 'listo' || stepVisual >= 1) && renderContenido()}
     </div>
   )
+  // ============================================================
+  // CATCH TOTAL: Cualquier error durante render Ganador
+  // => PantallaFalloSeguro amigable para el user, NUNCA pantalla azul puro sólida.
+  // ============================================================
+  } catch (_err) {
+    let _suf = ''
+    try { _suf = (_err && _err.message ? String(_err.message) : String(_err || '')).slice(0, 160) } catch {}
+    return <PantallaFalloSeguro raw={_suf} />
+  }
 }

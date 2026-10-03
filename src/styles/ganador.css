@@ -1,8 +1,33 @@
+/* ============================================================
+   PANTALLA GANADOR FONDO NUEVO OFICIAL: Pieza Ganadores Vertical.jpg
+   ============================================================
+   🔴 FALLBACK ESTRATÉGICO (nunca más azul puro foto user):
+   Antes de cargar url(PIEZA) se pone GRADIENTE 1:1 IGUAL al diseño oficial azul-blanco.
+   Si Railway / iPhone SW / Network 404 → gradiente se ve, NUNCA AZUL SÓLIDO sin nada.
+   Si url se carga BIEN → la imagen tapa el gradiente por ser SÓLIDA (pieza foto real). */
 .ganador-bg {
-  background-image: url('../assets/pieza-ganadores-vertical.jpg') !important;
-  background-size: cover !important;
-  background-repeat: no-repeat !important;
-  background-position: center center !important;
+  background-color: #0047BA !important;
+  background-image:
+    linear-gradient(180deg, #002A7A 0%, #003D9E 18%, #0047BA 36%, #0254CC 58%, #0C63DD 78%, #002A7A 100%),
+    url('../assets/pieza-ganadores-vertical.jpg') !important;
+  background-size: cover, cover !important;
+  background-repeat: no-repeat, no-repeat !important;
+  background-position: center center, center center !important;
+  min-height: 100%;
+}
+/* ============================================================
+   FONDO VERTICAL PARA TÉRMINOS / VALIDANDO / FORMULARIO / BLOQUEOS
+   ============================================================
+   Mismo fallback para no mostrar azul puro cuando la imagen no se carga. */
+.ganador-bg-fondo-vertical {
+  background-color: #0047BA !important;
+  background-image:
+    linear-gradient(180deg, #002A7A 0%, #003D9E 18%, #0047BA 36%, #0254CC 58%, #0C63DD 78%, #002A7A 100%),
+    url('../assets/fondo-vertical.png') !important;
+  background-size: cover, cover !important;
+  background-repeat: no-repeat, no-repeat !important;
+  background-position: center center, center center !important;
+  min-height: 100%;
 }
 .ganador-screen {
   overflow: hidden !important;

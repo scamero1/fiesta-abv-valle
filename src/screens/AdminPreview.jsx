@@ -157,7 +157,9 @@ export default function AdminPreview() {
     if (step === 1 && felSubstep === 0) {
       setFelCountdown(8)
       let restantes = 8
+      let cancelado = false
       const idInt = setInterval(() => {
+        if (cancelado) { clearInterval(idInt); return }
         restantes = restantes - 1
         if (restantes <= 0) {
           clearInterval(idInt)
@@ -167,7 +169,7 @@ export default function AdminPreview() {
         }
         setFelCountdown(restantes)
       }, 1000)
-      return () => clearInterval(idInt)
+      return () => { cancelado = true; clearInterval(idInt) }
     } else {
       setFelCountdown(null)
     }

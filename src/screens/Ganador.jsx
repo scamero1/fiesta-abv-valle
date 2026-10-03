@@ -17,44 +17,65 @@ export default function Ganador() {
   // ===== FLUJO NUEVO: Step Visual 0 = Solo imagen PIEZA (8 segundos AUTO) / Step 1 = checks + botón ACEPTAR =====
   // User VERBATIM pedido #1 (1er flujo SHA 787034c): "le da click en la imagen y pasa a terminos"
   // User VERBATIM pedido #2 (SHA 12a7dd7): "NO SIRVE tocar cualquiera parte, SOLO darle al botón dibujado abajo"
-  // User VERBATIM pedido #3 (HOY ACTUAL MÁXIMA PRIORIDAD):
-  //   "donde este este fondo Pieza Ganadores Vertical.jpg que LA PERSONA NO LE DE CLICK
-  //    SI NO QUE SOLO SE MUESTRE POR 8 SEGUNDOS Y LUEGO PASE AL APARTADO DE POLITICAS PARA ACEPTAR"
-  // ==== IMPLEMENTACIÓN ACTUAL (PEDIDO #3): NINGÚN CLICK, SOLO ESPERA 8s ====
-  // El botón invisible click de SHA 12a7dd7 SE ELIMINA COMPLETAMENTE.
-  // Se muestra un contador centrado en la pieza: "Continuando en 8s..." 8→7→6→...→1→PASA AUTOMÁTICO a stepVisual=1.
+  // User VERBATIM pedido #3 (SHA af8a64f ACTUAL):
+  //   "Pieza NO LE DE CLICK; solo 8 segundos AUTO → políticas para aceptar → formulario"
+  // ==== IMPLEMENTACIÓN: NINGÚN CLICK, SOLO ESPERA 8s ====
   const [stepVisual, setStepVisual] = useState(0)
-  const [piezaCountdown, setPiezaCountdown] = useState(null) // 8..1 = mostrando contador; null = no en pieza
-  const handleClickEnImagen = () => {
+  const [piezaCountdown, setPiezaCountdown] = useState(null)
+  const avanzarATerminos = () => {
     if (qrEstado !== 'listo') return
     setPiezaCountdown(null)
     setStepVisual(1)
   }
-  // Countdown auto 8s en Pieza (listo + stepVisual=0).
-  // Cuando llega a 0, llama handleClickEnImagen() → pasa a políticas/aceptar.
+
+  // ============== FIX INMEDIATO PANTALLA AZUL USER ==============
+  // ROOT CAUSE (SHA af8a64f): fetch validar es ASYNC → useEffect reseteo step 0 depende solo de qr_uuid,
+  // NO de la TRANSICIÓN qrEstado → 'listo'. Si stepVisual llegaba a 1 antes por StrictMode doble render /
+  // hot reload / navegación back, al volver a montar qr_uuid NO cambia → stepVisual se quedó en 1.
+  // Resultado: (qrEstado listo + stepVisual 1) = claseFondo Vertical = "pantalla de azul se queda".
+  // SOLUCIÓN: useEffect SÓLO que escucha cuando qrEstado CAMBIA a 'listo' → FORZA stepVisual=0.
+  useEffect(() => {
+    if (qrEstado === 'listo') {
+      setStepVisual(0)
+      setPiezaCountdown(null)
+      setAceptaTerminos(false)
+      setAceptaHabeas(false)
+      setTerminosTs('')
+      setHabeasTs('')
+    }
+  }, [qrEstado])
+
+  // Countdown auto 8s en Pieza (listo + stepVisual=0). Cuando llega a 0 → avanzarATerminos → políticas
   useEffect(() => {
     if (qrEstado === 'listo' && stepVisual === 0) {
       setPiezaCountdown(8)
       let restantes = 8
+      let cancelado = false
       const idInt = setInterval(() => {
+        if (cancelado) { clearInterval(idInt); return }
         restantes = restantes - 1
         if (restantes <= 0) {
           clearInterval(idInt)
-          handleClickEnImagen()
+          avanzarATerminos()
           return
         }
         setPiezaCountdown(restantes)
       }, 1000)
-      return () => clearInterval(idInt)
+      return () => { cancelado = true; clearInterval(idInt) }
     } else {
-      // Si ya no está en pieza step0, resetear contador (para evitar que quede colgado de un intento anterior)
       setPiezaCountdown(null)
     }
-  }, [qrEstado, stepVisual, qr_uuid])
+    // ✅ NO incluir qr_uuid en dep array!
+    // Solo se reinicia el interval cuando cambia qrEstado listo/no-listo o stepVisual.
+    // Incluir qr_uuid era bug SHA af8a64f: reiniciaba interval de 8s al hacer cualquier cosa.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qrEstado, stepVisual])
 
-  // Reseteamos stepVisual a 0 si el QR cambia o vuelve a validar
+  // Reseteamos stepVisual a 0 SI el QR uuid cambia (nuevo link en la misma pestaña)
+  // => mantenemos este por seguridad al cambiar URL mismo componente
   useEffect(() => {
     setStepVisual(0)
+    setPiezaCountdown(null)
     setAceptaTerminos(false)
     setAceptaHabeas(false)
     setTerminosTs('')

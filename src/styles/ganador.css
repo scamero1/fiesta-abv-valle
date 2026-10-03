@@ -1,15 +1,17 @@
 /* ============================================================
    PANTALLA GANADOR FONDO NUEVO OFICIAL: Pieza Ganadores Vertical.jpg
    ============================================================
-   🔴 FALLBACK ESTRATÉGICO (nunca más azul puro foto user):
-   Antes de cargar url(PIEZA) se pone GRADIENTE 1:1 IGUAL al diseño oficial azul-blanco.
-   Si Railway / iPhone SW / Network 404 → gradiente se ve, NUNCA AZUL SÓLIDO sin nada.
-   Si url se carga BIEN → la imagen tapa el gradiente por ser SÓLIDA (pieza foto real). */
+   🔴 ORDEN CAPAS CRÍTICO CSS: background-image: A, B => A = CAPA ARRIBA, B = CAPA ABAJO
+   🔴 ANTERIOR ERROR MÍO: GRADIENTE ARRIBA => FOTO TAPADA SIEMPRE (azul user)
+   🔴 AHORA: URL(PIEZA) = PRIMERA CAPA (MÁS ARRIBA)  /  LINEAR-GRADIENTE = SEGUNDA CAPA (FONDO FALLBACK)
+   ✅ Si foto carga bien: 100% se ve PIEZA GANADORES VERTICAL.JPG ORIGINAL sobre CTA.
+   ✅ Si foto falla 404/cache iOS/offline: se VE GRADIENTE 1:1 igual diseño, NUNCA AZUL SÓLIDO.
+   Comentario arriba era invertido. Corregido 5:15PM 02/10 user reportó "solo se ve azul". */
 .ganador-bg {
   background-color: #0047BA !important;
   background-image:
-    linear-gradient(180deg, #002A7A 0%, #003D9E 18%, #0047BA 36%, #0254CC 58%, #0C63DD 78%, #002A7A 100%),
-    url('../assets/pieza-ganadores-vertical.jpg') !important;
+    url('../assets/pieza-ganadores-vertical.jpg'),
+    linear-gradient(180deg, #002A7A 0%, #003D9E 18%, #0047BA 36%, #0254CC 58%, #0C63DD 78%, #002A7A 100%) !important;
   background-size: cover, cover !important;
   background-repeat: no-repeat, no-repeat !important;
   background-position: center center, center center !important;
@@ -18,12 +20,13 @@
 /* ============================================================
    FONDO VERTICAL PARA TÉRMINOS / VALIDANDO / FORMULARIO / BLOQUEOS
    ============================================================
-   Mismo fallback para no mostrar azul puro cuando la imagen no se carga. */
+   Mismo fallback para no mostrar azul puro cuando la imagen no se carga.
+   ORDEN CAPAS: url(FondoVertical) ARRIBA / gradient ABAJO. */
 .ganador-bg-fondo-vertical {
   background-color: #0047BA !important;
   background-image:
-    linear-gradient(180deg, #002A7A 0%, #003D9E 18%, #0047BA 36%, #0254CC 58%, #0C63DD 78%, #002A7A 100%),
-    url('../assets/fondo-vertical.png') !important;
+    url('../assets/fondo-vertical.png'),
+    linear-gradient(180deg, #002A7A 0%, #003D9E 18%, #0047BA 36%, #0254CC 58%, #0C63DD 78%, #002A7A 100%) !important;
   background-size: cover, cover !important;
   background-repeat: no-repeat, no-repeat !important;
   background-position: center center, center center !important;
@@ -158,17 +161,9 @@
   .agradecimiento-botones{flex-direction:column;}
 }
 
-/* ===== NUEVAS: Fondo alternativo TÉRMINOS (Fondo Vertical.png) y Botón Invisible área exacta ===== */
-/* User VERBATIM: "cuando pase a los terminos y condiciones coloca este fondo Fondo Vertical.png" */
-.ganador-bg-fondo-vertical{
-  background-image: url('../assets/fondo-vertical.png') !important;
-  background-size: cover !important;
-  background-repeat: no-repeat !important;
-  background-position: center center !important;
-}
-/* User VERBATIM: "no sirve ese tocar cualquiera parte ya que le tengo que dar a ese botón de abajo este texto arreglao"
-   Posición PROPORCIONAL 0..1 (W 68% | H 13% | bottom=15% | X center)
-   Ajuste responsive: clamp() en móviles portrait/landscape para NO salirse del botón dibujado. */
+/* ===== NUEVAS: Botón Invisible área exacta ===== */
+/* (DEPRECADO por fullscreen user hoy; se deja CSS para no romper class refs si existen) */
+/* User VERBATIM: "no sirve ese tocar cualquiera parte ya que le tengo que dar a ese botón de abajo este texto arreglao" */
 .ganador-step0-btn-cta{
   position: fixed !important;
   left: 50% !important;
@@ -218,7 +213,8 @@
 
 /* ===== BOTÓN FULLSCREEN TRANSPARENTE (PEDIDO HOY USER MÁX PRIORIDAD) =====
    Toda la pantalla clickeable, overlay Z=9999. Solo visible en Pieza stepVisual=0.
-   User pedía: "botón transparente en TODA LA PANTALLA → toca cualquier parte → términos" */
+   User pedía: "botón transparente en TODA LA PANTALLA → toca cualquier parte → términos"
+   User HOY pide además: "se muestre Pieza Ganadores Vertical.jpg ATRÁS del texto CTA" */
 .ganador-step0-btn-fullscreen-transparente{
   position:fixed !important;
   inset: 0 !important;
@@ -242,9 +238,15 @@
   align-items: flex-end !important;
   justify-content: center !important;
 }
+/* 🔴 User: "Fondo Pieza se ve ATRÁS del texto CTA"
+   ANTES: background rgba(255,255,255,.94) sólido blanco opaco 94% = FOTO TAPADA.
+   AHORA: 86% opaco + backdrop-blur(5px) = foto se VE A TRAVÉS del pill, texto sigue legible.
+   + -webkit- para Safari iOS 16.4+ (TCL Tab 10L) */
 .ganador-step0-btn-fullscreen-llamado{
   margin-bottom: clamp(6%, 12svh, 14%) !important;
-  background: rgba(255,255,255,.94);
+  background: rgba(255,255,255,.86);
+  -webkit-backdrop-filter: blur(5px) saturate(130%);
+  backdrop-filter: blur(5px) saturate(130%);
   color: #002A7A;
   border: 2px solid rgba(0, 71, 186, .55);
   padding: clamp(12px, 2.2svh, 18px) clamp(20px, 4svw, 32px);

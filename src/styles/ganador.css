@@ -239,64 +239,65 @@
   -webkit-tap-highlight-color: rgba(250, 204, 21, 0.12) !important;
   display: block !important;  /* 🔴 FLEX → BLOCK. Ya no usamos align-items:flex-end con margin-bottom. */
 }
-/* 🔴 User posición EXACTA (bottom del pill → TOP del banner legal + gap 12px)
-   POSICIÓN ABSOLUTA dentro del overlay button: bottom calc(var(--legal-h)+12px)
-   CENTRADO horizontal: left:50% translateX(-50%)
-   MARGIN-BOTTOM ELIMINADO (antes causaba que se superpusiera a logos 100 años / ILV) */
+/* 🔴 User 03/10 5:20PM: POSICIÓN EXACTA ESQUINA INFERIOR IZQUIERDA
+   - NO TAPAR el banner legal inferior (var(--legal-h) = 34-42px).
+   - bottom = var(--legal-h) + 12px de gap.
+   - ACHICADO 20% MÁS QUE EL ANTERIOR (más pequeño que el pill achicado anterior 03/10 5:40pm)
+   - Mover de CENTRO (left:50% translateX(-50%)) a IZQUIERDA: left=clamp(14px, 3svw, 24px)
+   - @keyframes pulse: PRESERVAR SIN translateX(-50%), ahora NO está centrado. */
 .ganador-step0-btn-fullscreen-llamado{
   position: absolute !important;
+  /* === ESQUINA INFERIOR IZQUIERDA, justo POR ENCIMA del banner legal === */
   bottom: calc(var(--legal-h) + 12px) !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
+  left: clamp(14px, 3svw, 24px) !important;
+  transform: none !important;
   background: rgba(255,255,255,.84);
   -webkit-backdrop-filter: blur(5px) saturate(130%);
   backdrop-filter: blur(5px) saturate(130%);
   color: #002A7A;
   border: 1.5px solid rgba(0, 71, 186, .55);
-  /* 🔴 ACHICAMOS PILL 25% para NO TAPAR logos 100 años e ILV abajo a izquierda/derecha pieza:
-     - padding vertical:  12px → 9px   (-25%)
-     - padding horizontal: 24px → 18px (-25%)
-     - font-size:  1.02→1.22rem → .9→1.08rem (-18%)
-     - border-radius: 999 → 14px (menos esquina redonda, menos altura visual) */
-  padding: clamp(8px, 1.5svh, 10px) clamp(16px, 3svw, 20px) !important;
-  border-radius: 14px !important;
+  /* === ACHICADO +20% MÁS QUE VERSIÓN ANTERIOR (03/10 5:40pm):
+     padding vertical 10px → 8px (-20%), padding horizontal 20px → 16px (-20%).
+     font-size 1.06 max → .96 max (-18%).
+     border-radius 14 → 12 px. */
+  padding: clamp(7px, 1.3svh, 9px) clamp(14px, 2.6svw, 18px) !important;
+  border-radius: 12px !important;
   font-weight: 800 !important;
-  font-size: clamp(.88rem, 2svw, 1.06rem) !important;
-  letter-spacing: .01em;
-  /* shadow reducido 25% para menos "peso visual" */
-  box-shadow: 0 10px 24px rgba(0,0,0,.26), 0 0 0 1px rgba(255,255,255,.6) inset !important;
+  font-size: clamp(.82rem, 1.85svw, .96rem) !important;
+  letter-spacing: .005em;
+  /* shadow 20% más pequeño */
+  box-shadow: 0 8px 18px rgba(0,0,0,.24), 0 0 0 1px rgba(255,255,255,.55) inset !important;
   pointer-events: none !important;
-  white-space: normal !important;   /* antes nowrap → rompe en 2 líneas si viewport muy angosto */
+  white-space: normal !important;
   animation: pulse_cta_llamado 1.7s ease-in-out infinite;
-  max-width: 86% !important;         /* 92→86 (% ancho) para NO rozar bordes laterales en movil */
+  max-width: min(58%, 520px) !important;   /* NO rozar centro/izq (dejar ver logos 100 años / ILV a la derecha y centro-abajo) */
   width: auto !important;
-  text-align: center !important;
+  text-align: left !important;
   line-height: 1.25 !important;
 }
-/* 🔴 PRESERVAR translateX(-50%) DENTRO DEL KEYFRAME PULSE.
-   Si ponemos solo transform: translateY(0) → sobreescribe el centrado horizontal y el pill se DESVIA A LA DERECHA en cada latido.
-   Orden: translateX(-50%) PRIMERO (centra), LUEGO translateY (sube/baja), LUEGO scale (crece). */
+/* 🔴 KEYFRAME pulse: SIN translateX(-50%). Ahora está a la izquierda.
+   Preservar translateY + scale. */
 @keyframes pulse_cta_llamado{
-  0%   { transform: translateX(-50%) translateY(0) scale(1);         box-shadow: 0 10px 24px rgba(0,0,0,.26), 0 0 0 0 rgba(0,71,186,.4) inset !important; }
-  50%  { transform: translateX(-50%) translateY(-3px) scale(1.015);  box-shadow: 0 14px 32px rgba(0,0,0,.28), 0 0 0 3px rgba(0,71,186,.12) inset !important; }
-  100% { transform: translateX(-50%) translateY(0) scale(1);         box-shadow: 0 10px 24px rgba(0,0,0,.26), 0 0 0 0 rgba(0,71,186,.4) inset !important; }
+  0%   { transform: translateY(0) scale(1);         box-shadow: 0 8px 18px rgba(0,0,0,.24), 0 0 0 0 rgba(0,71,186,.4) inset !important; }
+  50%  { transform: translateY(-2px) scale(1.012);   box-shadow: 0 11px 24px rgba(0,0,0,.26), 0 0 0 2px rgba(0,71,186,.12) inset !important; }
+  100% { transform: translateY(0) scale(1);         box-shadow: 0 8px 18px rgba(0,0,0,.24), 0 0 0 0 rgba(0,71,186,.4) inset !important; }
 }
-/* 🔴 @media portrait y max-height:640 — NO usar margin-bottom (eliminado, no se usa más).
-   Ahora ajustamos GAP bottom encima del legal banner: +10px extra portrait, -4px si altura muy baja.
-   Font-size: tablet TCL landscape 1.06rem → portrait 1.14 rem, alto max. */
+/* @media portrait / max-height:640: mantener ESQUINA INFERIOR IZQUIERDA y achicar un poco más. */
 @media (orientation:portrait){
   .ganador-step0-btn-fullscreen-llamado{
-    bottom: calc(var(--legal-h) + 20px) !important;   /* +8 px extra portrait */
-    font-size: clamp(.92rem, 2.6svw, 1.14rem) !important;
-    padding: clamp(10px, 1.8svh, 12px) clamp(18px, 3.4svw, 22px) !important;
-    max-width: 88% !important;
+    bottom: calc(var(--legal-h) + 20px) !important;
+    left: clamp(14px, 4svw, 22px) !important;
+    font-size: clamp(.86rem, 2.3svw, 1.02rem) !important;
+    padding: clamp(8px, 1.6svh, 10px) clamp(14px, 3.2svw, 20px) !important;
+    max-width: min(68%, 520px) !important;
   }
 }
 @media (max-height:640px){
   .ganador-step0-btn-fullscreen-llamado{
-    bottom: calc(var(--legal-h) + 6px) !important;    /* -6 px si altura baja (TCL split / navegador con barras) */
-    padding: clamp(6px, 1.2svh, 8px) clamp(14px, 2.8svw, 18px) !important;
-    font-size: clamp(.84rem, 1.9svw, .98rem) !important;
+    bottom: calc(var(--legal-h) + 6px) !important;
+    left: clamp(12px, 2.6svw, 20px) !important;
+    padding: clamp(6px, 1.1svh, 8px) clamp(12px, 2.4svw, 16px) !important;
+    font-size: clamp(.8rem, 1.7svw, .92rem) !important;
   }
 }
 

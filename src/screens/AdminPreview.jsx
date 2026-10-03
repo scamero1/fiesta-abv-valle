@@ -254,7 +254,7 @@ export default function AdminPreview() {
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setFelSubstep(1) }}
             >
               {debugShowBtnArea && (
-                <span className="ganador-step0-btn-fullscreen-llamado">👉 Toca cualquier parte para continuar 👈</span>
+                <span className="ganador-step0-btn-fullscreen-llamado">Toca cualquier parte para continuar</span>
               )}
             </button>
           )}

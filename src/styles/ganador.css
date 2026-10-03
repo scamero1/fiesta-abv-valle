@@ -239,12 +239,10 @@
   -webkit-tap-highlight-color: rgba(250, 204, 21, 0.12) !important;
   display: block !important;  /* 🔴 FLEX → BLOCK. Ya no usamos align-items:flex-end con margin-bottom. */
 }
-/* 🔴 User 03/10 5:20PM: POSICIÓN EXACTA ESQUINA INFERIOR IZQUIERDA
-   - NO TAPAR el banner legal inferior (var(--legal-h) = 34-42px).
-   - bottom = var(--legal-h) + 12px de gap.
-   - ACHICADO 20% MÁS QUE EL ANTERIOR (más pequeño que el pill achicado anterior 03/10 5:40pm)
-   - Mover de CENTRO (left:50% translateX(-50%)) a IZQUIERDA: left=clamp(14px, 3svw, 24px)
-   - @keyframes pulse: PRESERVAR SIN translateX(-50%), ahora NO está centrado. */
+/* 🔴 User 03/10 7:30PM: MAS ANGOSTO (menos ancho) + SIN EMOJIS.
+   - Reducir max-width de 58% → ~360px (ancho natural ajustado al texto sin emojis).
+   - padding horizontal +15% más reducido.
+   - text-align center. */
 .ganador-step0-btn-fullscreen-llamado{
   position: absolute !important;
   /* === ESQUINA INFERIOR IZQUIERDA, justo POR ENCIMA del banner legal === */
@@ -256,23 +254,19 @@
   backdrop-filter: blur(5px) saturate(130%);
   color: #002A7A;
   border: 1.5px solid rgba(0, 71, 186, .55);
-  /* === ACHICADO +20% MÁS QUE VERSIÓN ANTERIOR (03/10 5:40pm):
-     padding vertical 10px → 8px (-20%), padding horizontal 20px → 16px (-20%).
-     font-size 1.06 max → .96 max (-18%).
-     border-radius 14 → 12 px. */
-  padding: clamp(7px, 1.3svh, 9px) clamp(14px, 2.6svw, 18px) !important;
+  /* === MAS ANGOSTO: padding horizontal reducido, max-width ~360px (ya no 58% pantalla) */
+  padding: clamp(7px, 1.3svh, 9px) clamp(12px, 2.1svw, 16px) !important;
   border-radius: 12px !important;
   font-weight: 800 !important;
   font-size: clamp(.82rem, 1.85svw, .96rem) !important;
   letter-spacing: .005em;
-  /* shadow 20% más pequeño */
   box-shadow: 0 8px 18px rgba(0,0,0,.24), 0 0 0 1px rgba(255,255,255,.55) inset !important;
   pointer-events: none !important;
   white-space: normal !important;
   animation: pulse_cta_llamado 1.7s ease-in-out infinite;
-  max-width: min(58%, 520px) !important;   /* NO rozar centro/izq (dejar ver logos 100 años / ILV a la derecha y centro-abajo) */
+  max-width: clamp(260px, 52svw, 360px) !important;  /* 🔴 MAS ANGOSTO: ~360px cota sup, no 520px ni 58% pantalla */
   width: auto !important;
-  text-align: left !important;
+  text-align: center !important;
   line-height: 1.25 !important;
 }
 /* 🔴 KEYFRAME pulse: SIN translateX(-50%). Ahora está a la izquierda.
@@ -282,22 +276,23 @@
   50%  { transform: translateY(-2px) scale(1.012);   box-shadow: 0 11px 24px rgba(0,0,0,.26), 0 0 0 2px rgba(0,71,186,.12) inset !important; }
   100% { transform: translateY(0) scale(1);         box-shadow: 0 8px 18px rgba(0,0,0,.24), 0 0 0 0 rgba(0,71,186,.4) inset !important; }
 }
-/* @media portrait / max-height:640: mantener ESQUINA INFERIOR IZQUIERDA y achicar un poco más. */
+/* @media portrait / max-height:640: mantener ESQUINA INFERIOR IZQUIERDA y MAS ANGOSTO también. */
 @media (orientation:portrait){
   .ganador-step0-btn-fullscreen-llamado{
     bottom: calc(var(--legal-h) + 20px) !important;
     left: clamp(14px, 4svw, 22px) !important;
     font-size: clamp(.86rem, 2.3svw, 1.02rem) !important;
-    padding: clamp(8px, 1.6svh, 10px) clamp(14px, 3.2svw, 20px) !important;
-    max-width: min(68%, 520px) !important;
+    padding: clamp(8px, 1.6svh, 10px) clamp(12px, 2.8svw, 18px) !important;
+    max-width: clamp(260px, 62svw, 380px) !important;  /* portrait también más angosto */
   }
 }
 @media (max-height:640px){
   .ganador-step0-btn-fullscreen-llamado{
     bottom: calc(var(--legal-h) + 6px) !important;
     left: clamp(12px, 2.6svw, 20px) !important;
-    padding: clamp(6px, 1.1svh, 8px) clamp(12px, 2.4svw, 16px) !important;
+    padding: clamp(6px, 1.1svh, 8px) clamp(10px, 2svw, 14px) !important;
     font-size: clamp(.8rem, 1.7svw, .92rem) !important;
+    max-width: clamp(240px, 50svw, 340px) !important;  /* TCL landscape también más angosto */
   }
 }
 

@@ -462,7 +462,7 @@ export default function Ganador() {
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') avanzarATerminos() }}
         >
           <span className="ganador-step0-btn-fullscreen-llamado">
-            👉 Toca cualquier parte para continuar 👈
+            Toca cualquier parte para continuar
           </span>
         </button>
       )}

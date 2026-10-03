@@ -216,101 +216,90 @@
 .ganador-bloqueo-titulo.color-blue{color:#fff;text-shadow:0 3px 12px rgba(0,71,186,.55);}
 .ganador-bloqueo-titulo.color-gray{color:#fff;text-shadow:0 3px 12px rgba(0,0,0,.45);}
 
-/* ===== Countdown 8 segundos en PIEZA stepVisual=0 (user pedido HOY: no click, solo espera 8s) ===== */
-.ganador-step0-countdown-wrapper{
+/* ===== BOTÓN FULLSCREEN TRANSPARENTE (PEDIDO HOY USER MÁX PRIORIDAD) =====
+   Toda la pantalla clickeable, overlay Z=9999. Solo visible en Pieza stepVisual=0.
+   User pedía: "botón transparente en TODA LA PANTALLA → toca cualquier parte → términos" */
+.ganador-step0-btn-fullscreen-transparente{
   position:fixed !important;
-  left:50% !important;
-  top:50% !important;
-  transform:translate(-50%,-40%) !important;
-  z-index:9998 !important;
-  pointer-events:none !important;
-  width:min(620px,88%) !important;
-  max-width:88% !important;
-  padding:clamp(16px,3.1svh,28px) clamp(18px,3svw,36px) clamp(20px,3.4svh,30px);
-  background:linear-gradient(180deg, rgba(255,255,255,.94) 0%, rgba(248,250,252,.96) 100%) !important;
-  border-radius:clamp(22px,3.4svh,30px) !important;
-  border:2px solid rgba(0,71,186,.45) !important;
-  box-shadow:0 16px 60px rgba(0,0,0,.38), 0 0 0 1px rgba(255,255,255,.7) inset !important;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  display:flex !important;
-  flex-direction:column !important;
-  align-items:center !important;
-  justify-content:center !important;
-  text-align:center !important;
-  gap:clamp(10px,1.8svh,14px) !important;
+  inset: 0 !important;
+  left: 0 !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: 100svh !important;
+  z-index: 9999 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  outline: 0 !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: rgba(250, 204, 21, 0.12) !important;
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: center !important;
 }
-.ganador-step0-countdown-titulo{
-  font-size:clamp(1rem,2.3svw,1.15rem);
-  font-weight:800 !important;
-  letter-spacing:.02em !important;
-  color:#0f172a !important;
-  margin:0;
+.ganador-step0-btn-fullscreen-llamado{
+  margin-bottom: clamp(6%, 12svh, 14%) !important;
+  background: rgba(255,255,255,.94);
+  color: #002A7A;
+  border: 2px solid rgba(0, 71, 186, .55);
+  padding: clamp(12px, 2.2svh, 18px) clamp(20px, 4svw, 32px);
+  border-radius: 999px;
+  font-weight: 900 !important;
+  font-size: clamp(1.02rem, 2.4svw, 1.22rem);
+  letter-spacing: .02em;
+  box-shadow: 0 18px 40px rgba(0,0,0,.3), 0 0 0 1px rgba(255,255,255,.75) inset;
+  pointer-events: none !important;
+  white-space: nowrap;
+  animation: pulse_cta_llamado 1.7s ease-in-out infinite;
+  max-width: 92%;
+  text-align: center;
 }
-.ganador-step0-countdown-numero{
-  font-size:clamp(72px,19svh,132px) !important;
-  font-weight:900 !important;
-  line-height:1 !important;
-  margin:0 !important;
-  background:linear-gradient(135deg,#0047BA 0%, #B91C1C 100%) !important;
-  -webkit-background-clip:text !important;
-  background-clip:text !important;
-  color:transparent !important;
-  display:inline-flex !important;
-  align-items:baseline !important;
-  justify-content:center !important;
-  gap:clamp(6px,1svw,10px) !important;
-  filter:drop-shadow(0 8px 22px rgba(0,71,186,.25)) !important;
-}
-.ganador-step0-countdown-seg{
-  font-size:clamp(1.1rem,2.4svw,1.5rem);
-  font-weight:800 !important;
-  letter-spacing:.05em !important;
-  color:#334155 !important;
-  -webkit-text-fill-color:#334155 !important;
-  background:none !important;
-  opacity:.9 !important;
-}
-.ganador-step0-countdown-barra-fondo{
-  width:100% !important;
-  max-width:420px !important;
-  height:clamp(10px,1.5svh,14px) !important;
-  background:rgba(148,163,184,.28) !important;
-  border-radius:999px !important;
-  overflow:hidden !important;
-  border:1px solid rgba(0,71,186,.18) !important;
-  margin-top:clamp(6px,1svh,10px) !important;
-}
-.ganador-step0-countdown-barra-llena{
-  height:100% !important;
-  background:linear-gradient(90deg,#0047BA 0%, #7C3AED 40%, #B91C1C 100%) !important;
-  transition:width .6s cubic-bezier(.22,.61,.36,1) !important;
-  border-radius:999px !important;
-  box-shadow:0 0 18px rgba(0,71,186,.35) !important;
-}
-.ganador-step0-countdown-leyenda{
-  font-size:clamp(.92rem,1.8svw,1rem);
-  font-weight:700 !important;
-  color:#0047BA !important;
-  margin:clamp(6px,1svh,8px) 0 0;
-  letter-spacing:.01em;
-  opacity:.95;
+@keyframes pulse_cta_llamado{
+  0%   { transform: translateY(0) scale(1);    box-shadow: 0 18px 40px rgba(0,0,0,.3), 0 0 0 0 rgba(0,71,186,.45) inset; }
+  50%  { transform: translateY(-4px) scale(1.025); box-shadow: 0 22px 52px rgba(0,0,0,.32), 0 0 0 4px rgba(0,71,186,.15) inset; }
+  100% { transform: translateY(0) scale(1);    box-shadow: 0 18px 40px rgba(0,0,0,.3), 0 0 0 0 rgba(0,71,186,.45) inset; }
 }
 @media (orientation:portrait){
-  .ganador-step0-countdown-wrapper{
-    transform:translate(-50%,-38%) !important;
-    width:min(520px,90%) !important;
-    padding:clamp(18px,3.3svh,30px) clamp(14px,5svw,26px) clamp(22px,3.7svh,32px);
-  }
-  .ganador-step0-countdown-numero{
-    font-size:clamp(88px,24svh,160px) !important;
+  .ganador-step0-btn-fullscreen-llamado{
+    margin-bottom: clamp(16%, 24svh, 28%) !important;
+    font-size: clamp(1rem, 3.8svw, 1.32rem);
   }
 }
 @media (max-height:640px){
-  .ganador-step0-countdown-wrapper{
-    transform:translate(-50%,-36%) !important;
+  .ganador-step0-btn-fullscreen-llamado{
+    margin-bottom: clamp(5%, 10svh, 12%) !important;
+    padding: clamp(8px, 1.4svh, 12px) clamp(14px, 3svw, 22px);
   }
-  .ganador-step0-countdown-numero{
-    font-size:clamp(64px,15svh,104px) !important;
-  }
+}
+
+/* ===== Links PDF azules en checks términos y habeas data =====
+   (links a /Terminos...pdf y /POLITICA...pdf en carpeta /public) */
+.ganador-link-pdf,
+a.ganador-link-pdf,
+.ganador-check-label a.ganador-link-pdf{
+  color: #002A7A !important;
+  text-decoration: underline !important;
+  text-decoration-thickness: 1.5px !important;
+  text-underline-offset: 2px !important;
+  font-weight: 800 !important;
+  cursor: pointer !important;
+  border-radius: 4px;
+  transition: background-color .15s ease, color .15s ease;
+  word-break: break-word;
+  padding: 0 1px;
+}
+.ganador-link-pdf:hover,
+.ganador-link-pdf:focus-visible{
+  background-color: rgba(0,71,186,.1);
+  color: #0047BA !important;
+  outline: none;
+}
+.ganador-link-pdf:active{
+  color: #B91C1C !important;
+  text-decoration-color: #B91C1C !important;
 }

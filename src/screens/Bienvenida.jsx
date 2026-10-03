@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext.jsx'
 import '../styles/bienvenida.css'
 
+const URL_TERMINOS_Y_CONDICIONES_PDF = `/Terminos_y_Condiciones_ILV_Extrem_Marketing_VERSION_FINAL.pdf`
+const URL_POLITICA_TRATAMIENTO_DATOS_PDF = `/POLITICA-DE-PROTECCION-DE-DATOS-PERSONALES-2025.pdf`
+
 export default function Bienvenida() {
   const navigate = useNavigate()
   const { reiniciarFlujo } = useApp()
@@ -30,7 +33,48 @@ export default function Bienvenida() {
               onChange={(e) => setAceptoTyC(e.target.checked)}
             />
             <span className="check-tyc-label">
-              Acepto los términos y condiciones y autorizo el tratamiento de mis datos personales
+              Acepto los&nbsp;
+              <a
+                href={URL_TERMINOS_Y_CONDICIONES_PDF}
+                target="_blank"
+                rel="noreferrer noopener"
+                title="Abrir Términos y Condiciones (PDF en nueva pestaña)"
+                style={{
+                  color: '#002A7A',
+                  textDecoration: 'underline 1.5px',
+                  textUnderlineOffset: '2px',
+                  fontWeight: 800,
+                  borderRadius: '4px',
+                  paddingInline: '2px',
+                  transition: 'background .1s ease-out',
+                }}
+                onClick={(e) => e.stopPropagation()}
+                onFocus={(e) => (e.currentTarget.style.background = 'rgba(0,71,186,.1)')}
+                onBlur={(e) => (e.currentTarget.style.background = 'transparent')}
+              >
+                términos y condiciones
+              </a>
+              &nbsp;y autorizo el&nbsp;
+              <a
+                href={URL_POLITICA_TRATAMIENTO_DATOS_PDF}
+                target="_blank"
+                rel="noreferrer noopener"
+                title="Abrir Política de Protección de Datos Personales (PDF en nueva pestaña)"
+                style={{
+                  color: '#002A7A',
+                  textDecoration: 'underline 1.5px',
+                  textUnderlineOffset: '2px',
+                  fontWeight: 800,
+                  borderRadius: '4px',
+                  paddingInline: '2px',
+                  transition: 'background .1s ease-out',
+                }}
+                onClick={(e) => e.stopPropagation()}
+                onFocus={(e) => (e.currentTarget.style.background = 'rgba(0,71,186,.1)')}
+                onBlur={(e) => (e.currentTarget.style.background = 'transparent')}
+              >
+                tratamiento de mis datos personales
+              </a>
             </span>
           </label>
 

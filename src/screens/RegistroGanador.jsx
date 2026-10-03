@@ -3,6 +3,9 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { apiUrl } from './AdminLogin.jsx'
 import '../styles/ganador.css'
 
+const URL_TERMINOS_Y_CONDICIONES_PDF = `/Terminos_y_Condiciones_ILV_Extrem_Marketing_VERSION_FINAL.pdf`
+const URL_POLITICA_TRATAMIENTO_DATOS_PDF = `/POLITICA-DE-PROTECCION-DE-DATOS-PERSONALES-2025.pdf`
+
 export default function RegistroGanador() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -181,6 +184,32 @@ export default function RegistroGanador() {
       </div>
 
       <div className="screen-content ganador-content anim-in" style={{ justifyContent: 'flex-start', alignItems: 'center' }}>
+        <div
+          style={{
+            width: '100%',
+            maxWidth: 'min(96%, 720px)',
+            marginBottom: 'clamp(12px, 2.2svh, 20px)',
+            background: 'rgba(255,255,255,.96)',
+            border: '1.5px solid rgba(0,71,186,.35)',
+            borderRadius: '14px',
+            padding: 'clamp(12px, 1.9svh, 18px) clamp(16px, 2.6svw, 24px)',
+            boxShadow: '0 12px 30px rgba(0,0,0,.18)',
+            color: '#001f4d',
+            fontSize: 'clamp(.88rem, 1.65svw, 1rem)',
+            lineHeight: '1.55',
+            textAlign: 'center',
+          }}
+        >
+          📄 Documentos legales disponibles:&nbsp;
+          <a href={URL_TERMINOS_Y_CONDICIONES_PDF} target="_blank" rel="noreferrer noopener" className="ganador-link-pdf" style={{fontWeight:800,marginLeft:4}} title="Abrir Términos y Condiciones (PDF nueva pestaña)">
+            TÉRMINOS Y CONDICIONES
+          </a>
+          &nbsp;·&nbsp;
+          <a href={URL_POLITICA_TRATAMIENTO_DATOS_PDF} target="_blank" rel="noreferrer noopener" className="ganador-link-pdf" style={{fontWeight:800}} title="Abrir Política de Protección de Datos Personales (PDF nueva pestaña)">
+            POLÍTICA TRATAMIENTO DE DATOS (Habeas Data)
+          </a>
+        </div>
+
         <form className="registro-form" onSubmit={handleSubmit} noValidate>
           {errores._generico && (
             <div className="registro-error full" style={{ background: 'rgba(228,0,43,0.15)', padding: '10px 14px', borderRadius: '10px', color: '#fff', fontWeight: 600 }}>

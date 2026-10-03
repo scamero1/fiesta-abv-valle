@@ -26,6 +26,9 @@ const MOCK_REGISTRO = {
   fecha: '02/10/2026 10:15 AM (hora Bogotá)',
 }
 
+const URL_TERMINOS_Y_CONDICIONES_PDF = `/Terminos_y_Condiciones_ILV_Extrem_Marketing_VERSION_FINAL.pdf`
+const URL_POLITICA_TRATAMIENTO_DATOS_PDF = `/POLITICA-DE-PROTECCION-DE-DATOS-PERSONALES-2025.pdf`
+
 function PantallaFelicitaciones() {
   return (
     <div className="screen-content ganador-content anim-in">
@@ -40,7 +43,11 @@ function PantallaFelicitaciones() {
         <label className="ganador-check-wrap" htmlFor="mp-chk1">
           <input type="checkbox" id="mp-chk1" defaultChecked disabled />
           <span className="ganador-check-label">
-            <b>He leído y acepto los TÉRMINOS Y CONDICIONES de la promoción</b>
+            <b>He leído y acepto los&nbsp;
+              <a href={URL_TERMINOS_Y_CONDICIONES_PDF} target="_blank" rel="noreferrer noopener" className="ganador-link-pdf" title="Abrir Términos y Condiciones (PDF en nueva pestaña)">
+                TÉRMINOS Y CONDICIONES de la promoción
+              </a>
+            </b>
             <div className="ganador-check-detalle">
               Premio 1 botella Fiesta, ganador por orden de llegada, entrega en Bogotá D.C.,
               ILV 1921 se reserva derecho de admisión, mayor de edad 18+, licor no se devuelve.
@@ -51,7 +58,11 @@ function PantallaFelicitaciones() {
         <label className="ganador-check-wrap" htmlFor="mp-chk2">
           <input type="checkbox" id="mp-chk2" defaultChecked disabled />
           <span className="ganador-check-label">
-            <b>Autorizo el TRATAMIENTO DE DATOS PERSONALES de acuerdo a la Ley 1581/2012 y política Habeas Data ILV 1921</b>
+            <b>Autorizo el&nbsp;
+              <a href={URL_POLITICA_TRATAMIENTO_DATOS_PDF} target="_blank" rel="noreferrer noopener" className="ganador-link-pdf" title="Abrir Política de Protección de Datos Personales (PDF en nueva pestaña)">
+                TRATAMIENTO DE DATOS PERSONALES (Política Habeas Data ILV 1921 / Ley 1581/2012)
+              </a>
+            </b>
             <div className="ganador-check-detalle">
               Uso de datos solo para entrega del premio, no se comparten terceros.
             </div>
@@ -135,45 +146,18 @@ export default function AdminPreview() {
 
   // Substep para la pantalla FELICITACIONES
   //   -1 = Estado "Validando código QR..." (mock para preview estado inicial con Fondo Vertical)
-  //    0 = Solo imagen Pieza (8 segundos AUTO → pasa a políticas/aceptar; NO HAY CLICK)
+  //    0 = Imagen Pieza · BOTÓN FULLSCREEN TRANSPARENTE · toca CUALQUIER PARTE → pasa a términos
   //    1 = Checks términos + botón ACEPTAR (con Fondo Vertical.png)
   const [felSubstep, setFelSubstep] = useState(-1)
 
-  // Countdown 8s PIEZA step1 felSubstep=0 (igual que Ganador real pedido HOY)
-  // User VERBATIM HOY: "Pieza NO le de click; solo 8 segundos y pase a políticas"
-  const [felCountdown, setFelCountdown] = useState(null)
-
-  // Toggle debug: ya no existe el botón invisible (SHA 12a7dd7 SUPERPUESTO por el countdown).
-  // Se reutiliza el switch como "Mostrar overlay countdown 8s"; default true.
+  // Toggle debug: Mostrar/ocultar el texto del CTA pulsante "👉 Toca cualquier parte..."
+  // (el botón fullscreen siempre está presente aunque toggle sea false, solo se oculta el texto)
   const [debugShowBtnArea, setDebugShowBtnArea] = useState(true)
 
   // Resetear Substep a -1 (Validando mock default) si cambiamos Step a 1
   useEffect(() => {
     if (step === 1) setFelSubstep(-1)
   }, [step])
-
-  // Countdown 8s auto en PIEZA (step 1 felSubstep=0). Cuando llega a 0 → felSubstep=1 (políticas).
-  useEffect(() => {
-    if (step === 1 && felSubstep === 0) {
-      setFelCountdown(8)
-      let restantes = 8
-      let cancelado = false
-      const idInt = setInterval(() => {
-        if (cancelado) { clearInterval(idInt); return }
-        restantes = restantes - 1
-        if (restantes <= 0) {
-          clearInterval(idInt)
-          setFelCountdown(null)
-          setFelSubstep(1)
-          return
-        }
-        setFelCountdown(restantes)
-      }, 1000)
-      return () => { cancelado = true; clearInterval(idInt) }
-    } else {
-      setFelCountdown(null)
-    }
-  }, [step, felSubstep])
 
   // Forzamos TCL o Móvil portrait con Wrapper CSS
   useEffect(() => {
@@ -207,16 +191,13 @@ export default function AdminPreview() {
 
   const tituloHeaderFrame = () => step === 1 ? '¡FELICIDADES GANASTE!' : step === 2 ? 'Completa tus datos' : '✅ Registro Exitoso'
 
-  // Clase fondo DINÁMICA alineada EXACTA con Ganador.jsx real SHA 12a7dd7+:
+  // Clase fondo DINÁMICA alineada EXACTA con Ganador.jsx real:
   // - felSubstep === -1 (Validando mock) → Fondo Vertical.png
   // - felSubstep === 0 (listo + stepVisual=0) → Pieza Ganadores Vertical.jpg
   // - felSubstep >= 1 (listo + stepVisual=1 / bloqueos) → Fondo Vertical.png
   const claseFondoPreview = (step === 1 && felSubstep === 0)
     ? 'screen-bg ganador-bg'
     : 'screen-bg ganador-bg-fondo-vertical'
-
-  // Clase botón debug: si toggle true agregamos la clase debug-show-btn-area
-  const claseBtnStep0 = 'ganador-step0-btn-cta' + (debugShowBtnArea ? ' debug-show-btn-area' : '')
 
   return (
     <div className="admin-preview-pagina">
@@ -227,16 +208,16 @@ export default function AdminPreview() {
           <span className="admin-preview-titulo">👀 Vista previa — Promoción "FIESTA"</span>
           {step === 1 && (
             <span className="admin-preview-subinfo" style={{color:'#475569',fontSize:'.85rem',marginLeft:12}}>
-              Substep actual: <b>{felSubstep === -1 ? '⌛ Validando QR (mock estado inicial)' : felSubstep === 0 ? '① Imagen Pieza · countdown 8s auto → políticas (NO hay click)' : '② Fondo Vertical.png + Checks términos + botón ACEPTAR'}</b>
+              Substep actual: <b>{felSubstep === -1 ? '⌛ Validando QR (mock estado inicial)' : felSubstep === 0 ? '① Imagen Pieza · Botón FULLSCREEN · Toca CUALQUIER PARTE → términos' : '② Fondo Vertical.png + Checks términos + botón ACEPTAR'}</b>
               <span style={{marginLeft:10,display:'inline-flex',gap:6}}>
                 {felSubstep > -1 && <button type="button" className="admin-btn xs ghost" onClick={() => setFelSubstep(-1)}>⏮ Volver a Validando</button>}
-                {felSubstep === -1 && <button type="button" className="admin-btn xs" onClick={() => setFelSubstep(0)}>⏩ Simular QR OK → Imagen (contador 8s)</button>}
-                {felSubstep === 0 && <button type="button" className="admin-btn xs" onClick={() => { setFelCountdown(null); setFelSubstep(1) }}>⏩ Saltar 8s → Términos</button>}
-                {felSubstep === 1 && <button type="button" className="admin-btn xs ghost" onClick={() => setFelSubstep(0)}>↩️ Volver a imagen (reinicia countdown)</button>}
+                {felSubstep === -1 && <button type="button" className="admin-btn xs" onClick={() => setFelSubstep(0)}>⏩ Simular QR OK → Imagen Pieza</button>}
+                {felSubstep === 0 && <button type="button" className="admin-btn xs" onClick={() => setFelSubstep(1)}>⏩ Tocar (avanzar a Términos)</button>}
+                {felSubstep === 1 && <button type="button" className="admin-btn xs ghost" onClick={() => setFelSubstep(0)}>↩️ Volver a imagen Pieza</button>}
               </span>
               <label style={{display:'inline-flex',alignItems:'center',gap:6,marginLeft:14,color: debugShowBtnArea ? '#b45309' : '#64748b', fontWeight: debugShowBtnArea ? 700 : 500, fontSize: '.85rem', cursor: 'pointer'}}>
                 <input type="checkbox" style={{width:16,height:16,accentColor:'#facc15'}} checked={debugShowBtnArea} onChange={(e) => setDebugShowBtnArea(e.target.checked)} />
-                Mostrar overlay countdown 8s
+                Mostrar CTA pulsante overlay
               </label>
             </span>
           )}
@@ -260,26 +241,22 @@ export default function AdminPreview() {
         <div className="screen ganador-screen">
           <div className={claseFondoPreview} />
 
-          {/* COUNTDOWN 8 SEGUNDOS SÓLO PIEZA step1 felSubstep=0 (igual que Ganador real HOY)
-              User VERBATIM: "Pieza NO le de click; solo 8 segundos y pase a políticas"
-              Si debugShowBtnArea=false → se oculta el overlay de texto para ver la pieza 100% limpia sin números */}
-          {step === 1 && felSubstep === 0 && felCountdown !== null && debugShowBtnArea && (
-            <div className="ganador-step0-countdown-wrapper">
-              <div className="ganador-step0-countdown-titulo">Continuando en</div>
-              <div className="ganador-step0-countdown-numero">
-                {felCountdown}
-                <span className="ganador-step0-countdown-seg">seg</span>
-              </div>
-              <div className="ganador-step0-countdown-barra-fondo">
-                <div
-                  className="ganador-step0-countdown-barra-llena"
-                  style={{ width: `${((8 - felCountdown + 1) / 8) * 100}%` }}
-                />
-              </div>
-              <div className="ganador-step0-countdown-leyenda">
-                Aceptar políticas y completar registro 👇
-              </div>
-            </div>
+          {/* BOTÓN FULLSCREEN TRANSPARENTE SÓLO PIEZA step1 felSubstep=0 (igual que Ganador real HOY)
+              User VERBATIM: "colocas un boton transparente en TODA LA PANTALLA para que solo le de click y de una pase a terminos y condiciones"
+              Si debugShowBtnArea=false → se oculta el texto del CTA; el botón sigue presente (click funciona) para probar alineación sin distracciones */}
+          {step === 1 && felSubstep === 0 && (
+            <button
+              type="button"
+              className="ganador-step0-btn-fullscreen-transparente"
+              onClick={() => setFelSubstep(1)}
+              aria-label="Toca cualquier parte para continuar"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setFelSubstep(1) }}
+            >
+              {debugShowBtnArea && (
+                <span className="ganador-step0-btn-fullscreen-llamado">👉 Toca cualquier parte para continuar 👈</span>
+              )}
+            </button>
           )}
 
           {/* HEADER: Se oculta SOLO si step=1 y felSubstep=0 (solo imagen pieza limpia sin nada encima) */}
@@ -334,8 +311,8 @@ export default function AdminPreview() {
       <div className="admin-preview-footer">
         <b>Regla de fondos (Ganador.jsx real):</b>&nbsp;
         <b style={{color:'#0ea5e9'}}>Validando QR</b> → <code>Fondo Vertical.png</code> &nbsp;|&nbsp;
-        <b style={{color:'#7c3aed'}}>Listo + Click botón AÚN NO DADO</b> → <code>Pieza Ganadores Vertical.jpg</code> (100% limpia) &nbsp;|&nbsp;
-        <b style={{color:'#16a34a'}}>Listo + Click botón DADO / Bloqueos</b> → <code>Fondo Vertical.png</code> (checks términos + reg + agradec + pantallas rojas).
+        <b style={{color:'#7c3aed'}}>Listo + AÚN NO TOCA la pantalla</b> → <code>Pieza Ganadores Vertical.jpg</code> (100% limpia + botón fullscreen + CTA pulsante) &nbsp;|&nbsp;
+        <b style={{color:'#16a34a'}}>Listo + YA TOCO pantalla / Bloqueos</b> → <code>Fondo Vertical.png</code> (checks términos + reg + agradec + pantallas rojas).
         &nbsp; Al terminar registro → <b>QR INHABILITADO AUTOMÁTICO (Capa 3 rowcount atomic)</b>.
       </div>
     </div>

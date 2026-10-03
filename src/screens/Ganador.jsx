@@ -76,11 +76,14 @@ function PantallaFalloSeguro({ raw }) {
   )
 }
 
+// ===== URLS PÚBLICAS PDFs estáticos en carpeta /public (servidos por Vite Static) =====
+// User VERBATIM hoy: "añade los links y direcciones en ganadores para los terminos y condiciones"
+const URL_TERMINOS_Y_CONDICIONES_PDF = `/Terminos_y_Condiciones_ILV_Extrem_Marketing_VERSION_FINAL.pdf`
+const URL_POLITICA_TRATAMIENTO_DATOS_PDF = `/POLITICA-DE-PROTECCION-DE-DATOS-PERSONALES-2025.pdf`
+
 export default function Ganador() {
   // ============================================================
-  // TRY-CATCH TOTAL DEL RENDER: Cualquier error en JSX / closures / hooks
-  // => retorna PantallaFalloSeguro + screen-bg fallback gradiente.
-  // NUNCA más "azul puro sólido sin nada por horas".
+  // TRY-CATCH TOTAL DEL RENDER (NUNCA MÁS PANTALLA AZUL SÓLIDA):
   // ============================================================
   try {
   const navigate = useNavigate()
@@ -92,30 +95,28 @@ export default function Ganador() {
   const [terminosTs, setTerminosTs] = useState('')
   const [habeasTs, setHabeasTs] = useState('')
 
-  // ===== FLUJO NUEVO: Step Visual 0 = Solo imagen PIEZA (8 segundos AUTO) / Step 1 = checks + botón ACEPTAR =====
-  // User VERBATIM pedido #1 (1er flujo SHA 787034c): "le da click en la imagen y pasa a terminos"
-  // User VERBATIM pedido #2 (SHA 12a7dd7): "NO SIRVE tocar cualquiera parte, SOLO darle al botón dibujado abajo"
-  // User VERBATIM pedido #3 (SHA af8a64f ACTUAL):
-  //   "Pieza NO LE DE CLICK; solo 8 segundos AUTO → políticas para aceptar → formulario"
-  // ==== IMPLEMENTACIÓN: NINGÚN CLICK, SOLO ESPERA 8s ====
+  // ===== FLUJO NUEVO PEDIDO USER HOY (MÁXIMA PRIORIDAD): =====
+  // User VERBATIM: "colocas un botón transparente en TODA LA PANTALLA para
+  // que solo le de click y de una pase a terminos y condiciones"
+  //
+  // ANTERIORES intentos fallidos superados:
+  //   SHA 787034c → "tocar cualquiera parte overlay fullscreen" (user luego lo cambió)
+  //   SHA 12a7dd7 → "botón invisible solo área CTA dibujada" (user lo cambió)
+  //   SHA af8a64f → "countdown 8s sin click" (user HOY cambia: NO, BOTÓN FULLSCREEN CLICK)
+  // IMPLEMENTACIÓN HOY: OVERLAY BUTTON FULLSCREEN TRANSPARENTE Z=9999.
+  // User toca CUALQUIER LUGAR de la pantalla en la Pieza → pasa a términos.
   const [stepVisual, setStepVisual] = useState(0)
-  const [piezaCountdown, setPiezaCountdown] = useState(null)
   const avanzarATerminos = () => {
     if (qrEstado !== 'listo') return
-    setPiezaCountdown(null)
     setStepVisual(1)
   }
 
-  // ============== FIX INMEDIATO PANTALLA AZUL USER ==============
-  // ROOT CAUSE (SHA af8a64f): fetch validar es ASYNC → useEffect reseteo step 0 depende solo de qr_uuid,
-  // NO de la TRANSICIÓN qrEstado → 'listo'. Si stepVisual llegaba a 1 antes por StrictMode doble render /
-  // hot reload / navegación back, al volver a montar qr_uuid NO cambia → stepVisual se quedó en 1.
-  // Resultado: (qrEstado listo + stepVisual 1) = claseFondo Vertical = "pantalla de azul se queda".
-  // SOLUCIÓN: useEffect SÓLO que escucha cuando qrEstado CAMBIA a 'listo' → FORZA stepVisual=0.
+  // ============== FIX INMEDIATO PANTALLA AZUL ==============
+  // Cuando el endpoint retorna 200 y qrEstado → 'listo' (async), forzamos siempre stepVisual a 0
+  // para que NO SE QUEDE PEGADO en stepVisual 1 (Vertical) cuando montan de nuevo link.
   useEffect(() => {
     if (qrEstado === 'listo') {
       setStepVisual(0)
-      setPiezaCountdown(null)
       setAceptaTerminos(false)
       setAceptaHabeas(false)
       setTerminosTs('')
@@ -123,37 +124,9 @@ export default function Ganador() {
     }
   }, [qrEstado])
 
-  // Countdown auto 8s en Pieza (listo + stepVisual=0). Cuando llega a 0 → avanzarATerminos → políticas
-  useEffect(() => {
-    if (qrEstado === 'listo' && stepVisual === 0) {
-      setPiezaCountdown(8)
-      let restantes = 8
-      let cancelado = false
-      const idInt = setInterval(() => {
-        if (cancelado) { clearInterval(idInt); return }
-        restantes = restantes - 1
-        if (restantes <= 0) {
-          clearInterval(idInt)
-          avanzarATerminos()
-          return
-        }
-        setPiezaCountdown(restantes)
-      }, 1000)
-      return () => { cancelado = true; clearInterval(idInt) }
-    } else {
-      setPiezaCountdown(null)
-    }
-    // ✅ NO incluir qr_uuid en dep array!
-    // Solo se reinicia el interval cuando cambia qrEstado listo/no-listo o stepVisual.
-    // Incluir qr_uuid era bug SHA af8a64f: reiniciaba interval de 8s al hacer cualquier cosa.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [qrEstado, stepVisual])
-
-  // Reseteamos stepVisual a 0 SI el QR uuid cambia (nuevo link en la misma pestaña)
-  // => mantenemos este por seguridad al cambiar URL mismo componente
+  // Reseteamos si cambia el QR uuid (nuevo link en misma pestaña):
   useEffect(() => {
     setStepVisual(0)
-    setPiezaCountdown(null)
     setAceptaTerminos(false)
     setAceptaHabeas(false)
     setTerminosTs('')
@@ -381,10 +354,21 @@ export default function Ganador() {
                   onChange={handleToggleTerminos}
                 />
                 <span className="ganador-check-label">
-                  <b>He leído y acepto los TÉRMINOS Y CONDICIONES de la promoción</b>
+                  <b>
+                    He leído y acepto los&nbsp;
+                    <a
+                      href={URL_TERMINOS_Y_CONDICIONES_PDF}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="ganador-link-pdf"
+                      title="Abrir Términos y Condiciones (PDF en nueva pestaña)"
+                    >
+                      TÉRMINOS Y CONDICIONES de la promoción
+                    </a>
+                  </b>
                   <div className="ganador-check-detalle">
-                    Premio 1 botella Fiesta, ganador por orden de llegada, entrega en Bogotá D.C.,
-                    ILV 1921 se reserva derecho de admisión, mayor de edad 18+, licor no se devuelve.
+                    Premio 1 botella Fiesta, entrega en Bogotá D.C., ILV 1921 se reserva derecho de admisión,
+                    mayor de edad 18+, licor no se devuelve. Puedes leer el documento completo dando clic al enlace azul.
                   </div>
                   {terminosTs && (
                     <span className="ganador-aceptado-timestamp">{terminosTs}</span>
@@ -400,9 +384,21 @@ export default function Ganador() {
                   onChange={handleToggleHabeas}
                 />
                 <span className="ganador-check-label">
-                  <b>Autorizo el TRATAMIENTO DE DATOS PERSONALES de acuerdo a la Ley 1581/2012 y política Habeas Data ILV 1921</b>
+                  <b>
+                    Autorizo el&nbsp;
+                    <a
+                      href={URL_POLITICA_TRATAMIENTO_DATOS_PDF}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="ganador-link-pdf"
+                      title="Abrir Política de Protección de Datos Personales (PDF en nueva pestaña)"
+                    >
+                      TRATAMIENTO DE DATOS PERSONALES (Política Habeas Data ILV 1921 / Ley 1581/2012)
+                    </a>
+                  </b>
                   <div className="ganador-check-detalle">
-                    Uso de datos solo para entrega del premio, no se comparten terceros.
+                    Uso de datos solo para entrega del premio, no se comparten con terceros, derecho a conocer/actualizar/suprimir tus datos.
+                    Documento completo disponible en el enlace azul arriba.
                   </div>
                   {habeasTs && (
                     <span className="ganador-aceptado-timestamp">{habeasTs}</span>
@@ -450,29 +446,28 @@ export default function Ganador() {
     <div className="screen ganador-screen">
       <div className={claseFondo} />
 
-      {/* ===== CONTADOR COUNTDOWN 8 SEGUNDOS (SOLO PIEZA stepVisual=0 / listo) =====
-           User VERBATIM HOY: "que la persona NO LE DE CLICK, solo se muestre 8 segundos y luego pase"
-           NO BOTÓN INVISIBLE. SÓLO contador grande centrado: 8..7..6..5..4..3..2..1 → AUTO step 1. */}
-      {qrEstado === 'listo' && stepVisual === 0 && piezaCountdown !== null && (
-        <div className="ganador-step0-countdown-wrapper">
-          <div className="ganador-step0-countdown-titulo">Continuando en</div>
-          <div className="ganador-step0-countdown-numero">
-            {piezaCountdown}
-            <span className="ganador-step0-countdown-seg">seg</span>
-          </div>
-          <div className="ganador-step0-countdown-barra-fondo">
-            <div
-              className="ganador-step0-countdown-barra-llena"
-              style={{ width: `${((8 - piezaCountdown + 1) / 8) * 100}%` }}
-            />
-          </div>
-          <div className="ganador-step0-countdown-leyenda">
-            Aceptar políticas y completar registro 👇
-          </div>
-        </div>
+      {/* ===== BOTÓN FULLSCREEN TRANSPARENTE EN TODA LA PANTALLA =====
+           User VERBATIM HOY MÁXIMA PRIORIDAD (supera countdown 8s y supera botón área CTA):
+           "colocas un botón transparente en TODA LA PANTALLA para que solo le de click y
+            de una pase a terminos y condiciones"
+           Z=9999 absolute inset: 0. Cualquier toque/click en CUALQUIER LUGAR de la pantalla
+           (esquina sup izq / logo / foto / título / slogan / pie) pasa a políticas/aceptar. */}
+      {qrEstado === 'listo' && stepVisual === 0 && (
+        <button
+          type="button"
+          className="ganador-step0-btn-fullscreen-transparente"
+          onClick={avanzarATerminos}
+          aria-label="Toca para continuar con la aceptación de términos"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') avanzarATerminos() }}
+        >
+          <span className="ganador-step0-btn-fullscreen-llamado">
+            👉 Toca cualquier parte para continuar �
+          </span>
+        </button>
       )}
 
-      {/* HEADER: Se oculta solo en Step 0 (cuando queremos que la imagen esté 100% limpia y solo se vea el botón dibujado original de la pieza) */}
+      {/* HEADER: Se oculta solo en Step 0 (Pieza 100% limpia SIN HEADER / SIN TEXTO). */}
       {(qrEstado !== 'listo' || stepVisual >= 1) && (
         <div className="screen-header instrucciones-header">
           <div className="header-left" />
@@ -483,7 +478,7 @@ export default function Ganador() {
         </div>
       )}
 
-      {/* CONTENIDO: Se oculta solo en Step 0 (solo imagen + botón invisible sobre botón dibujado) */}
+      {/* CONTENIDO: Se oculta solo en Step 0 (Pieza 100% limpia) */}
       {(qrEstado !== 'listo' || stepVisual >= 1) && renderContenido()}
     </div>
   )

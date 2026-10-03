@@ -3694,44 +3694,17 @@ def promo_qr_validar(req: PromoQrValidarReq):
                 "ganador_ciudad": ganador_ciudad,
             }
         if usado:
-            # User VERBATIM 03/10/2026: TITULO SOLO = "QR YA UTILIZADA". NADA MÁS.
-            # Eliminar: frase gigante "Este código QR YA FUE UTILIZADO para registrar un ganador...
-            # Cada persona tiene un QR único al momento de ganar."
-            # Conservar solo: nombre ganador, hora registro Bogotá, ciudad. Pedir QR nuevo puesto.
-            partes = []
-            if ganador_nombre:
-                partes.append(f"Reclamado por: {ganador_nombre}.")
-            if usado_at_iso:
-                try:
-                    _dh = datetime.fromisoformat(usado_at_iso.replace("Z", "+00:00"))
-                    if _dh.tzinfo is None:
-                        _dh = _dh.replace(tzinfo=timezone.utc)
-                    from datetime import timedelta
-                    col = _dh.astimezone(timezone(timedelta(hours=-5)))
-                    partes.append(f"Hora registro (Bogotá): {col.strftime('%d/%m/%Y %I:%M %p')}.")
-                except Exception:
-                    pass
-            if ganador_ciudad:
-                partes.append(f"Ciudad: {ganador_ciudad}.")
-            extra = (" " + " ".join(partes)) if partes else ""
+            # User VERBATIM 03/10/2026 (2da actualizacion): NO REVELAR INFORMACION PERSONAL (sin nombre, sin hora, sin ciudad).
+            # Solo indicar que el QR ya fue usado y pedir uno nuevo. Titulo = "QR YA UTILIZADA" exacto.
             return {
                 "valido": False,
                 "usado": True,
                 "habilitado": True,
                 "estado": "ya_usado",
-                # ============ USER 03/10: TÍTULO EXACTO "QR YA UTILIZADA", NADA MÁS. ============
                 "mensaje_titulo": "QR YA UTILIZADA",
-                "mensaje": (
-                    extra.strip()
-                    + (" Pide un código QR NUEVO en el puesto del evento." if extra else "Pide un código QR NUEVO en el puesto del evento.")
-                ).strip(),
+                "mensaje": "Este código QR ya fue utilizado. Pide un código QR NUEVO en el puesto del evento.",
                 "size_px": size_px,
                 "id_humano": id_humano,
-                "usado_registro_id": usado_registro_id,
-                "usado_at_iso": usado_at_iso,
-                "ganador_nombre": ganador_nombre,
-                "ganador_celular": ganador_celular,
-                "ganador_ciudad": ganador_ciudad,
             }
         return {
             "valido": True,

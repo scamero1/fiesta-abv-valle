@@ -296,14 +296,13 @@ export default function Ganador() {
       case 'validando':
         return <PantallaBloqueo icono="🔍" colorTitulo="color-blue" titulo="Validando código QR..." mensaje="Estamos confirmando que tu código QR está listo para reclamar el premio. Espera unos segundos." notaPie="Si esta pantalla dura más de 10s, cierra y vuelve a abrir el link." />
       case 'ya_usado':
-        // User VERBATIM 03/10/2026: TÍTULO SOLO = "QR YA UTILIZADA". NADA MÁS.
-        // Eliminar fallback antiguo "QR ya utilizado — Premio ya reclamado".
-        // Título HARDCODEADO exacto. Mensaje = lo que venga del backend (nombre + hora + ciudad + pide QR nuevo).
+        // User VERBATIM 03/10/2026 (2da actualizacion): NO REVELAR INFORMACION PERSONAL
+        // (no muestra nombre del ganador, ni hora, ni ciudad). Solo indica que ya fue usado y pide QR nuevo.
         return <PantallaBloqueo
           icono="✖️"
           colorTitulo="color-red"
           titulo="QR YA UTILIZADA"
-          mensaje={(qrInfo && qrInfo.mensaje) || 'Premio ya reclamado por otra persona. Pide un QR nuevo en el puesto del evento.'}
+          mensaje="Este código QR ya fue utilizado. Pide un código QR NUEVO en el puesto del evento."
           notaPie="Nota: La promotora del evento te entregará un QR nuevo gratuito para que vuelvas a participar."
         />
       case 'inhabilitado':

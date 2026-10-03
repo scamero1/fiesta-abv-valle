@@ -3393,7 +3393,15 @@ class PromoRegistroReq(BaseModel):
     direccion: str
     barrio: str | None = None
     municipio: str | None = None
-    ciudad: str
+    # ========== CAMBIOS USER 03/10/2026 ==========
+    # Ciudad: OPCIONAL en el schema; DEFAULT = "Bogotá D.C." si no llega nada
+    # (ya no la ingresa el usuario en formulario; la envía el front hardcodeado).
+    ciudad: str = "Bogotá D.C."
+    # vive_bogota: SI/NO que envía el formulario registro (radiobuttons).
+    # Si llega => PREVALECE sobre el auto-detect de _promo_es_bogota (determina entrega domicilio o recoger Cra74a).
+    # Si NO llega (registro admin manual), fallback a la detección automática de siempre (no rompemos nada).
+    vive_bogota: bool | None = None
+    # ========= END CAMBIOS 03/10/2026 =========
     # ========= NUEVOS campos booleans de aceptación (EL FALLO era que NO existían, se usaban en INSERT) =========
     acepta_terminos: bool = False
     acepta_habeas: bool = False
@@ -3414,22 +3422,31 @@ class PromoRegistroReq(BaseModel):
 
         # ===== 0) PRIMERO: Normalizar los BOOLEANS acepta_terminos/acepta_habeas (igual que PromoAceptacionReq)
         #     El front a veces manda string 'on'/'1'/'' o no lo manda en absoluto.
-        for campo in ("acepta_terminos", "acepta_habeas"):
+        for campo in ("acepta_terminos", "acepta_habeas", "vive_bogota"):
             v = d.get(campo, None)
             if v is None or v == "" or (isinstance(v, float) and v != v):
-                d[campo] = False
+                d[campo] = False if campo != "vive_bogota" else None
             elif isinstance(v, bool):
                 pass
             elif isinstance(v, (int, float)):
                 d[campo] = bool(v)
             elif isinstance(v, str):
                 s = v.strip().lower()
-                d[campo] = s in ("1", "true", "t", "yes", "y", "si", "s", "on", "acepto", "aceptar", "ok", "verdadero")
+                if campo == "vive_bogota":
+                    # Radiobuttons front: "si"/"no" (string). Convertir a bool explícito.
+                    if s in ("1", "true", "t", "yes", "y", "si", "s", "on", "acepto", "aceptar", "ok", "verdadero", "bogota", "bogotá", "esta en bogota"):
+                        d[campo] = True
+                    elif s in ("0", "false", "f", "no", "n", "off", "falso", "fuera", "fuera de bogota", "fuera de bogotá"):
+                        d[campo] = False
+                    else:
+                        d[campo] = None  # desconocido => fallback auto
+                else:
+                    d[campo] = s in ("1", "true", "t", "yes", "y", "si", "s", "on", "acepto", "aceptar", "ok", "verdadero")
             else:
                 try:
                     d[campo] = bool(v)
                 except Exception:
-                    d[campo] = False
+                    d[campo] = False if campo != "vive_bogota" else None
 
         # 1) Timestamp términos y condiciones: acepta_terminos_at (legacy) → acepta_terminos_at_iso
         if not d.get("acepta_terminos_at_iso") and d.get("acepta_terminos_at"):
@@ -3677,8 +3694,10 @@ def promo_qr_validar(req: PromoQrValidarReq):
                 "ganador_ciudad": ganador_ciudad,
             }
         if usado:
-            # User VERBATIM idea: cuando una persona se registra, el mismo link NO puede volver a generar ganadores
-            # Mostramos a quien fue reclamado el premio (nombre + hora) para que el usuario entienda por qué está bloqueado.
+            # User VERBATIM 03/10/2026: TITULO SOLO = "QR YA UTILIZADA". NADA MÁS.
+            # Eliminar: frase gigante "Este código QR YA FUE UTILIZADO para registrar un ganador...
+            # Cada persona tiene un QR único al momento de ganar."
+            # Conservar solo: nombre ganador, hora registro Bogotá, ciudad. Pedir QR nuevo puesto.
             partes = []
             if ganador_nombre:
                 partes.append(f"Reclamado por: {ganador_nombre}.")
@@ -3700,12 +3719,12 @@ def promo_qr_validar(req: PromoQrValidarReq):
                 "usado": True,
                 "habilitado": True,
                 "estado": "ya_usado",
-                "mensaje_titulo": "QR ya utilizado — Premio ya reclamado",
+                # ============ USER 03/10: TÍTULO EXACTO "QR YA UTILIZADA", NADA MÁS. ============
+                "mensaje_titulo": "QR YA UTILIZADA",
                 "mensaje": (
-                    "Este código QR YA FUE UTILIZADO para registrar un ganador y solo permite un solo ganador por QR."
-                    + extra
-                    + " Si quieres participar, pide un código QR NUEVO en el puesto del evento. Cada persona tiene un QR único al momento de ganar."
-                ),
+                    extra.strip()
+                    + (" Pide un código QR NUEVO en el puesto del evento." if extra else "Pide un código QR NUEVO en el puesto del evento.")
+                ).strip(),
                 "size_px": size_px,
                 "id_humano": id_humano,
                 "usado_registro_id": usado_registro_id,
@@ -3792,7 +3811,14 @@ async def promo_registro(req: PromoRegistroReq, request: Request):
         ip_cliente = None
     user_agent = (request.headers.get("user-agent") or "")[:1024]
 
-    es_bogota = _promo_es_bogota(req.ciudad, req.direccion)
+    # ========== CAMBIO USER 03/10: ¿Vives en Bogotá? = modalidad entrega.
+    # Si el formulario envía `vive_bogota` bool (radiobuttons Si/No), PREVALECE sobre la detección automática.
+    # Si `vive_bogota` es None (no llegó el campo, por ejemplo registro admin), hacemos fallback al
+    # _promo_es_bogota original para NO ROMPER la inserción en base de datos (es_bogota_direccion NOT NULL).
+    if isinstance(req.vive_bogota, bool):
+        es_bogota = bool(req.vive_bogota)
+    else:
+        es_bogota = _promo_es_bogota(req.ciudad, req.direccion)
     modalidad = "DOMICILIO_BTA" if es_bogota else "RECOGER_CRA74"
 
     acepta_t_at = datetime.fromisoformat(req.acepta_terminos_at_iso.replace("Z", "+00:00")) if req.acepta_terminos_at_iso else datetime.now(timezone.utc)

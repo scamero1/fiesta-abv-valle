@@ -20,8 +20,8 @@ export default function RegistroGanador() {
     correo_electronico: '',
     direccion: '',
     barrio: '',
-    municipio: '',
-    ciudad: '',
+    ciudad: 'Bogotá D.C.',
+    vive_bogota: 'si',
   })
 
   const [errores, setErrores] = useState({})
@@ -77,12 +77,10 @@ export default function RegistroGanador() {
       e.barrio = 'Máximo 60 caracteres'
     }
 
-    if (!form.municipio || !form.municipio.trim()) {
-      e.municipio = 'Ingresa el municipio'
-    }
-
-    if (!form.ciudad || !form.ciudad.trim()) {
-      e.ciudad = 'Ingresa la ciudad'
+    // Ciudad SIEMPRE Bogotá D.C. (no editable)
+    // Municipio ELIMINADO del formulario (user pedido)
+    if (!form.vive_bogota || (form.vive_bogota !== 'si' && form.vive_bogota !== 'no')) {
+      e.vive_bogota = 'Selecciona una opción: Sí o No'
     }
 
     setErrores(e)
@@ -113,8 +111,9 @@ export default function RegistroGanador() {
         correo_electronico: form.correo_electronico.trim().toLowerCase(),
         direccion: form.direccion.trim(),
         barrio: form.barrio ? form.barrio.trim() : null,
-        municipio: form.municipio ? form.municipio.trim() : null,
-        ciudad: form.ciudad.trim(),
+        municipio: null,
+        ciudad: 'Bogotá D.C.',
+        vive_bogota: form.vive_bogota === 'si',
       }
 
       const res = await fetch(apiUrl('/api/promo/registro'), {
@@ -316,30 +315,89 @@ export default function RegistroGanador() {
             {errores.barrio && <span className="registro-error">{errores.barrio}</span>}
           </div>
 
-          <div className="registro-campo">
-            <label htmlFor="f-municipio">Municipio<span className="req">*</span></label>
-            <input
-              id="f-municipio"
-              type="text"
-              value={form.municipio}
-              onChange={(e) => actualizarCampo('municipio', e.target.value)}
-              placeholder="Ej: Bogotá"
-              required
-            />
-            {errores.municipio && <span className="registro-error">{errores.municipio}</span>}
-          </div>
-
           <div className="registro-campo full">
             <label htmlFor="f-ciudad">Ciudad<span className="req">*</span></label>
             <input
               id="f-ciudad"
               type="text"
-              value={form.ciudad}
-              onChange={(e) => actualizarCampo('ciudad', e.target.value)}
-              placeholder="Bogotá D.C. / Medellín / Cali / ..."
+              value="Bogotá D.C."
+              readOnly
+              disabled
+              style={{
+                background: 'rgba(255,255,255,.88)!important',
+                opacity: 1,
+                border: '2px solid rgba(0,71,186,.5)!important',
+                fontWeight: 700,
+                color: '#001f4d!important',
+                cursor: 'default',
+              }}
               required
             />
-            {errores.ciudad && <span className="registro-error">{errores.ciudad}</span>}
+            <span className="registro-error" style={{ opacity: 0, display: 'block', minHeight: '1em' }}>.</span>
+          </div>
+
+          <div className="registro-campo full" style={{ gridColumn: '1 / -1', marginBottom: 4 }}>
+            <label style={{ color: '#fff', fontWeight: 700, fontSize: 'clamp(.9rem,1.7svw,1.05rem)', lineHeight: 1.3 }}>
+              ¿Vives en Bogotá?<span className="req">*</span>
+            </label>
+            <div
+              role="radiogroup"
+              aria-labelledby="bogota-group"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: 'clamp(8px,1.6svh,14px) clamp(10px,2svw,18px)',
+                marginTop: 8,
+              }}
+            >
+              {[
+                { value: 'si', label: '✅ Sí, vivo en Bogotá D.C.' },
+                { value: 'no', label: '❌ No, vivo fuera de Bogotá' },
+              ].map((opt) => {
+                const selected = form.vive_bogota === opt.value
+                return (
+                  <label
+                    key={opt.value}
+                    htmlFor={`vive-bta-${opt.value}`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: 'clamp(10px,1.8svh,14px) clamp(12px,2.2svw,18px)',
+                      borderRadius: 12,
+                      border: selected ? '2px solid #fff' : '2px solid rgba(255,255,255,.35)',
+                      background: selected ? 'rgba(255,255,255,.22)' : 'rgba(255,255,255,.08)',
+                      boxShadow: selected ? '0 8px 20px rgba(0,0,0,.22), inset 0 0 0 1px rgba(255,255,255,.55)' : 'none',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      fontWeight: selected ? 800 : 600,
+                      fontSize: 'clamp(.9rem,1.8svw,1rem)',
+                      userSelect: 'none',
+                      transition: 'background .12s ease-out, box-shadow .12s ease-out, border-color .12s ease-out',
+                    }}
+                  >
+                    <input
+                      id={`vive-bta-${opt.value}`}
+                      type="radio"
+                      name="vive_bogota"
+                      value={opt.value}
+                      checked={selected}
+                      onChange={(e) => actualizarCampo('vive_bogota', e.target.value)}
+                      style={{
+                        width: 20,
+                        height: 20,
+                        accentColor: '#E4002B',
+                        minWidth: 20,
+                        cursor: 'pointer',
+                      }}
+                      required
+                    />
+                    {opt.label}
+                  </label>
+                )
+              })}
+            </div>
+            {errores.vive_bogota && <span className="registro-error" style={{ marginTop: -2 }}>{errores.vive_bogota}</span>}
           </div>
 
           <button

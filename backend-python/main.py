@@ -4747,6 +4747,202 @@ def admin_registros_xlsx(admin: dict = _promo_Depends(get_current_admin)):
     )
 
 
+# K)bis GET /api/admin/fotos — Listado paginado de TODAS las fotos procesadas (admin JWT auth)
+#      Entrega: count total, resumen por escenario, items con URL pública para miniatura + descarga individual
+@app.get("/api/admin/fotos")
+def admin_list_fotos_procesadas(
+    page: int = 1,
+    per_page: int = 60,
+    escenario_id: str | None = None,
+    sort: str = "created_at_desc",
+    admin: dict = _promo_Depends(get_current_admin),
+):
+    page = max(1, int(page or 1))
+    per_page = max(1, min(500, int(per_page or 60)))
+    offset = (page - 1) * per_page
+
+    base_where = []
+    params = []
+    if escenario_id:
+        base_where.append("escenario_id = %s" if DB_ENGINE == "POSTGRES" else "escenario_id = ?")
+        params.append(escenario_id.strip())
+
+    where_sql = f" WHERE {' AND '.join(base_where)}" if base_where else ""
+
+    sort_map = {
+        "created_at_asc": "created_at ASC",
+        "created_at_desc": "created_at DESC",
+        "escenario_asc": "escenario_id ASC, created_at DESC",
+    }
+    order_sql = sort_map.get(sort, sort_map["created_at_desc"])
+
+    cols = [
+        "id", "foto_id", "filename", "url_publica",
+        "escenario_id", "escenario_nombre",
+        "modelo_ia", "canvas_w", "canvas_h", "formato", "bytes_total",
+        "created_at",
+    ]
+    cols_str = ", ".join(cols)
+    ph = "%s" if DB_ENGINE == "POSTGRES" else "?"
+
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT COUNT(*) FROM fotos_procesadas{where_sql}", tuple(params) if DB_ENGINE == "POSTGRES" else params)
+        total = int(cur.fetchone()[0] or 0)
+
+        # Resumen por escenario (sin filtro, para mostrar chips globales)
+        if DB_ENGINE == "POSTGRES":
+            cur.execute(
+                "SELECT escenario_id, escenario_nombre, COUNT(*) AS c FROM fotos_procesadas GROUP BY 1,2 ORDER BY c DESC"
+            )
+        else:
+            cur.execute(
+                "SELECT escenario_id, escenario_nombre, COUNT(*) AS c FROM fotos_procesadas GROUP BY 1,2 ORDER BY c DESC"
+            )
+        por_escenario = [{"id": r[0], "nombre": r[1], "count": int(r[2])} for r in cur.fetchall()]
+
+        limit_sql = f" LIMIT {ph} OFFSET {ph}"
+        qp = list(params) + [per_page, offset]
+        cur.execute(
+            f"SELECT {cols_str} FROM fotos_procesadas{where_sql} ORDER BY {order_sql}{limit_sql}",
+            tuple(qp) if DB_ENGINE == "POSTGRES" else qp,
+        )
+        rows = cur.fetchall()
+
+    items = []
+    for r in rows:
+        d = _promo_row_to_dict(r, cols)
+        url_pub = d.get("url_publica") or ""
+        # Asegurar URL pública correcta (por si legacy tenía path absoluto Windows)
+        if url_pub and not url_pub.startswith("/fotos/") and not url_pub.startswith("http"):
+            fn = d.get("filename") or ""
+            if fn:
+                url_pub = f"/fotos/{fn}"
+        items.append({
+            "id": d.get("id"),
+            "foto_id": d.get("foto_id"),
+            "filename": d.get("filename"),
+            "url": url_pub,
+            "escenario_id": d.get("escenario_id"),
+            "escenario_nombre": d.get("escenario_nombre") or d.get("escenario_id"),
+            "modelo_ia": d.get("modelo_ia"),
+            "canvas_w": d.get("canvas_w"),
+            "canvas_h": d.get("canvas_h"),
+            "formato": d.get("formato"),
+            "bytes_total": int(d.get("bytes_total") or 0),
+            "created_at": str(d.get("created_at") or ""),
+        })
+
+    pages = (total + per_page - 1) // per_page if per_page else 1
+    return {
+        "ok": True,
+        "admin": {"id": int(admin["id"]), "username": admin.get("username", "")},
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "pages": max(1, pages),
+        "por_escenario": por_escenario,
+        "items": items,
+    }
+
+
+# K)ter GET /api/admin/fotos/zip — Descarga ZIP con TODAS las fotos procesadas (o con límite seguridad 5000)
+@app.get("/api/admin/fotos/zip")
+def admin_fotos_descargar_zip(
+    admin: dict = _promo_Depends(get_current_admin),
+    max_fotos: int = 5000,
+    escenario_id: str | None = None,
+):
+    import zipfile as _zf
+    max_fotos = max(1, min(20000, int(max_fotos or 5000)))
+    cols = ["filename", "escenario_id", "created_at"]
+    cols_str = ", ".join(cols)
+    base_where = []
+    params = []
+    if escenario_id:
+        base_where.append("escenario_id = %s" if DB_ENGINE == "POSTGRES" else "escenario_id = ?")
+        params.append(escenario_id.strip())
+    where_sql = f" WHERE {' AND '.join(base_where)}" if base_where else ""
+    ph = "%s" if DB_ENGINE == "POSTGRES" else "?"
+
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(f"SELECT COUNT(*) FROM fotos_procesadas{where_sql}", tuple(params) if DB_ENGINE == "POSTGRES" else params)
+        total_count = int(cur.fetchone()[0] or 0)
+        cur.execute(
+            f"SELECT {cols_str} FROM fotos_procesadas{where_sql} ORDER BY created_at DESC LIMIT {ph}",
+            (tuple(params) + (max_fotos,)) if DB_ENGINE == "POSTGRES" else (params + [max_fotos]),
+        )
+        rows = cur.fetchall()
+
+    fotos_en_db = [_promo_row_to_dict(r, cols) for r in rows]
+
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    suf_esc = f"_{escenario_id}" if escenario_id else ""
+    fname = f"FotomatFiesta_fotos{suf_esc}_{ts}.zip"
+
+    buf = io.BytesIO()
+    incluidas = 0
+    faltan_disco = 0
+    with _zf.ZipFile(buf, mode="w", compression=_zf.ZIP_DEFLATED, compresslevel=5) as zf:
+        for idx, f in enumerate(fotos_en_db, start=1):
+            fn = (f.get("filename") or "").strip()
+            if not fn:
+                continue
+            full_path = os.path.join(STORAGE_DIR, os.path.basename(fn))
+            if not os.path.isfile(full_path):
+                faltan_disco += 1
+                continue
+            # Dentro del ZIP: subcarpeta por escenario para que quede organizado
+            esc = (f.get("escenario_id") or "sin-escenario").strip().lower().replace(" ", "-")
+            arcname = f"{esc}/{fn}"
+            try:
+                zf.write(full_path, arcname=arcname)
+                incluidas += 1
+            except Exception:
+                faltan_disco += 1
+    buf.seek(0)
+    total_bytes = buf.tell()
+    buf.seek(0)
+
+    try:
+        _promo_insert_auditoria(
+            int(admin["id"]),
+            "EXPORT_FOTOS_ZIP",
+            {
+                "filename": fname,
+                "fotos_en_base": total_count,
+                "fotos_incluidas_zip": incluidas,
+                "fotos_faltan_disco": faltan_disco,
+                "zip_size_bytes": total_bytes,
+                "filtro_escenario": escenario_id,
+                "limite_max": max_fotos,
+            },
+        )
+    except Exception:
+        pass
+
+    from urllib.parse import quote as _urlquote
+    fname_ascii = fname.encode('ascii', errors='ignore').decode('ascii') or "fotos.zip"
+    fname_utf8_quoted = _urlquote(fname, safe="")
+    content_disposition = (
+        f'attachment; filename="{fname_ascii}"; filename*=UTF-8\'\'{fname_utf8_quoted}'
+    )
+    headers_extra = {
+        "Content-Disposition": content_disposition,
+        "Content-Length": str(total_bytes),
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        "X-Fotos-Encontradas": str(total_count),
+        "X-Fotos-Incluidas": str(incluidas),
+        "X-Fotos-Faltan-Disco": str(faltan_disco),
+    }
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="application/zip",
+        headers=headers_extra,
+    )
+
+
 # L) POST /api/admin/qr/generar
 @app.post("/api/admin/qr/generar")
 async def admin_qr_generar(req: AdminQrGenerarReq, request: Request, admin: dict = _promo_Depends(get_current_admin)):

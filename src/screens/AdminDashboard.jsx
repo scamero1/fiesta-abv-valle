@@ -5,7 +5,7 @@ import { leerJWTValido, borrarJWT, BACKEND_URL, apiUrl } from './AdminLogin.jsx'
 import PdfConfigModal from './PdfConfigModal.jsx'
 import '../styles/adminDashboard.css'
 
-const TABS = ['Configuración', 'Registros', 'Códigos QR']
+const TABS = ['Configuración', 'Registros', 'Códigos QR', 'Fotos Procesadas']
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
@@ -86,6 +86,7 @@ export default function AdminDashboard() {
         {activeTab === 0 && <TabConfiguracion authHeaders={getAuthHeaders} toast={mostrarToast} />}
         {activeTab === 1 && <TabRegistros authHeaders={getAuthHeaders} toast={mostrarToast} />}
         {activeTab === 2 && <TabQRCodigos authHeaders={getAuthHeaders} toast={mostrarToast} />}
+        {activeTab === 3 && <TabFotosProcesadas authHeaders={getAuthHeaders} toast={mostrarToast} />}
       </div>
 
       {toast && (
@@ -1546,14 +1547,295 @@ function TabQRCodigos({ authHeaders, toast }) {
 
       {/* ====== MODAL CONFIGURACIÓN PDF + VISTA PREVIA MINIATURA LIVE ====== */}
       <PdfConfigModal
-        open={pdfModalOpen}
-        onClose={() => setPdfModalOpen(false)}
-        onConfirm={(cfgFinalDelModal) => handlePdfModalConfirm(cfgFinalDelModal)}
-        modo={pdfModalModo}
-        qtyInfo={pdfModalExtraInfo}
-      />
-    </div>
-  )
-}
+            open={pdfModalOpen}
+            onClose={() => setPdfModalOpen(false)}
+            onConfirm={(cfgFinalDelModal) => handlePdfModalConfirm(cfgFinalDelModal)}
+            modo={pdfModalModo}
+            qtyInfo={pdfModalExtraInfo}
+          />
+        </div>
+      )
+    }
+
+
+    // 4) TAB FOTOS PROCESADAS — Galería visual completa, contador, descarga ZIP + descarga individual
+    function TabFotosProcesadas({ authHeaders, toast }) {
+      const [page, setPage] = useState(1)
+      const [perPage] = useState(60)
+      const [total, setTotal] = useState(0)
+      const [pages, setPages] = useState(1)
+      const [items, setItems] = useState([])
+      const [porEscenario, setPorEscenario] = useState([])
+      const [filtroEscenario, setFiltroEscenario] = useState(null)
+      const [loading, setLoading] = useState(true)
+      const [descargandoZip, setDescargandoZip] = useState(false)
+
+      const _base = (BACKEND_URL || '').replace(/\/+$/, '')
+
+      const cargarFotos = async (pg = 1, escId = filtroEscenario) => {
+        setLoading(true)
+        try {
+          const qs = new URLSearchParams()
+          qs.set('page', String(Math.max(1, pg)))
+          qs.set('per_page', String(perPage))
+          if (escId) qs.set('escenario_id', String(escId))
+          const res = await fetch(apiUrl(`/api/admin/fotos?${qs.toString()}`), {
+            method: 'GET',
+            headers: authHeaders(),
+          })
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`)
+          }
+          const d = await res.json().catch(() => ({}))
+          if (d && d.ok) {
+            setTotal(Number(d.total || 0))
+            setPages(Number(d.pages || 1))
+            setItems(Array.isArray(d.items) ? d.items : [])
+            setPorEscenario(Array.isArray(d.por_escenario) ? d.por_escenario : [])
+            setPage(Math.max(1, pg))
+          } else {
+            toast('Error cargando fotos del servidor', 'err')
+          }
+        } catch (e) {
+          toast(`Error de conexión cargando fotos: ${e?.message || e}`, 'err', true)
+        } finally {
+          setLoading(false)
+        }
+      }
+
+      useEffect(() => {
+        let cancelado = false
+        ;(async () => {
+          if (!cancelado) await cargarFotos(1, filtroEscenario)
+        })()
+        return () => { cancelado = true }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [filtroEscenario])
+
+      const cambiarPagina = (delta) => {
+        const nueva = Math.min(pages, Math.max(1, page + delta))
+        cargarFotos(nueva, filtroEscenario)
+      }
+
+      const descargarZipTodas = async () => {
+        if (descargandoZip) return
+        setDescargandoZip(true)
+        try {
+          const qs = new URLSearchParams()
+          if (filtroEscenario) qs.set('escenario_id', String(filtroEscenario))
+          const url = apiUrl(`/api/admin/fotos/zip?${qs.toString()}`)
+          const res = await fetch(url, { method: 'GET', headers: authHeaders() })
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          const totalHeader = (res.headers && res.headers.get) ? Number(res.headers.get('X-Fotos-Incluidas') || '0') : 0
+          const blob = await res.blob()
+          const dispRaw = (res.headers && res.headers.get ? res.headers.get('Content-Disposition') : '') || ''
+          let fname = `fotos-evento-${Date.now()}.zip`
+          const fnMatch = dispRaw.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)
+          if (fnMatch && fnMatch[1]) {
+            try { fname = decodeURIComponent(fnMatch[1]) } catch { fname = fnMatch[1] }
+          }
+          const a = document.createElement('a')
+          const blobUrl = URL.createObjectURL(blob)
+          a.href = blobUrl
+          a.download = fname
+          document.body.appendChild(a)
+          a.click()
+          try { a.remove() } catch {}
+          setTimeout(() => { try { URL.revokeObjectURL(blobUrl) } catch {} }, 4000)
+          toast(`✅ ZIP descargado exitosamente · ${totalHeader || '~'} fotos incluidas`, 'ok')
+        } catch (e) {
+          toast(`Error descargando ZIP: ${e?.message || e}`, 'err', true)
+        } finally {
+          setDescargandoZip(false)
+        }
+      }
+
+      const fmtFecha = (iso) => {
+        if (!iso) return ''
+        try {
+          const dt = new Date(iso)
+          if (Number.isNaN(dt.getTime())) return String(iso).slice(0, 16)
+          const pad = (n) => String(n).padStart(2, '0')
+          return `${pad(dt.getDate())}/${pad(dt.getMonth() + 1)}/${String(dt.getFullYear()).slice(-2)} · ${pad(dt.getHours())}:${pad(dt.getMinutes())}`
+        } catch { return String(iso).slice(0, 16) }
+      }
+      const fmtBytes = (b) => {
+        const n = Number(b || 0)
+        if (n < 1024) return `${n} B`
+        if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+        return `${(n / 1024 / 1024).toFixed(2)} MB`
+      }
+
+      const fullImgUrl = (item) => {
+        const u = item && item.url ? String(item.url) : ''
+        if (!u) return ''
+        if (u.startsWith('http://') || u.startsWith('https://')) return u
+        if (u.startsWith('/')) return `${_base}${u}`
+        return `${_base}/${u}`
+      }
+
+      const escenarioNombre = (id) => {
+        const found = (porEscenario || []).find((e) => String(e.id) === String(id))
+        return (found && (found.nombre || found.id)) || id
+      }
+
+      return (
+        <div className="admin-tab-panel">
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
+            <h2 className="admin-panel-title" style={{ margin: 0 }}>🖼 Fotos Procesadas en Evento</h2>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div className="admin-fotos-contador-wrap" title="Total de fotos registradas en base de datos">
+                <span className="admin-fotos-contador-label">TOTAL TOMADAS</span>
+                <span className="admin-fotos-contador-num">{total.toLocaleString('es-CO')}</span>
+              </div>
+              <button
+                type="button"
+                className="admin-btn lg primary"
+                onClick={descargarZipTodas}
+                disabled={descargandoZip || loading || total <= 0}
+                title={filtroEscenario ? `Descargar ZIP sólo de ${escenarioNombre(filtroEscenario)}` : 'Descargar ZIP con TODAS las fotos del evento (organizado por carpetas de escenario)'}
+              >
+                {descargandoZip ? '⏳ Preparando ZIP...' : total <= 0 ? '⬇ Sin fotos para descargar' : `⬇ Descargar ${filtroEscenario ? ` (${escenarioNombre(filtroEscenario)})` : 'TODAS'} ${total > 0 ? ` · ${total.toLocaleString('es-CO')} fotos` : ''} (ZIP)`}
+              </button>
+              <button
+                type="button"
+                className="admin-btn md ghost"
+                onClick={() => cargarFotos(page, filtroEscenario)}
+                title="Volver a cargar el listado de fotos desde el servidor"
+              >
+                🔄 Refrescar
+              </button>
+            </div>
+          </div>
+
+          {porEscenario && porEscenario.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6, marginBottom: 14, alignItems: 'center' }}>
+              <span style={{ color: '#475569', fontSize: 13, fontWeight: 600 }}>Filtrar por escenario:</span>
+              <button type="button" className={`admin-chip ${filtroEscenario === null ? 'active' : ''}`} onClick={() => { setFiltroEscenario(null); setPage(1) }}>
+                TODOS · {total.toLocaleString('es-CO')}
+              </button>
+              {porEscenario.map((esc) => (
+                <button
+                  key={esc.id}
+                  type="button"
+                  className={`admin-chip ${String(filtroEscenario) === String(esc.id) ? 'active' : ''}`}
+                  onClick={() => { setFiltroEscenario(String(esc.id)); setPage(1) }}
+                  title={`Filtrar solo ${esc.nombre || esc.id}`}
+                >
+                  {esc.nombre || esc.id} · {Number(esc.count || 0).toLocaleString('es-CO')}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {loading ? (
+            <p style={{ textAlign: 'center', color: '#94a3b8', padding: '40px 0' }}>⏳ Cargando galería de fotos del evento...</p>
+          ) : total <= 0 ? (
+            <div style={{ padding: '52px 16px', textAlign: 'center', color: '#64748b', borderRadius: 14, border: '2px dashed #cbd5e1', background: '#f8fafc' }}>
+              <div style={{ fontSize: 42, marginBottom: 8 }}>📷</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#475569', marginBottom: 4 }}>Todavía no hay fotos procesadas</div>
+              <div>Cuando las personas tomen fotos en el fotomatón, aparecerán aquí con la opción de descargarlas individualmente o en ZIP.</div>
+            </div>
+          ) : (
+            <>
+              <PaginadorFotos page={page} pages={pages} total={total} perPage={perPage} onCambiar={cambiarPagina} />
+
+              <div className="admin-fotos-grid" role="list" aria-label="Galería fotos procesadas">
+                {items.map((item) => {
+                  const imgSrc = fullImgUrl(item)
+                  const nombreFn = (item.filename || `foto-${item.id || ''}.jpg`)
+                  return (
+                    <figure className="admin-foto-card" key={`${item.id || item.foto_id || item.filename}-${page}`} role="listitem">
+                      <div className="admin-foto-card-imgwrap">
+                        {imgSrc ? (
+                          <a href={imgSrc} target="_blank" rel="noopener noreferrer nofollow" title="Abrir foto en grande en pestaña nueva (1920x1080)">
+                            <img
+                              src={imgSrc}
+                              alt={`Foto ${item.escenario_nombre || item.escenario_id || ''} ${item.created_at || ''}`}
+                              loading="lazy"
+                              decoding="async"
+                              className="admin-foto-thumb"
+                              onError={(e) => {
+                                try {
+                                  e.currentTarget.style.display = 'none'
+                                  const ph = e.currentTarget.parentElement && e.currentTarget.parentElement.querySelector && e.currentTarget.parentElement.querySelector('.admin-foto-placeholder')
+                                  if (ph) ph.style.display = 'flex'
+                                } catch {}
+                              }}
+                            />
+                          </a>
+                        ) : null}
+                        <div className="admin-foto-placeholder" style={{ display: imgSrc ? 'none' : 'flex' }} title="Miniatura no disponible">🖼 Sin vista previa</div>
+                      </div>
+                      <figcaption className="admin-foto-card-meta">
+                        <div className="admin-foto-card-escenario" title={`Escenario ${item.escenario_id || ''}`}>
+                          <b>{item.escenario_nombre || escenarioNombre(item.escenario_id) || item.escenario_id || '—'}</b>
+                        </div>
+                        <div className="admin-foto-card-fecha" title={String(item.created_at || '')}>⏱ {fmtFecha(item.created_at)}</div>
+                        <div className="admin-foto-card-size">
+                          {item.canvas_w && item.canvas_h ? <span>📐 {item.canvas_w}×{item.canvas_h} · </span> : null}
+                          💾 {fmtBytes(item.bytes_total)}
+                        </div>
+                        <a
+                          className="admin-btn sm primary admin-foto-download-btn"
+                          href={imgSrc || '#'}
+                          download={nombreFn}
+                          title={`Descargar foto ${nombreFn} (JPG calidad 98, DPI 300)`}
+                          onClick={(e) => {
+                            if (!imgSrc) { e.preventDefault(); toast('Foto no disponible para descarga', 'err'); return }
+                            try {
+                              const urlObj = new URL(imgSrc, window.location.origin)
+                              if (urlObj.origin !== window.location.origin) {
+                                e.preventDefault()
+                                ;(async () => {
+                                  try {
+                                    const r = await fetch(imgSrc, { cache: 'force-cache' })
+                                    const bl = await r.blob()
+                                    const u2 = URL.createObjectURL(bl)
+                                    const a2 = document.createElement('a')
+                                    a2.href = u2; a2.download = nombreFn
+                                    document.body.appendChild(a2); a2.click(); a2.remove()
+                                    setTimeout(() => { try { URL.revokeObjectURL(u2) } catch {} }, 3000)
+                                  } catch {
+                                    window.open(imgSrc, '_blank', 'noopener,noreferrer')
+                                  }
+                                })()
+                              }
+                            } catch { /* noop */ }
+                          }}
+                        >
+                          ⬇ Descargar JPG
+                        </a>
+                      </figcaption>
+                    </figure>
+                  )
+                })}
+              </div>
+
+              <PaginadorFotos page={page} pages={pages} total={total} perPage={perPage} onCambiar={cambiarPagina} />
+            </>
+          )}
+        </div>
+      )
+    }
+
+    function PaginadorFotos({ page, pages, total, perPage, onCambiar }) {
+      const desde = total <= 0 ? 0 : (page - 1) * Number(perPage || 0) + 1
+      const hasta = Math.min(Number(total || 0), page * Number(perPage || 0))
+      return (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '14px 0 8px 0', color: '#475569', fontSize: 13, flexWrap: 'wrap', gap: 8 }}>
+          <div>
+            Mostrando <b style={{ color: '#0f172a' }}>{desde}</b>–<b style={{ color: '#0f172a' }}>{hasta}</b> de <b style={{ color: '#0f172a' }}>{total.toLocaleString('es-CO')}</b> fotos
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button type="button" className="admin-btn sm ghost" disabled={page <= 1} onClick={() => onCambiar(-1)}>← Anterior</button>
+            <div style={{ display: 'flex', alignItems: 'center', padding: '0 10px', color: '#0f172a', fontWeight: 700, background: '#e2e8f0', borderRadius: 8 }}>
+              Página {page} / {pages}
+            </div>
+            <button type="button" className="admin-btn sm ghost" disabled={page >= pages} onClick={() => onCambiar(+1)}>Siguiente →</button>
+          </div>
+        </div>
+      )
+    }
 
 

@@ -112,3 +112,30 @@
 .admin-preview-link-preview-btn{border:1px dashed rgba(255,255,255,.4);background:rgba(255,255,255,.06);color:#fff;font-weight:700;padding:6px 10px;border-radius:10px;font-size:.8rem;font-family:var(--font-ui);cursor:pointer;transition:background .15s ease;}
 .admin-preview-link-preview-btn:hover{background:rgba(255,255,255,.12);}
 .admin-preview-link-preview-btn:active{background:rgba(255,255,255,.18);}
+
+/* =================== TAB 4: FOTOS PROCESADAS (Galería admin) =================== */
+.admin-tab-panel{width:100%;min-width:0;display:flex;flex-direction:column;gap:4px;}
+.admin-chip{display:inline-flex;align-items:center;justify-content:center;min-height:32px;height:32px;padding:0 14px;border-radius:999px;background:#fff;border:1.5px solid #cbd5e1;color:#475569;font-family:var(--font-ui);font-weight:600;font-size:.82rem;cursor:pointer;transition:all .12s var(--ease);}
+.admin-chip:hover{border-color:#94a3b8;color:#0f172a;background:#f8fafc;}
+.admin-chip.active{background:linear-gradient(180deg,var(--color-azul-secundario),var(--color-azul-primario));border-color:transparent;color:#fff;box-shadow:0 2px 0 #001d5a;}
+
+.admin-fotos-contador-wrap{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:8px 22px;border-radius:14px;background:linear-gradient(180deg,var(--color-azul-secundario),var(--color-azul-primario));color:#fff;box-shadow:0 4px 14px rgba(0,42,122,.22),0 0 0 1px rgba(255,255,255,.16) inset;min-width:170px;}
+.admin-fotos-contador-label{font-size:.7rem;letter-spacing:.14em;font-weight:700;text-transform:uppercase;opacity:.9;}
+.admin-fotos-contador-num{font-size:1.9rem;font-weight:900;letter-spacing:.02em;line-height:1;font-family:var(--font-display);}
+
+.admin-fotos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;}
+.admin-foto-card{margin:0;padding:0;background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,.07);display:flex;flex-direction:column;transition:transform .12s var(--ease),box-shadow .18s var(--ease);}
+.admin-foto-card:hover{transform:translateY(-2px);box-shadow:0 10px 24px -8px rgba(15,23,42,.25),0 0 0 1px rgba(0,71,186,.12);}
+.admin-foto-card-imgwrap{position:relative;aspect-ratio:16/9;background:#f1f5f9;display:flex;align-items:center;justify-content:center;overflow:hidden;width:100%;min-height:100px;}
+.admin-foto-card-imgwrap > a{display:block;width:100%;height:100%;}
+.admin-foto-thumb{width:100%;height:100%;object-fit:cover;display:block;background:#f8fafc;}
+.admin-foto-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.8rem;font-weight:600;letter-spacing:.02em;background:#f1f5f9;padding:16px;}
+
+.admin-foto-card-meta{display:flex;flex-direction:column;gap:4px;padding:10px 12px 12px;}
+.admin-foto-card-escenario{color:var(--color-azul-primario);font-size:.85rem;line-height:1.25;}
+.admin-foto-card-fecha{color:#475569;font-size:.78rem;line-height:1.2;}
+.admin-foto-card-size{color:#64748b;font-size:.72rem;font-family:var(--font-mono,ui-monospace,monospace);line-height:1.2;}
+.admin-foto-download-btn{align-self:stretch;margin-top:6px;width:100%;min-width:0;}
+
+@media (max-width:1024px){.admin-fotos-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;}.admin-fotos-contador-num{font-size:1.6rem;}}
+@media (max-width:640px){.admin-fotos-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}.admin-fotos-contador-wrap{padding:6px 14px;min-width:140px;}.admin-fotos-contador-num{font-size:1.4rem;}}

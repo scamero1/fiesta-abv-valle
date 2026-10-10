@@ -4648,7 +4648,6 @@ def admin_delete_registro(id: int, admin: dict = _promo_Depends(get_current_admi
 # K) GET /api/admin/registros/xlsx
 @app.get("/api/admin/registros/xlsx")
 def admin_registros_xlsx(admin: dict = _promo_Depends(get_current_admin)):
-    # FIX: Import openpyxl CON try-except global para evitar 500 si no está instalado en Railway
     try:
         import openpyxl as _xl
         from openpyxl.styles import Font as _XlFont
@@ -4657,94 +4656,100 @@ def admin_registros_xlsx(admin: dict = _promo_Depends(get_current_admin)):
             status_code=500,
             detail=f"Librería openpyxl no disponible en el servidor. Error interno: {str(_e_xl)}",
         )
-    wb = _xl.Workbook()
-    ws = wb.active
-    ws.title = "Registros Promo"
-    headers = [
-        "Posición", "Fecha Registro", "QR Usado", "Nombres y Apellidos",
-        "Celular", "Teléfono Fijo", "Correo", "Dirección", "Barrio",
-        "Municipio", "Ciudad", "Es Bogotá?", "Modalidad Entrega",
-        "Aceptó Términos?", "Aceptó Habeas Data?", "IP", "User Agent",
-    ]
-    ws.append(headers)
-    for cell in ws[1]:
-        cell.font = _XlFont(bold=True)
+    try:
+        wb = _xl.Workbook()
+        ws = wb.active
+        ws.title = "Registros Promo"
+        headers = [
+            "Posición", "Fecha Registro", "QR Usado", "Nombres y Apellidos",
+            "Celular", "Teléfono Fijo", "Correo", "Dirección", "Barrio",
+            "Municipio", "Ciudad", "Es Bogotá?", "Modalidad Entrega",
+            "Aceptó Términos?", "Aceptó Habeas Data?", "IP", "User Agent",
+        ]
+        ws.append(headers)
+        for cell in ws[1]:
+            cell.font = _XlFont(bold=True)
 
-    cols = [
-        "posicion_orden_ganador", "created_at", "qr_uuid", "nombres_apellidos",
-        "celular", "telefono_fijo", "correo_electronico", "direccion", "barrio",
-        "municipio", "ciudad", "es_bogota_direccion", "modalidad_entrega",
-        "acepta_terminos", "acepta_habeas", "ip_cliente", "user_agent",
-    ]
-    cols_str = ", ".join(cols)
-    rows_returned = 0
-    with get_db_conn() as conn:
-        cur = conn.cursor()
-        cur.execute(f"SELECT {cols_str} FROM promo_registros ORDER BY COALESCE(posicion_orden_ganador, 999999999) ASC, created_at ASC")
-        rows = cur.fetchall()
-        rows_returned = len(rows)
-        for r in rows:
-            d = _promo_row_to_dict(r, cols)
-            es_bog = bool(d["es_bogota_direccion"]) if DB_ENGINE == "POSTGRES" else (int(d["es_bogota_direccion"] or 0) == 1)
-            acc_t = bool(d["acepta_terminos"]) if DB_ENGINE == "POSTGRES" else (int(d["acepta_terminos"] or 0) == 1)
-            acc_h = bool(d["acepta_habeas"]) if DB_ENGINE == "POSTGRES" else (int(d["acepta_habeas"] or 0) == 1)
-            # FIX: Todos los string fields con fallback or "" para que None no crashee openpyxl/len
-            ws.append([
-                d.get("posicion_orden_ganador") if d.get("posicion_orden_ganador") is not None else "",
-                d.get("created_at") if d.get("created_at") is not None else "",
-                d.get("qr_uuid") or "",
-                d.get("nombres_apellidos") or "",
-                d.get("celular") or "",
-                d.get("telefono_fijo") or "",
-                d.get("correo_electronico") or "",  # FIX: antes d["correo_electronico"] crasheaba si NULL
-                d.get("direccion") or "",
-                d.get("barrio") or "",
-                d.get("municipio") or "",
-                d.get("ciudad") or "",
-                ("SÍ" if es_bog else "NO"),
-                d.get("modalidad_entrega") or "",
-                ("SÍ" if acc_t else "NO"),
-                ("SÍ" if acc_h else "NO"),
-                d.get("ip_cliente") or "",
-                (str(d.get("user_agent") or "")[:200]),
-            ])
+        cols = [
+            "posicion_orden_ganador", "created_at", "qr_uuid", "nombres_apellidos",
+            "celular", "telefono_fijo", "correo_electronico", "direccion", "barrio",
+            "municipio", "ciudad", "es_bogota_direccion", "modalidad_entrega",
+            "acepta_terminos", "acepta_habeas", "ip_cliente", "user_agent",
+        ]
+        cols_str = ", ".join(cols)
+        rows_returned = 0
+        with get_db_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(f"SELECT {cols_str} FROM promo_registros ORDER BY COALESCE(posicion_orden_ganador, 999999999) ASC, created_at ASC")
+            rows = cur.fetchall()
+            rows_returned = len(rows)
+            for r in rows:
+                d = _promo_row_to_dict(r, cols)
+                es_bog = bool(d["es_bogota_direccion"]) if DB_ENGINE == "POSTGRES" else (int(d["es_bogota_direccion"] or 0) == 1)
+                acc_t = bool(d["acepta_terminos"]) if DB_ENGINE == "POSTGRES" else (int(d["acepta_terminos"] or 0) == 1)
+                acc_h = bool(d["acepta_habeas"]) if DB_ENGINE == "POSTGRES" else (int(d["acepta_habeas"] or 0) == 1)
+                ws.append([
+                    d.get("posicion_orden_ganador") if d.get("posicion_orden_ganador") is not None else "",
+                    d.get("created_at") if d.get("created_at") is not None else "",
+                    d.get("qr_uuid") or "",
+                    d.get("nombres_apellidos") or "",
+                    d.get("celular") or "",
+                    d.get("telefono_fijo") or "",
+                    d.get("correo_electronico") or "",
+                    d.get("direccion") or "",
+                    d.get("barrio") or "",
+                    d.get("municipio") or "",
+                    d.get("ciudad") or "",
+                    ("SÍ" if es_bog else "NO"),
+                    d.get("modalidad_entrega") or "",
+                    ("SÍ" if acc_t else "NO"),
+                    ("SÍ" if acc_h else "NO"),
+                    d.get("ip_cliente") or "",
+                    (str(d.get("user_agent") or "")[:200]),
+                ])
 
-    for col_idx, _ in enumerate(headers, start=1):
-        max_len = 15
-        for row in ws.iter_rows(min_col=col_idx, max_col=col_idx, values_only=True):
-            val = row[0]
-            if val is not None:
-                max_len = max(max_len, min(50, len(str(val)) + 2))
-        ws.column_dimensions[_xl.utils.get_column_letter(col_idx)].width = max_len
+        for col_idx, _ in enumerate(headers, start=1):
+            max_len = 15
+            for row in ws.iter_rows(min_col=col_idx, max_col=col_idx, values_only=True):
+                val = row[0]
+                if val is not None:
+                    max_len = max(max_len, min(50, len(str(val)) + 2))
+            ws.column_dimensions[_xl.utils.get_column_letter(col_idx)].width = max_len
 
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    fname = f"abv-fiesta-promocion-{ts}.xlsx"
-    buf = io.BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-    _promo_insert_auditoria(int(admin["id"]), "EXPORT_XLSX", {"filename": fname, "total_rows": rows_returned})
-    # IMPORTANTE: FastAPI FileResponse() SOLO acepta path=STRING (ruta a archivo FÍSICO en disco).
-    # Si le pasas un io.BytesIO() lanza TypeError: "expected str, bytes or os.PathLike object, not _io.BytesIO".
-    # El error 500 resultante hacía que el frontend mostrara mensaje genérico "Error descargando Excel.
-    # Revisa que el backend Python esté encendido y autenticado".
-    # CORRECTO: usar StreamingResponse(iter([bytes_buf]), media_type, headers) para data en memoria.
-    # Incluimos ambos filename (RFC5987 filename*=UTF-8'' + filename= compat navegadores antiguos).
-    from urllib.parse import quote as _urlquote
-    fname_ascii = fname.encode('ascii', errors='ignore').decode('ascii') or "registros.xlsx"
-    fname_utf8_quoted = _urlquote(fname, safe="")
-    content_disposition = (
-        f'attachment; filename="{fname_ascii}"; filename*=UTF-8\'\'{fname_utf8_quoted}'
-    )
-    media_type_xlsx = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    return StreamingResponse(
-        iter([buf.getvalue()]),
-        media_type=media_type_xlsx,
-        headers={
-            "Content-Disposition": content_disposition,
-            "Content-Length": str(len(buf.getvalue())),
-            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-        },
-    )
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        fname = f"abv-fiesta-promocion-{ts}.xlsx"
+        buf = io.BytesIO()
+        wb.save(buf)
+        xlsx_bytes = buf.getvalue()
+        _promo_insert_auditoria(int(admin["id"]), "EXPORT_XLSX", {"filename": fname, "total_rows": rows_returned})
+        from urllib.parse import quote as _urlquote
+        fname_ascii = fname.encode('ascii', errors='ignore').decode('ascii') or "registros.xlsx"
+        fname_utf8_quoted = _urlquote(fname, safe="")
+        content_disposition = (
+            f'attachment; filename="{fname_ascii}"; filename*=UTF-8\'\'{fname_utf8_quoted}'
+        )
+        media_type_xlsx = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        return Response(
+            content=xlsx_bytes,
+            media_type=media_type_xlsx,
+            headers={
+                "Content-Disposition": content_disposition,
+                "Content-Length": str(len(xlsx_bytes)),
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            },
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback as _tb
+        import sys as _sys
+        print(f"[XLSX-500] {type(e).__name__}: {str(e)[:300]}", file=_sys.stderr)
+        _sys.stderr.write(_tb.format_exc())
+        _sys.stderr.flush()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error generando Excel: {type(e).__name__} — {str(e)[:200]}",
+        )
 
 
 # K)bis GET /api/admin/fotos — Listado paginado de TODAS las fotos procesadas (admin JWT auth)
@@ -4853,94 +4858,104 @@ def admin_fotos_descargar_zip(
     max_fotos: int = 5000,
     escenario_id: str | None = None,
 ):
-    import zipfile as _zf
-    max_fotos = max(1, min(20000, int(max_fotos or 5000)))
-    cols = ["filename", "escenario_id", "created_at"]
-    cols_str = ", ".join(cols)
-    base_where = []
-    params = []
-    if escenario_id:
-        base_where.append("escenario_id = %s" if DB_ENGINE == "POSTGRES" else "escenario_id = ?")
-        params.append(escenario_id.strip())
-    where_sql = f" WHERE {' AND '.join(base_where)}" if base_where else ""
-    ph = "%s" if DB_ENGINE == "POSTGRES" else "?"
-
-    with get_db_conn() as conn:
-        cur = conn.cursor()
-        cur.execute(f"SELECT COUNT(*) FROM fotos_procesadas{where_sql}", tuple(params) if DB_ENGINE == "POSTGRES" else params)
-        total_count = int(cur.fetchone()[0] or 0)
-        cur.execute(
-            f"SELECT {cols_str} FROM fotos_procesadas{where_sql} ORDER BY created_at DESC LIMIT {ph}",
-            (tuple(params) + (max_fotos,)) if DB_ENGINE == "POSTGRES" else (params + [max_fotos]),
-        )
-        rows = cur.fetchall()
-
-    fotos_en_db = [_promo_row_to_dict(r, cols) for r in rows]
-
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    suf_esc = f"_{escenario_id}" if escenario_id else ""
-    fname = f"FotomatFiesta_fotos{suf_esc}_{ts}.zip"
-
-    buf = io.BytesIO()
-    incluidas = 0
-    faltan_disco = 0
-    with _zf.ZipFile(buf, mode="w", compression=_zf.ZIP_DEFLATED, compresslevel=5) as zf:
-        for idx, f in enumerate(fotos_en_db, start=1):
-            fn = (f.get("filename") or "").strip()
-            if not fn:
-                continue
-            full_path = os.path.join(STORAGE_DIR, os.path.basename(fn))
-            if not os.path.isfile(full_path):
-                faltan_disco += 1
-                continue
-            # Dentro del ZIP: subcarpeta por escenario para que quede organizado
-            esc = (f.get("escenario_id") or "sin-escenario").strip().lower().replace(" ", "-")
-            arcname = f"{esc}/{fn}"
-            try:
-                zf.write(full_path, arcname=arcname)
-                incluidas += 1
-            except Exception:
-                faltan_disco += 1
-    buf.seek(0)
-    total_bytes = buf.tell()
-    buf.seek(0)
-
     try:
-        _promo_insert_auditoria(
-            int(admin["id"]),
-            "EXPORT_FOTOS_ZIP",
-            {
-                "filename": fname,
-                "fotos_en_base": total_count,
-                "fotos_incluidas_zip": incluidas,
-                "fotos_faltan_disco": faltan_disco,
-                "zip_size_bytes": total_bytes,
-                "filtro_escenario": escenario_id,
-                "limite_max": max_fotos,
-            },
-        )
-    except Exception:
-        pass
+        import zipfile as _zf
+        max_fotos = max(1, min(20000, int(max_fotos or 5000)))
+        cols = ["filename", "escenario_id", "created_at"]
+        cols_str = ", ".join(cols)
+        base_where = []
+        params = []
+        if escenario_id:
+            base_where.append("escenario_id = %s" if DB_ENGINE == "POSTGRES" else "escenario_id = ?")
+            params.append(escenario_id.strip())
+        where_sql = f" WHERE {' AND '.join(base_where)}" if base_where else ""
+        ph = "%s" if DB_ENGINE == "POSTGRES" else "?"
 
-    from urllib.parse import quote as _urlquote
-    fname_ascii = fname.encode('ascii', errors='ignore').decode('ascii') or "fotos.zip"
-    fname_utf8_quoted = _urlquote(fname, safe="")
-    content_disposition = (
-        f'attachment; filename="{fname_ascii}"; filename*=UTF-8\'\'{fname_utf8_quoted}'
-    )
-    headers_extra = {
-        "Content-Disposition": content_disposition,
-        "Content-Length": str(total_bytes),
-        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-        "X-Fotos-Encontradas": str(total_count),
-        "X-Fotos-Incluidas": str(incluidas),
-        "X-Fotos-Faltan-Disco": str(faltan_disco),
-    }
-    return StreamingResponse(
-        iter([buf.getvalue()]),
-        media_type="application/zip",
-        headers=headers_extra,
-    )
+        with get_db_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(f"SELECT COUNT(*) FROM fotos_procesadas{where_sql}", tuple(params) if DB_ENGINE == "POSTGRES" else params)
+            total_count = int(cur.fetchone()[0] or 0)
+            cur.execute(
+                f"SELECT {cols_str} FROM fotos_procesadas{where_sql} ORDER BY created_at DESC LIMIT {ph}",
+                (tuple(params) + (max_fotos,)) if DB_ENGINE == "POSTGRES" else (params + [max_fotos]),
+            )
+            rows = cur.fetchall()
+
+        fotos_en_db = [_promo_row_to_dict(r, cols) for r in rows]
+
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        suf_esc = f"_{escenario_id}" if escenario_id else ""
+        fname = f"FotomatFiesta_fotos{suf_esc}_{ts}.zip"
+
+        buf = io.BytesIO()
+        incluidas = 0
+        faltan_disco = 0
+        with _zf.ZipFile(buf, mode="w", compression=_zf.ZIP_DEFLATED, compresslevel=5) as zf:
+            for idx, f in enumerate(fotos_en_db, start=1):
+                fn = (f.get("filename") or "").strip()
+                if not fn:
+                    continue
+                full_path = os.path.join(STORAGE_DIR, os.path.basename(fn))
+                if not os.path.isfile(full_path):
+                    faltan_disco += 1
+                    continue
+                esc = (f.get("escenario_id") or "sin-escenario").strip().lower().replace(" ", "-")
+                arcname = f"{esc}/{fn}"
+                try:
+                    zf.write(full_path, arcname=arcname)
+                    incluidas += 1
+                except Exception:
+                    faltan_disco += 1
+        zip_bytes = buf.getvalue()
+
+        try:
+            _promo_insert_auditoria(
+                int(admin["id"]),
+                "EXPORT_FOTOS_ZIP",
+                {
+                    "filename": fname,
+                    "fotos_en_base": total_count,
+                    "fotos_incluidas_zip": incluidas,
+                    "fotos_faltan_disco": faltan_disco,
+                    "zip_size_bytes": len(zip_bytes),
+                    "filtro_escenario": escenario_id,
+                    "limite_max": max_fotos,
+                },
+            )
+        except Exception:
+            pass
+
+        from urllib.parse import quote as _urlquote
+        fname_ascii = fname.encode('ascii', errors='ignore').decode('ascii') or "fotos.zip"
+        fname_utf8_quoted = _urlquote(fname, safe="")
+        content_disposition = (
+            f'attachment; filename="{fname_ascii}"; filename*=UTF-8\'\'{fname_utf8_quoted}'
+        )
+        headers_extra = {
+            "Content-Disposition": content_disposition,
+            "Content-Length": str(len(zip_bytes)),
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "X-Fotos-Encontradas": str(total_count),
+            "X-Fotos-Incluidas": str(incluidas),
+            "X-Fotos-Faltan-Disco": str(faltan_disco),
+        }
+        return Response(
+            content=zip_bytes,
+            media_type="application/zip",
+            headers=headers_extra,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback as _tb
+        import sys as _sys
+        print(f"[ZIP-500] {type(e).__name__}: {str(e)[:300]}", file=_sys.stderr)
+        _sys.stderr.write(_tb.format_exc())
+        _sys.stderr.flush()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error generando ZIP: {type(e).__name__} — {str(e)[:200]}",
+        )
 
 
 # L) POST /api/admin/qr/generar

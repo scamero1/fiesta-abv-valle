@@ -4688,9 +4688,19 @@ def admin_registros_xlsx(admin: dict = _promo_Depends(get_current_admin)):
                 es_bog = bool(d["es_bogota_direccion"]) if DB_ENGINE == "POSTGRES" else (int(d["es_bogota_direccion"] or 0) == 1)
                 acc_t = bool(d["acepta_terminos"]) if DB_ENGINE == "POSTGRES" else (int(d["acepta_terminos"] or 0) == 1)
                 acc_h = bool(d["acepta_habeas"]) if DB_ENGINE == "POSTGRES" else (int(d["acepta_habeas"] or 0) == 1)
+                _created_at = d.get("created_at")
+                if _created_at is not None:
+                    try:
+                        from zoneinfo import ZoneInfo as _ZI
+                        _created_at = _created_at.astimezone(_ZI("America/Bogota")).replace(tzinfo=None)
+                    except Exception:
+                        try:
+                            _created_at = _created_at.replace(tzinfo=None)
+                        except Exception:
+                            _created_at = str(_created_at)
                 ws.append([
                     d.get("posicion_orden_ganador") if d.get("posicion_orden_ganador") is not None else "",
-                    d.get("created_at") if d.get("created_at") is not None else "",
+                    _created_at if _created_at is not None else "",
                     d.get("qr_uuid") or "",
                     d.get("nombres_apellidos") or "",
                     d.get("celular") or "",

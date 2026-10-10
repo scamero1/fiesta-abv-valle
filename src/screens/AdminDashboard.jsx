@@ -286,13 +286,23 @@ function TabRegistros({ authHeaders, toast }) {
 
   const handleDescargarExcel = async () => {
     try {
-      const token = leerJWTValido()
       const res = await fetch(apiUrl('/api/admin/registros/xlsx'), {
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: authHeaders(),
       })
-      if (!res.ok) throw new Error('No se pudo descargar')
+      if (!res.ok) {
+        let detalle = ''
+        try {
+          const json = await res.json()
+          detalle = (json && (json.detail || json.message)) || ''
+        } catch (_) { }
+        const msgs = {
+          401: 'Sesión expirada. Cierra sesión y vuelve a entrar al panel.',
+          403: 'No tienes permisos para descargar el Excel.',
+          404: 'Endpoint no encontrado. ¿Redeployaste el backend SHA nuevo?',
+        }
+        const base = msgs[res.status] || `Error del servidor (HTTP ${res.status}).`
+        throw new Error(`${base}${detalle ? ' Detalle: ' + detalle : ''}`)
+      }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -306,8 +316,9 @@ function TabRegistros({ authHeaders, toast }) {
       a.remove()
       URL.revokeObjectURL(url)
       toast('📥 Excel descargado correctamente', 'ok')
-    } catch {
-      toast('❌ Error descargando Excel. Revisa que el backend Python esté encendido y autenticado.', 'err')
+    } catch (e) {
+      const msg = e && e.message ? e.message : 'Revisa que el backend Python esté encendido y autenticado.'
+      toast(`❌ ${msg}`, 'err')
     }
   }
 
